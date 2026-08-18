@@ -1002,17 +1002,24 @@ export const LandingPage: React.FC = () => {
                 <p className="lp-request-note">
                   Resposta em horário comercial. O levantamento não tem custo e não obriga a nada.
                 </p>
-                <a
-                  className={`lp-btn lp-btn-solid lp-btn-lg ${briefingReady ? '' : 'disabled'}`}
-                  href={briefingReady ? briefingWhatsAppUrl(briefing, result) : undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-disabled={!briefingReady}
-                >
-                  {briefingReady
-                    ? 'Abrir WhatsApp com esta mensagem'
-                    : 'Preencha nome e necessidade'}
-                </a>
+                {briefingReady ? (
+                  <a
+                    className="lp-btn lp-btn-solid lp-btn-lg"
+                    href={briefingWhatsAppUrl(briefing, result)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir WhatsApp com esta mensagem
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    className="lp-btn lp-btn-solid lp-btn-lg disabled"
+                    disabled
+                  >
+                    Preencha nome e necessidade
+                  </button>
+                )}
               </div>
             </div>
 
