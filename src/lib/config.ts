@@ -2,7 +2,7 @@
 
 export const CONTACT = {
   /** WhatsApp empresarial. */
-  whatsapp: '5544991658870',
+  whatsapp: '554491658870',
   whatsappDisplay: '+55 44 9165-8870',
   name: 'Pedro Satin',
   handle: '@pedrosatin',
