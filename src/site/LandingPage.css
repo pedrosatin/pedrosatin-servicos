@@ -11,7 +11,9 @@
   --line-strong: #33415a;
   --ink: #f1f5f9;
   --ink-dim: #97a6bb;
-  --ink-faint: #64748b;
+  /* Contraste mínimo 5.07:1 sobre o fundo mais claro do site (--bg-raised
+     #1a2333), acima do mínimo de 4.5:1 exigido pelo WCAG 2 AA. */
+  --ink-faint: #8593aa;
   --green: #10b981;
   --green-deep: #059669;
   --green-soft: rgba(16, 185, 129, 0.12);
