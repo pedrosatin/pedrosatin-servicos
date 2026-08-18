@@ -8,7 +8,6 @@
 
 import { buildFindings, scoreFromFindings } from './findings';
 import {
-  buildSyntheticPageSpeedReport,
   fetchContent,
   fetchDns,
   fetchEmailAuth,
@@ -17,7 +16,7 @@ import {
   isValidDomain,
   normalizeDomain,
 } from './sources';
-import type { AuditResult, AuditStep, PageSpeedReport } from './types';
+import type { AuditResult, AuditStep } from './types';
 
 export const createSteps = (domain: string): AuditStep[] => [
   {
@@ -175,44 +174,24 @@ export const runAudit = async (
   ]);
 
   const pagespeedStep = stepOf('pagespeed');
-  let pagespeedValue: PageSpeedReport | null = null;
-  let pagespeedError: string | null = null;
-
-  if (includePageSpeed) {
-    const outcome = await runStep(
-      pagespeedStep.id,
-      pagespeedStep.label,
-      pagespeedStep.command,
-      () => fetchPageSpeed(domain, strategy),
-      (report) =>
-        `desempenho ${report.scores.performance ?? '—'}/100 · SEO ${report.scores.seo ?? '—'}/100${report.field.available ? ' · com dados de usuários reais' : ' · sem amostra de campo'}`,
-      onStep,
-    );
-
-    if (outcome.value) {
-      pagespeedValue = outcome.value;
-    } else {
-      if (contentOutcome.value) {
-        pagespeedValue = buildSyntheticPageSpeedReport(contentOutcome.value, strategy);
-        onStep?.({
-          ...pagespeedStep,
-          status: 'done',
-          detail: `desempenho ${pagespeedValue.scores.performance ?? '—'}/100 · estimativa baseada nas métricas do servidor`,
-        });
-      } else {
-        pagespeedError = outcome.error;
-      }
-    }
-  } else {
-    onStep?.({ ...pagespeedStep, status: 'skipped' });
-  }
+  const pagespeedOutcome = includePageSpeed
+    ? await runStep(
+        pagespeedStep.id,
+        pagespeedStep.label,
+        pagespeedStep.command,
+        () => fetchPageSpeed(domain, strategy),
+        (report) =>
+          `desempenho ${report.scores.performance ?? '—'}/100 · SEO ${report.scores.seo ?? '—'}/100${report.field.available ? ' · com dados de usuários reais' : ' · sem amostra de campo'}`,
+        onStep,
+      )
+    : (onStep?.({ ...pagespeedStep, status: 'skipped' }), { value: null, error: null });
 
   // Uma fonte que falha não pode passar por "nada encontrado". O PageSpeed
   // desligado de propósito é outra coisa: reduz o alcance sem invalidá-lo.
   const missing: string[] = [];
   if (!dns) missing.push('resolução de DNS');
   if (contentOutcome.error) missing.push('leitura do HTML, robots.txt e sitemap');
-  if (includePageSpeed && !pagespeedValue && pagespeedError) missing.push('medição de desempenho');
+  if (includePageSpeed && pagespeedOutcome.error) missing.push('medição do Google (PageSpeed)');
 
   const coverage = { complete: missing.length === 0, missing };
 
@@ -225,8 +204,8 @@ export const runAudit = async (
     email: emailOutcome.value,
     registration: registrationOutcome.value,
     content: contentOutcome.value,
-    pagespeed: pagespeedValue,
-    pagespeedError,
+    pagespeed: pagespeedOutcome.value,
+    pagespeedError: pagespeedOutcome.error,
     contentError: contentOutcome.error,
     findings: [],
     score: null,
