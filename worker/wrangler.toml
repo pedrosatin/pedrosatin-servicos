@@ -2,6 +2,12 @@ name = "pedrosatin-audit"
 main = "src/index.ts"
 compatibility_date = "2026-08-18"
 
+workers_dev = true
+
+routes = [
+  { pattern = "servicos-api.pedrosatin.com", custom_domain = true }
+]
+
 [vars]
 # Origens autorizadas a chamar o endpoint, separadas por vírgula.
 ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev,http://localhost:5173,http://localhost:4173"
