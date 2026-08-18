@@ -84,7 +84,12 @@ export const buildFindings = (result: AuditResult): Finding[] => {
       });
     }
 
-    if (!content.compressed) {
+    const isCdn = content.server
+      ? /cloudflare|vercel|netlify|cloudfront|fastly|akamai/i.test(content.server)
+      : false;
+    const isCompressed = content.compressed || isCdn;
+
+    if (!isCompressed) {
       push({
         id: 'sem-compressao',
         area: 'desempenho',

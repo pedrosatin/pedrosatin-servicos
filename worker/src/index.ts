@@ -148,6 +148,7 @@ const fetchWithTimeout = async (url: string, init: RequestInit = {}): Promise<Re
       headers: {
         'user-agent': USER_AGENT,
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-encoding': 'gzip, deflate, br, zstd',
         'accept-language': 'pt-BR,pt;q=0.9',
         ...(init.headers as Record<string, string> | undefined),
       },
@@ -317,7 +318,9 @@ const runAudit = async (input: string): Promise<AuditResponse> => {
     poweredBy: header('x-powered-by'),
     cacheControl: header('cache-control'),
     contentEncoding: header('content-encoding'),
-    compressed: header('content-encoding') !== null,
+    compressed:
+      header('content-encoding') !== null ||
+      /cloudflare|vercel|netlify|cloudfront|fastly|akamai/i.test(header('server') ?? ''),
     securityHeaders: {
       hsts: header('strict-transport-security'),
       contentTypeOptions: header('x-content-type-options'),
