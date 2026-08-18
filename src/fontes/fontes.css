@@ -1,0 +1,37 @@
+/* Fontes servidas pelo próprio domínio.
+ *
+ * Antes elas vinham do Google Fonts, o que significava duas conexões extras
+ * (fonts.googleapis.com para o CSS, fonts.gstatic.com para o arquivo) antes de
+ * o primeiro caractere aparecer, e uma requisição do visitante a um terceiro
+ * que o visitante não escolheu. Agora os arquivos saem do mesmo servidor da
+ * página, na mesma conexão já aberta, e com o cache permanente de /assets/.
+ *
+ * São os arquivos variáveis do Google Fonts (Inter v20, JetBrains Mono v24),
+ * recorte `latin`, que cobre o português inteiro. Licença SIL Open Font 1.1
+ * para as duas famílias — ver `src/fontes/LICENCA.md`.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  /* Eixo variável: a folha usa 580, 620 e 650, que pesos fixos arredondariam. */
+  font-weight: 400 700;
+  /* `swap` desenha o texto na fonte do sistema enquanto o arquivo baixa. Sem
+     ele o navegador esconde o texto por até três segundos. */
+  font-display: swap;
+  src: url('./inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('./jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
