@@ -91,7 +91,7 @@ export const buildStructuredData = (): string =>
         '@type': 'WebPage',
         '@id': PAGE_ID,
         url: `${SITE_URL}/`,
-        name: 'Análise gratuita de site | Velocidade, Google e domínio',
+        name: 'Análise de site: velocidade, Google e domínio | Pedro Satin',
         description: DESCRIPTION,
         inLanguage: 'pt-BR',
         isPartOf: { '@id': SITE_ID },
