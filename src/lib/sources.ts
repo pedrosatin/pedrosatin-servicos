@@ -351,36 +351,6 @@ const pickScreenshot = (
   };
 };
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos
-
-export const getCachedPageSpeed = (domain: string, strategy: 'mobile' | 'desktop'): PageSpeedReport | null => {
-  try {
-    if (typeof window === 'undefined' || !window.sessionStorage) return null;
-    const raw = sessionStorage.getItem(`psi:${domain}:${strategy}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - parsed.timestamp < CACHE_TTL_MS && parsed.report) {
-      return parsed.report as PageSpeedReport;
-    }
-    sessionStorage.removeItem(`psi:${domain}:${strategy}`);
-  } catch {
-    // Ignora falhas de storage local
-  }
-  return null;
-};
-
-export const setCachedPageSpeed = (domain: string, strategy: 'mobile' | 'desktop', report: PageSpeedReport): void => {
-  try {
-    if (typeof window === 'undefined' || !window.sessionStorage) return;
-    sessionStorage.setItem(
-      `psi:${domain}:${strategy}`,
-      JSON.stringify({ timestamp: Date.now(), report }),
-    );
-  } catch {
-    // Ignora falhas de storage local
-  }
-};
-
 /**
  * Constrói uma medição sintética fiel de desempenho a partir das métricas reais
  * de rede e estrutura HTML coletadas pelo Worker quando o PageSpeed estiver indisponível.
@@ -497,9 +467,6 @@ export const fetchPageSpeed = async (
   domain: string,
   strategy: 'mobile' | 'desktop' = 'mobile',
 ): Promise<PageSpeedReport> => {
-  const cached = getCachedPageSpeed(domain, strategy);
-  if (cached) return cached;
-
   const params = new URLSearchParams({ url: `https://${domain}`, strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) {
     params.append('category', category);
@@ -540,7 +507,7 @@ export const fetchPageSpeed = async (
     .sort((a, b) => b.savingsMs - a.savingsMs)
     .slice(0, 5);
 
-  const report: PageSpeedReport = {
+  return {
     strategy,
     scores: {
       performance: toScore(categories.performance?.score),
@@ -569,9 +536,6 @@ export const fetchPageSpeed = async (
     opportunities,
     fetchedAt: new Date().toISOString(),
   };
-
-  setCachedPageSpeed(domain, strategy, report);
-  return report;
 };
 
 /* ------------------------------------------------------------------ *
