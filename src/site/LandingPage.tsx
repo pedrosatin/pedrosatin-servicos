@@ -295,7 +295,7 @@ export const LandingPage: React.FC = () => {
 
                 {phase === 'idle' && steps.length === 0 && (
                   <div className="lp-hint">
-                    <p>Sem site para testar? Use um destes, que fui eu quem construiu:</p>
+                    <p>Sem site para testar? Analise esta própria página ou um destes projetos que construí:</p>
                     <div className="lp-presets">
                       {CASE_STUDIES.map((item) => (
                         <button key={item.domain} type="button" onClick={() => runFor(item.domain)}>
