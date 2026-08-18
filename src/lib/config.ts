@@ -17,9 +17,9 @@ export const SITE_URL = 'https://servicos.pedrosatin.com';
  * não baixa 171 KB para desenhar 300 px de largura.
  */
 export const PROFILE = {
-  photo: '/imagens/retrato.webp',
+  photo: '/imagens/pedro-satin-linkedin.webp',
   /** Recorte fechado no rosto, para a miniatura em telas estreitas. */
-  photoSquare: '/imagens/retrato-quadrado.webp',
+  photoSquare: '/imagens/pedro-satin-linkedin-quadrado.webp',
   photoAlt: 'Pedro Satin, engenheiro de software e professor',
   linkedin: 'https://www.linkedin.com/in/pedro-satin',
   github: 'https://www.github.com/pedrosatin',

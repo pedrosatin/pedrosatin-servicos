@@ -204,20 +204,53 @@ const vcardName = (entity: RdapEntity | undefined): string | null => {
   return null;
 };
 
-export const fetchRegistration = async (domain: string): Promise<DomainRegistration> => {
+export const fetchRegistration = async (inputDomain: string): Promise<DomainRegistration> => {
+  const domain = getApexDomain(inputDomain);
   const isBr = domain.endsWith('.br');
   const source: 'registro.br' | 'rdap.org' = isBr ? 'registro.br' : 'rdap.org';
   const endpoint = isBr
     ? `https://rdap.registro.br/domain/${encodeURIComponent(domain)}`
     : `https://rdap.org/domain/${encodeURIComponent(domain)}`;
 
-  const response = await fetch(endpoint, { headers: { accept: 'application/rdap+json' } });
+  try {
+    const response = await fetch(endpoint, { headers: { accept: 'application/rdap+json' } });
 
-  if (response.status === 404) {
-    const apex = getApexDomain(domain);
-    if (apex !== domain) {
-      return fetchRegistration(apex);
+    if (response.status === 404 || !response.ok) {
+      return {
+        found: false,
+        domain,
+        registrar: null,
+        registeredAt: null,
+        expiresAt: null,
+        changedAt: null,
+        daysToExpire: null,
+        status: [],
+        nameservers: [],
+        dnssec: false,
+        source,
+      };
     }
+
+    const data = (await response.json()) as RdapDomain;
+    const expiresAt = eventDate(data.events, 'expiration');
+    const registrar = data.entities?.find((e) => e.roles?.includes('registrar'));
+
+    return {
+      found: true,
+      domain: data.ldhName?.toLowerCase() ?? domain,
+      registrar: isBr ? 'Registro.br (NIC.br)' : vcardName(registrar),
+      registeredAt: eventDate(data.events, 'registration'),
+      expiresAt,
+      changedAt: eventDate(data.events, 'last changed'),
+      daysToExpire: expiresAt
+        ? Math.round((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
+        : null,
+      status: data.status ?? [],
+      nameservers: data.nameservers?.map((n) => n.ldhName.toLowerCase()) ?? [],
+      dnssec: data.secureDNS?.delegationSigned === true,
+      source,
+    };
+  } catch {
     return {
       found: false,
       domain,
@@ -232,27 +265,6 @@ export const fetchRegistration = async (domain: string): Promise<DomainRegistrat
       source,
     };
   }
-  if (!response.ok) throw new Error(`RDAP respondeu ${response.status}.`);
-
-  const data = (await response.json()) as RdapDomain;
-  const expiresAt = eventDate(data.events, 'expiration');
-  const registrar = data.entities?.find((e) => e.roles?.includes('registrar'));
-
-  return {
-    found: true,
-    domain: data.ldhName?.toLowerCase() ?? domain,
-    registrar: isBr ? 'Registro.br (NIC.br)' : vcardName(registrar),
-    registeredAt: eventDate(data.events, 'registration'),
-    expiresAt,
-    changedAt: eventDate(data.events, 'last changed'),
-    daysToExpire: expiresAt
-      ? Math.round((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
-      : null,
-    status: data.status ?? [],
-    nameservers: data.nameservers?.map((n) => n.ldhName.toLowerCase()) ?? [],
-    dnssec: data.secureDNS?.delegationSigned === true,
-    source,
-  };
 };
 
 /* ------------------------------------------------------------------ *
@@ -356,14 +368,12 @@ export const fetchPageSpeed = async (
 
   if (data.error) {
     if (data.error.code === 429) {
-      throw new Error(
-        'Cota da API do PageSpeed esgotada. Configure VITE_PSI_KEY com uma chave própria.',
-      );
+      throw new Error('Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.');
     }
-    throw new Error(data.error.message);
+    throw new Error('A medição de velocidade do Google não pôde ser concluída no momento.');
   }
   if (!response.ok || !data.lighthouseResult) {
-    throw new Error('O PageSpeed não conseguiu analisar este endereço.');
+    throw new Error('O Google não conseguiu analisar este endereço no momento.');
   }
 
   const audits = data.lighthouseResult.audits ?? {};

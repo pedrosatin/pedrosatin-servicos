@@ -541,7 +541,7 @@ export const LandingPage: React.FC = () => {
             )}
             {result.pagespeedError && (
               <p className="lp-notice">
-                A medição do Google não pôde ser feita: {result.pagespeedError}
+                A medição de velocidade no celular não pôde ser carregada ({result.pagespeedError}). Todos os dados de segurança, domínio e indexação continuam válidos.
               </p>
             )}
 
