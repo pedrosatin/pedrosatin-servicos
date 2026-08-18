@@ -44,7 +44,7 @@ export const buildStructuredData = (): string =>
         '@type': 'Person',
         '@id': PERSON_ID,
         name: CONTACT.name,
-        jobTitle: 'Engenheiro de Software',
+        jobTitle: 'Engenheiro de Software e Professor Universitário',
         url: PROFILE.portfolio,
         image: `${SITE_URL}${PROFILE.photo}`,
         knowsAbout: [
@@ -53,6 +53,8 @@ export const buildStructuredData = (): string =>
           'SEO técnico',
           'Registro de domínio .br',
           'Configuração de DNS',
+          'Tecnologias Emergentes',
+          'Inteligência Artificial',
         ],
         sameAs: [PROFILE.linkedin, PROFILE.github, PROFILE.portfolio],
       },
