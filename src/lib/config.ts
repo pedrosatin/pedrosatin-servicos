@@ -47,6 +47,12 @@ export interface CaseStudy {
 
 export const CASE_STUDIES: CaseStudy[] = [
   {
+    domain: 'servicos.pedrosatin.com',
+    name: 'Pedro Satin — Serviços',
+    segment: 'Esta própria página',
+    summary: 'Auditoria técnica de ponta a ponta, zero scripts de terceiros bloqueantes e nota máxima de desempenho.',
+  },
+  {
     domain: 'pedrosatin.com',
     name: 'Pedro Satin',
     segment: 'Portfólio de engenharia',
