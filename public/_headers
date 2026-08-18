@@ -1,0 +1,30 @@
+# Cabeçalhos servidos pelo Cloudflare Pages.
+#
+# A auditoria desta própria página cobra HSTS, ausência de X-Powered-By e
+# compressão. Fazer o contrário aqui seria vender o que não se pratica.
+#
+# As fontes tipográficas são servidas por este domínio (`src/fontes/`), então
+# `style-src` e `font-src` não precisam liberar terceiro nenhum.
+#
+# `connect-src` lista exatamente as fontes que a análise consulta do navegador:
+# DNS público do Google, RDAP do Registro.br e o genérico, a API do PageSpeed e
+# o Worker que lê o HTML dos sites. Ao publicar o Worker em domínio próprio,
+# troque `https://*.workers.dev` pelo endereço final.
+
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://dns.google https://rdap.registro.br https://rdap.org https://www.googleapis.com https://*.workers.dev; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+# Os nomes dos arquivos em /assets/ são gerados pelo build e carregam o hash do
+# conteúdo: mudança de conteúdo é mudança de endereço, então o cache pode ser
+# permanente. As imagens em /imagens/ têm nome fixo e são trocadas à mão, então
+# ficam com prazo curto.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/imagens/*
+  Cache-Control: public, max-age=86400

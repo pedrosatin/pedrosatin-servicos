@@ -1,0 +1,6 @@
+# servicos.pedrosatin.com
+
+User-agent: *
+Allow: /
+
+Sitemap: https://servicos.pedrosatin.com/sitemap.xml

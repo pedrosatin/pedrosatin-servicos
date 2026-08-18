@@ -1,0 +1,242 @@
+{
+  "/home/satin/Work/personal/pedrosatin-servicos/vite.config.ts": {
+    "mtime": 1786899863.0734127,
+    "hash": "88439104b3c207f17d33ef3160e3b080"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/main.tsx": {
+    "mtime": 1786899863.072839,
+    "hash": "787e5a07efeb2bf6209d5937195f2f68"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/vite-env.d.ts": {
+    "mtime": 1786911672.5447118,
+    "hash": "4c364a331bec2dc3b844ef409bc01975"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/App.tsx": {
+    "mtime": 1787009410.1617799,
+    "hash": "9fd257325fd331f4916a18d7e61f65e5"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/Navbar.tsx": {
+    "mtime": 1787009478.5948358,
+    "hash": "0047eaaa0d03d824dcfec84877f0fc2a"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/Hero.tsx": {
+    "mtime": 1787009478.595136,
+    "hash": "9dd2547b32ff8479152b74e370b874f7"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/AuditSimulator.tsx": {
+    "mtime": 1787009478.594424,
+    "hash": "9bd5ee2ba88a0175654428aa811c9b78"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/Solutions.tsx": {
+    "mtime": 1786902024.741283,
+    "hash": "1180d094b68dbb93e24ed737d07fd543"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/QuoteWidget.tsx": {
+    "mtime": 1787009478.5955594,
+    "hash": "d72af0c788ff0c8901b4c5ddd304845d"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/CaseStudy.tsx": {
+    "mtime": 1786902019.7082448,
+    "hash": "8eae779c8b2c356e1da490f14c5131a4"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/Packages.tsx": {
+    "mtime": 1787009478.593997,
+    "hash": "23d6918beb4aa3b5854caf0dac8944fa"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/FAQ.tsx": {
+    "mtime": 1786902044.608433,
+    "hash": "2f27729a5053a746244bd1e0f0d4eba3"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/Footer.tsx": {
+    "mtime": 1787009478.592087,
+    "hash": "b8c7f9e0b5fa0cfa4c90ba543c6999b4"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/index.ts": {
+    "mtime": 1786899955.4270031,
+    "hash": "17adbe1919279dc25cbacbed29f007bd"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/components/StyleSwitcherBar.tsx": {
+    "mtime": 1787009415.9086144,
+    "hash": "1904ab273c1cd06353227e339d94a199"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype4.tsx": {
+    "mtime": 1787009478.596206,
+    "hash": "0b140ea53d2f9780871d5c2fac8cead1"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype1.tsx": {
+    "mtime": 1787009478.5970979,
+    "hash": "fb77295f836ab5f7264d5796c23bec7c"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype5.tsx": {
+    "mtime": 1787009478.601282,
+    "hash": "9776b3be8929776d1f179032a5b5d96f"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype2.tsx": {
+    "mtime": 1787009478.6019232,
+    "hash": "dd40535758f772ce790d4f84d8a4badb"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype3.tsx": {
+    "mtime": 1787009478.5997362,
+    "hash": "fc038f1c246d9762ff2d606fc7f60ebf"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype8.tsx": {
+    "mtime": 1787009478.6025994,
+    "hash": "b6f532bdcd8eccb6f58822e17aff219f"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype9.tsx": {
+    "mtime": 1787009478.600573,
+    "hash": "832b4f1d29b9684d64d1553fa6051b17"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype6.tsx": {
+    "mtime": 1787009478.59807,
+    "hash": "9515f57f6c7dbeb3a7cd293e2dc35738"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype7.tsx": {
+    "mtime": 1786909284.8323355,
+    "hash": "6ac491dd8debc200b741be30af6bf301"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype10.tsx": {
+    "mtime": 1787009478.5989385,
+    "hash": "814e32fdb2da0b195bea00a6af86ff6d"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype11.tsx": {
+    "mtime": 1786911773.4236338,
+    "hash": "33d89806c2395d45be5e54d9a85196ee"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype12.tsx": {
+    "mtime": 1786911934.689115,
+    "hash": "d68c2e57cf0657d8fa9a6fb136236dab"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype13.tsx": {
+    "mtime": 1786912070.8953714,
+    "hash": "5cac675ee393e85c8d42280464272503"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype14.tsx": {
+    "mtime": 1786912198.3605504,
+    "hash": "5a54f745266e0ea6627a26c3de9803e8"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype15.tsx": {
+    "mtime": 1786912327.5637481,
+    "hash": "b2a7f5686a36821fd5d3376d5d3cce90"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype16.tsx": {
+    "mtime": 1786912435.2197587,
+    "hash": "8cbdbb041551b6dd79fb82998182bca8"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype17.tsx": {
+    "mtime": 1786912567.3573828,
+    "hash": "74945f5aef54496af9f6e651d9104d19"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype18.tsx": {
+    "mtime": 1786912686.662782,
+    "hash": "a32fb9ddc61923d7b6101c765119c1e4"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype19.tsx": {
+    "mtime": 1786912840.423513,
+    "hash": "b7d6a4595fe7f18ef5827f9435b35e83"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/prototypes/Prototype20.tsx": {
+    "mtime": 1786912934.303538,
+    "hash": "08a3cd5ac8ca8977ed4e400dca4e42dd"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/types.ts": {
+    "mtime": 1786911444.9066486,
+    "hash": "67aeb481be719088f842ea35056c7daa"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/sources.ts": {
+    "mtime": 1786911513.242265,
+    "hash": "f14c54d0c735147b0658a8f9d730e078"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/findings.ts": {
+    "mtime": 1786911630.9893332,
+    "hash": "9a49ee8048a39e0e84b6eafd03c26170"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/audit.ts": {
+    "mtime": 1786911656.1615624,
+    "hash": "9ed7be2e49b4132fe9a307bde0d24a1e"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/useAudit.ts": {
+    "mtime": 1786911666.6956584,
+    "hash": "7634f2ffdbe5ac5c5edc29a777b099f7"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/format.ts": {
+    "mtime": 1786911677.9957616,
+    "hash": "0e41ddbcb3673e7da54dad1e31aadd00"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/narrative.ts": {
+    "mtime": 1786912805.1161215,
+    "hash": "e75068be96fbd6876ebb299ade8817e4"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/config.ts": {
+    "mtime": 1787009085.9271536,
+    "hash": "6332533a2fcdbdc4950f6f082e99c88b"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/lib/message.ts": {
+    "mtime": 1787009096.9748309,
+    "hash": "87d4e5efd508df38a69f1bc15fc35cf1"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/site/LandingPage.tsx": {
+    "mtime": 1787009642.7308424,
+    "hash": "ad4d237722a92d261b651d2332816a02"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/worker/dev-server.mjs": {
+    "mtime": 1786913035.025617,
+    "hash": "55fd6d3a07b7674ffb00563d82858519"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/worker/src/parse.ts": {
+    "mtime": 1786911306.3891878,
+    "hash": "7ab6ea3b7b41bfe82655f07474b35bf8"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/worker/src/index.ts": {
+    "mtime": 1786913059.5468767,
+    "hash": "236d0c4dd8d085e41ef1feb2df243e96"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/README.md": {
+    "mtime": 1786899863.058637,
+    "hash": "10495bfcc6c568eca4dab6dd5df795d3"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/index.html": {
+    "mtime": 1786902005.184135,
+    "hash": "4278481c3e8f7ee9acc16ccc0877ddf8"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/CONTEXT.md": {
+    "mtime": 1786902326.39586,
+    "hash": "494652de600ac9f22ec030ce60979ace"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/DESIGN_CONCEPTS.md": {
+    "mtime": 1786909226.1764193,
+    "hash": "51debfd7c3c31ea850314cc65ef865b2"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/DESIGN_CONCEPTS_V2.md": {
+    "mtime": 1786913229.1776483,
+    "hash": "c8fb8d05aa622274143d994e183c320f"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/worker/README.md": {
+    "mtime": 1786911407.0443087,
+    "hash": "f3fba0bdb2408c410678cacbe6311560"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/public/favicon.svg": {
+    "mtime": 1786899863.0683954,
+    "hash": "7e840862161341271697daa99a40d76b"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/public/icons.svg": {
+    "mtime": 1786899863.069004,
+    "hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/public/assets/pedrosatin.webp": {
+    "mtime": 1786899958.4030228,
+    "hash": "b99f0d39b97ed2d2f64d46ec88c1e7fe"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/assets/hero.png": {
+    "mtime": 1786899863.0710618,
+    "hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/assets/react.svg": {
+    "mtime": 1786899863.0715973,
+    "hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "/home/satin/Work/personal/pedrosatin-servicos/src/assets/vite.svg": {
+    "mtime": 1786899863.0723953,
+    "hash": "9960a24288958394ac50e57ff638b036"
+  }
+}
