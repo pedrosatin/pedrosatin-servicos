@@ -828,41 +828,41 @@ export const LandingPage: React.FC = () => {
             <div className="lp-about-text">
               <p>
                 Sou Pedro Satin, bacharel em Engenharia de Software pela UniCesumar e pós-graduado
-                em Desenvolvimento Frontend. Trabalho hoje como engenheiro de software na Saúde
-                Bliss, em integrações com operadoras de plano de saúde, com React e TypeScript no
-                frontend e serviços em Node.js.
+                em Desenvolvimento Frontend. Atuo como engenheiro de software na Saúde Bliss,
+                desenvolvendo automações com inteligência artificial e integrações com operadoras de
+                plano de saúde, com React e TypeScript no frontend, serviços em Node.js e infraestrutura na AWS.
               </p>
               <p>
-                Antes disso fui desenvolvedor frontend no Inter, no time do Intershop, onde
-                participei da migração de Gatsby para Next.js, da evolução do SEO da loja e da
-                construção de um design system interno. Busca não é assunto lateral para mim: ali
-                era medir, corrigir e conferir o resultado, que é exatamente o ciclo que a análise
-                no topo desta página começa.
+                Sou também professor universitário na UniCesumar, onde ministro a disciplina de
+                Tecnologias Emergentes (cobrindo IA generativa, agentes autônomos e arquiteturas web)
+                no curso de Engenharia de Software, além de passagens anteriores por Análise e
+                Desenvolvimento de Sistemas. A rotina docente exige clareza conceitual e domínio profundo
+                de cada camada do desenvolvimento.
               </p>
               <p>
-                Também lecionei nos cursos de Análise e Desenvolvimento de Sistemas e Engenharia de
-                Software na UniCesumar, onde hoje ministro Tecnologias Emergentes. E mantenho
-                projetos próprios no ar, feitos e publicados por mim, que você pode analisar aqui
-                mesmo na seção seguinte.
+                Antes disso fui desenvolvedor frontend no Inter (time do Intershop), participando da
+                migração de Gatsby para Next.js, da evolução do SEO da loja, de design systems e de
+                observabilidade em grande escala. Esse histórico une o rigor técnico de quem ensina
+                com a experiência prática de quem coloca produtos no ar com alta performance.
               </p>
             </div>
 
             <ul className="lp-about-facts">
               <li>
-                <strong>Hoje</strong>
-                <span>Engenheiro de software na Saúde Bliss</span>
+                <strong>Engenharia</strong>
+                <span>Engenheiro de software na Saúde Bliss (IA e integrações)</span>
               </li>
               <li>
-                <strong>Antes</strong>
-                <span>Frontend no Inter (Intershop), Claranet e UniCesumar</span>
-              </li>
-              <li>
-                <strong>Ensino</strong>
+                <strong>Docência</strong>
                 <span>Professor de Engenharia de Software na UniCesumar</span>
               </li>
               <li>
+                <strong>Experiência</strong>
+                <span>Frontend no Inter (Intershop), Claranet e UniCesumar (Studeo)</span>
+              </li>
+              <li>
                 <strong>Formação</strong>
-                <span>Engenharia de Software, com pós em Desenvolvimento Frontend</span>
+                <span>Bacharel em Engenharia de Software com pós em Frontend</span>
               </li>
             </ul>
           </div>
