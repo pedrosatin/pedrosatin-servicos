@@ -20,6 +20,9 @@ dist-ssr
 # Cloudflare
 .wrangler
 
+# Graphify
+graphify-out
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

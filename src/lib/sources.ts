@@ -29,6 +29,20 @@ export const isValidDomain = (domain: string): boolean =>
   /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(domain) &&
   domain.includes('.');
 
+/**
+ * Extrai o domínio raiz (apex) a partir de um subdomínio (ex.: servicos.pedrosatin.com -> pedrosatin.com).
+ */
+export const getApexDomain = (domain: string): string => {
+  const parts = domain.toLowerCase().split('.');
+  if (parts.length <= 2) return domain;
+  const tld = parts[parts.length - 1];
+  const sld = parts[parts.length - 2];
+  if (tld === 'br' && parts.length >= 3 && sld && sld.length <= 3) {
+    return parts.slice(-3).join('.');
+  }
+  return parts.slice(-2).join('.');
+};
+
 /* ------------------------------------------------------------------ *
  * DNS sobre HTTPS
  * ------------------------------------------------------------------ */
@@ -112,20 +126,37 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
 };
 
 export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<EmailAuthReport> => {
-  const dmarcRecords = await resolveRecord(`_dmarc.${domain}`, 'TXT');
+  let activeDns = dns;
+  let targetDomain = domain;
+  if (!dns.mx.length) {
+    const apex = getApexDomain(domain);
+    if (apex !== domain) {
+      try {
+        const apexDns = await fetchDns(apex);
+        if (apexDns.mx.length > 0) {
+          activeDns = apexDns;
+          targetDomain = apex;
+        }
+      } catch {
+        // mantém dns original
+      }
+    }
+  }
+
+  const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
   const dmarc =
     dmarcRecords
       .filter((r) => r.type === 16)
       .map((r) => stripQuotes(r.data))
       .find((value) => value.toLowerCase().startsWith('v=dmarc1')) ?? null;
 
-  const spf = dns.txt.find((value) => value.toLowerCase().startsWith('v=spf1')) ?? null;
+  const spf = activeDns.txt.find((value) => value.toLowerCase().startsWith('v=spf1')) ?? null;
 
   const policyMatch = dmarc ? /\bp\s*=\s*(none|quarantine|reject)/i.exec(dmarc) : null;
 
   return {
-    hasMx: dns.mx.length > 0,
-    mxProvider: identifyProvider(dns.mx),
+    hasMx: activeDns.mx.length > 0,
+    mxProvider: identifyProvider(activeDns.mx),
     spf,
     dmarc,
     // O grupo 1 existe sempre que a expressão casa, mas o tipo de `exec` não
@@ -183,6 +214,10 @@ export const fetchRegistration = async (domain: string): Promise<DomainRegistrat
   const response = await fetch(endpoint, { headers: { accept: 'application/rdap+json' } });
 
   if (response.status === 404) {
+    const apex = getApexDomain(domain);
+    if (apex !== domain) {
+      return fetchRegistration(apex);
+    }
     return {
       found: false,
       domain,
