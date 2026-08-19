@@ -89,6 +89,32 @@ const metaContent = (html: string, keyAttr: 'name' | 'property', key: string): s
   return null;
 };
 
+/**
+ * Casa, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
+ * com todo o seu conteúdo) OU um comentário HTML — fechado ou não.
+ *
+ * A ordem das alternativas é o que faz o `<!--` que aparece dentro de um
+ * JavaScript embutido (`var s = "<!--"`) não ser confundido com comentário: ao
+ * chegar no `<script`, a primeira alternativa consome o bloco inteiro antes de
+ * a segunda ter chance de olhar para dentro dele.
+ */
+const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
+
+/**
+ * Remove apenas comentários HTML, preservando todo o resto do documento.
+ *
+ * É de propósito que esta função não faça o que `stripNonContent` faz: os
+ * blocos `<script>` e `<style>` precisam continuar no HTML, porque é deles que
+ * saem as contagens de scripts (total, externos, bloqueantes), o JSON-LD e o
+ * peso do CSS embutido. Usar `stripNonContent` antes da coleta de tags zeraria
+ * essas métricas silenciosamente.
+ *
+ * O `<!--` sem fechamento consome o resto do documento, que é como o navegador
+ * também se comporta: nada depois dele chega a virar elemento.
+ */
+const stripComments = (html: string): string =>
+  html.replace(COMMENT_OR_RAW_TEXT, (match) => (match.startsWith('<!--') ? ' ' : match));
+
 const stripNonContent = (html: string): string =>
   html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
@@ -96,6 +122,14 @@ const stripNonContent = (html: string): string =>
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ');
 
+/**
+ * Única leitura que continua usando o HTML cru, comentários inclusive.
+ *
+ * Vários CMS se identificam justamente dentro de comentários — o WordPress e
+ * seus plugins deixam rastros como `<!-- This site is optimized with ... -->`
+ * ou blocos de cache citando `/wp-content/`. Filtrar comentários aqui não
+ * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
+ */
 const detectPlatform = (html: string, generator: string | null): string | null => {
   const lowered = html.toLowerCase();
   if (generator) {
@@ -156,16 +190,23 @@ const collectJsonLdTypes = (html: string): string[] => {
 };
 
 export const parseHtml = (html: string, bytes: number): HtmlReport => {
-  const htmlTag = /<html\b[^>]*>/i.exec(html)?.[0] ?? '';
+  // O que está dentro de comentário não é elemento da página: o navegador não
+  // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
+  // leituras de estrutura passam a partir daqui pelo `markup` sem comentários,
+  // e não pelo `html` cru — a única exceção é `detectPlatform`, pelos motivos
+  // documentados nela.
+  const markup = stripComments(html);
 
-  const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? null);
-  const metaDescription = metaContent(html, 'name', 'description');
+  const htmlTag = /<html\b[^>]*>/i.exec(markup)?.[0] ?? '';
 
-  const h1 = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
+  const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null);
+  const metaDescription = metaContent(markup, 'name', 'description');
+
+  const h1 = [...markup.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
     .filter((value): value is string => value !== null);
 
-  const imageTags = collectTags(html, 'img');
+  const imageTags = collectTags(markup, 'img');
   const images: ImageStats = {
     total: imageTags.length,
     withoutAlt: imageTags.filter((tag) => attr(tag, 'alt') === null).length,
@@ -175,7 +216,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     lazy: imageTags.filter((tag) => (attr(tag, 'loading') ?? '').toLowerCase() === 'lazy').length,
   };
 
-  const scriptTags = collectTags(html, 'script');
+  const scriptTags = collectTags(markup, 'script');
   const externalScripts = scriptTags.filter((tag) => attr(tag, 'src') !== null);
   const scripts: ScriptStats = {
     total: scriptTags.length,
@@ -185,16 +226,16 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     ).length,
   };
 
-  const linkTags = collectTags(html, 'link');
+  const linkTags = collectTags(markup, 'link');
   const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
 
-  const inlineStyleBytes = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
+  const inlineStyleBytes = [...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
     (total, match) => total + match[1].length,
     0,
   );
 
-  const generator = metaContent(html, 'name', 'generator');
-  const textContent = stripNonContent(html).replace(/<[^>]+>/g, ' ');
+  const generator = metaContent(markup, 'name', 'generator');
+  const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
   const wordCount = decodeEntities(textContent)
     .split(/\s+/)
     .filter((word) => word.length > 1).length;
@@ -203,7 +244,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     bytes,
     lang: clean(attr(htmlTag, 'lang')),
     charset:
-      clean(/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(html)?.[1] ?? null) ?? null,
+      clean(/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(markup)?.[1] ?? null) ?? null,
     title,
     titleLength: title?.length ?? 0,
     metaDescription,
@@ -211,18 +252,18 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     canonical: clean(
       linkTags.filter((tag) => relOf(tag) === 'canonical').map((tag) => attr(tag, 'href'))[0] ?? null,
     ),
-    robotsMeta: metaContent(html, 'name', 'robots'),
-    viewport: metaContent(html, 'name', 'viewport'),
+    robotsMeta: metaContent(markup, 'name', 'robots'),
+    viewport: metaContent(markup, 'name', 'viewport'),
     h1,
-    h2Count: (html.match(/<h2\b/gi) ?? []).length,
+    h2Count: (markup.match(/<h2\b/gi) ?? []).length,
     images,
     openGraph: {
-      title: metaContent(html, 'property', 'og:title'),
-      description: metaContent(html, 'property', 'og:description'),
-      image: metaContent(html, 'property', 'og:image'),
+      title: metaContent(markup, 'property', 'og:title'),
+      description: metaContent(markup, 'property', 'og:description'),
+      image: metaContent(markup, 'property', 'og:image'),
     },
-    twitterCard: metaContent(html, 'name', 'twitter:card'),
-    jsonLdTypes: collectJsonLdTypes(html),
+    twitterCard: metaContent(markup, 'name', 'twitter:card'),
+    jsonLdTypes: collectJsonLdTypes(markup),
     favicon: linkTags.some((tag) => relOf(tag).includes('icon')),
     scripts,
     stylesheets: linkTags.filter((tag) => relOf(tag).includes('stylesheet')).length,
