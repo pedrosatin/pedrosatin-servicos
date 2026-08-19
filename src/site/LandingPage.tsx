@@ -12,7 +12,7 @@ import { AREA_LABELS, countBySeverity } from '../lib/findings';
 import { formatDate, formatMs } from '../lib/format';
 import { auditWhatsAppUrl, briefingWhatsAppUrl, type Briefing } from '../lib/message';
 import { SERVICES } from '../lib/services';
-import { fetchPageSpeed, googleIndexUrl } from '../lib/sources';
+import { fetchPageSpeed, googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/sources';
 import { buildStructuredData } from '../lib/structuredData';
 import type { Finding, PageSpeedReport, Severity } from '../lib/types';
 import { useAudit } from '../lib/useAudit';
@@ -122,17 +122,38 @@ export const LandingPage: React.FC = () => {
 
     setDesktop(null);
     setDesktopState('idle');
+
+    // As duas medições são independentes e cada uma leva de 15 a 40 segundos.
+    // Encadeá-las custava a soma das duas ao visitante; disparadas juntas, a
+    // espera passa a ser a da mais demorada. O domínio já dá para normalizar
+    // aqui, então a de computador não precisa esperar a auditoria terminar
+    // para saber o que medir.
+    const domain = normalizeDomain(target);
+    let medicaoComputador: Promise<PageSpeedReport> | null = null;
+
+    if (isValidDomain(domain)) {
+      setDesktopState('loading');
+      medicaoComputador = fetchPageSpeed(domain, 'desktop');
+      // A promessa só é lida depois da auditoria. Sem isto, uma falha rápida
+      // vira "unhandled rejection" no console antes de chegarmos ao catch.
+      medicaoComputador.catch(() => undefined);
+    }
+
     const audit = await start(target);
 
+    if (!medicaoComputador) return;
+
     // A comparação com computador só faz sentido se a medição móvel funcionou.
-    if (audit?.pagespeed) {
-      setDesktopState('loading');
-      try {
-        setDesktop(await fetchPageSpeed(audit.domain, 'desktop'));
-        setDesktopState('idle');
-      } catch {
-        setDesktopState('failed');
-      }
+    if (!audit?.pagespeed) {
+      setDesktopState('idle');
+      return;
+    }
+
+    try {
+      setDesktop(await medicaoComputador);
+      setDesktopState('idle');
+    } catch {
+      setDesktopState('failed');
     }
   };
 
