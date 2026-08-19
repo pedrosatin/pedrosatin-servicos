@@ -8,11 +8,11 @@ import {
   buildWhatsAppUrl,
 } from '../lib/config';
 import { FAQ_ITEMS } from '../lib/faq';
-import { AREA_LABELS, countBySeverity } from '../lib/findings';
+import { AREA_LABELS, countBySeverity } from '../lib/achados';
 import { formatDate, formatMs } from '../lib/format';
 import { auditWhatsAppUrl, briefingWhatsAppUrl, type Briefing } from '../lib/message';
 import { SERVICES } from '../lib/services';
-import { fetchPageSpeed, googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/sources';
+import { googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/dominio';
 import { buildStructuredData } from '../lib/structuredData';
 import type { Finding, PageSpeedReport, Severity } from '../lib/types';
 import { useAudit } from '../lib/useAudit';
@@ -133,7 +133,9 @@ export const LandingPage: React.FC = () => {
 
     if (isValidDomain(domain)) {
       setDesktopState('loading');
-      medicaoComputador = fetchPageSpeed(domain, 'desktop');
+      medicaoComputador = import('../lib/sources').then((modulo) =>
+        modulo.fetchPageSpeed(domain, 'desktop'),
+      );
       // A promessa só é lida depois da auditoria. Sem isto, uma falha rápida
       // vira "unhandled rejection" no console antes de chegarmos ao catch.
       medicaoComputador.catch(() => undefined);
