@@ -8,6 +8,8 @@
 
 import type { AuditCoverage, AuditResult, Finding } from './types';
 
+export { AREA_LABELS, countBySeverity } from './achados';
+
 const ms = (value: number | null): string =>
   value === null ? '—' : value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${Math.round(value)}ms`;
 
@@ -640,20 +642,4 @@ export const scoreFromFindings = (
     value >= 85 ? 'Bem resolvido' : value >= 65 ? 'Ajustes pontuais' : value >= 40 ? 'Precisa de atenção' : 'Situação crítica';
 
   return { value, label };
-};
-
-export const countBySeverity = (findings: Finding[]) => ({
-  critical: findings.filter((f) => f.severity === 'critical').length,
-  warning: findings.filter((f) => f.severity === 'warning').length,
-  info: findings.filter((f) => f.severity === 'info').length,
-  good: findings.filter((f) => f.severity === 'good').length,
-});
-
-export const AREA_LABELS: Record<Finding['area'], string> = {
-  indexacao: 'Indexação no Google',
-  desempenho: 'Desempenho',
-  mobile: 'Celular',
-  seguranca: 'Segurança',
-  dominio: 'Domínio',
-  conteudo: 'Conteúdo',
 };
