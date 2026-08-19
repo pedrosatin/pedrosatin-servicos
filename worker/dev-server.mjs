@@ -1,10 +1,11 @@
 /**
  * Servidor local para desenvolver sem o wrangler.
  *
- * O Node 22 já traz fetch, Request e Response globais, então o mesmo handler
- * que roda no Cloudflare pode ser executado aqui sem adaptação.
+ * O Node 24 já traz fetch, Request e Response globais, então o mesmo handler
+ * que roda no Cloudflare pode ser executado aqui sem adaptação. Ele também
+ * executa TypeScript direto, sem flag:
  *
- *   node --experimental-strip-types worker/dev-server.mjs
+ *   node worker/dev-server.mjs
  *
  * O handler recusa requisições sem origem autorizada, então no curl ela vai à
  * mão, como o navegador faria:
