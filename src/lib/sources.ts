@@ -351,6 +351,55 @@ const pickScreenshot = (
   };
 };
 
+/**
+ * O PageSpeed roda um Lighthouse de verdade no servidor do Google, e essa
+ * máquina falha com alguma frequência: numa bateria de 24 chamadas seguidas,
+ * 7 voltaram com erro — e todas as repetidas passaram na tentativa seguinte,
+ * sem nenhuma mudança no alvo. É falha passageira, não problema do site.
+ *
+ * Daí a distinção abaixo. Repetir só ajuda quando o erro é do lado de lá:
+ *
+ *  - 500/502/503 e falha de rede: o caso comum, repetir resolve;
+ *  - 429: é limite de uso. Repetir rápido piora, então a espera é maior;
+ *  - 400/403/404: a resposta não muda na segunda tentativa (endereço inválido,
+ *    chave bloqueada). Repetir só faria o visitante esperar o dobro para
+ *    receber o mesmo erro.
+ */
+const PAGESPEED_TENTATIVAS = 3;
+const PAGESPEED_TIMEOUT_MS = 60_000;
+
+/** Códigos em que insistir não muda a resposta. */
+const isErroDefinitivo = (status: number): boolean =>
+  status === 400 || status === 403 || status === 404;
+
+const esperar = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Espera antes da próxima tentativa: cresce a cada rodada e leva um sorteio.
+ * O sorteio existe porque a medição de computador e a de celular saem juntas;
+ * sem ele, as duas falhariam e voltariam a bater no Google no mesmo instante.
+ */
+const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number => {
+  const base = foiLimiteDeUso ? 5_000 : 1_000;
+  return base * 2 ** (tentativa - 1) + Math.random() * 500;
+};
+
+/** Uma ida ao PageSpeed, com teto de tempo próprio. */
+const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
+  // Sem isto, uma resposta que nunca chega deixa a etapa pendurada para sempre.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PAGESPEED_TIMEOUT_MS);
+  try {
+    return await fetch(
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`,
+      { signal: controller.signal },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export const fetchPageSpeed = async (
   domain: string,
   strategy: 'mobile' | 'desktop' = 'mobile',
@@ -361,19 +410,47 @@ export const fetchPageSpeed = async (
   }
   if (PAGESPEED_KEY) params.set('key', PAGESPEED_KEY);
 
-  const response = await fetch(
-    `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`,
-  );
-  const data = (await response.json()) as PsiResponse;
+  let data: PsiResponse | null = null;
+  let response: Response | null = null;
+  let ultimoErro: Error | null = null;
 
-  if (data.error) {
-    if (data.error.code === 429) {
-      throw new Error('Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.');
+  for (let tentativa = 1; tentativa <= PAGESPEED_TENTATIVAS; tentativa += 1) {
+    let foiLimiteDeUso = false;
+
+    try {
+      response = await buscarPageSpeed(params);
+      data = (await response.json()) as PsiResponse;
+
+      const status = data.error?.code ?? response.status;
+
+      if (!data.error && response.ok && data.lighthouseResult) break;
+
+      foiLimiteDeUso = status === 429;
+      ultimoErro = new Error(
+        foiLimiteDeUso
+          ? 'Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.'
+          : 'A medição de velocidade do Google não pôde ser concluída no momento.',
+      );
+
+      // Insistir aqui só atrasaria o mesmo erro.
+      if (isErroDefinitivo(status)) throw ultimoErro;
+    } catch (erro) {
+      if (erro === ultimoErro) throw erro;
+      // Rede caiu ou o tempo estourou: a resposta sequer chegou.
+      ultimoErro =
+        erro instanceof Error && erro.name === 'AbortError'
+          ? new Error('O Google demorou demais para responder a medição de velocidade.')
+          : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
+      data = null;
     }
-    throw new Error('A medição de velocidade do Google não pôde ser concluída no momento.');
+
+    if (tentativa < PAGESPEED_TENTATIVAS) {
+      await esperar(esperaDaTentativa(tentativa, foiLimiteDeUso));
+    }
   }
-  if (!response.ok || !data.lighthouseResult) {
-    throw new Error('O Google não conseguiu analisar este endereço no momento.');
+
+  if (!data?.lighthouseResult || !response?.ok || data.error) {
+    throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
   }
 
   const audits = data.lighthouseResult.audits ?? {};
