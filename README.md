@@ -28,9 +28,9 @@ public/        favicon, robots.txt, sitemap.xml, _headers e imagens
 assets-src/    originais que não vão para o site publicado
 ```
 
-Requer **Node 22.6 ou mais novo**: é a partir dessa versão que o servidor local
-do Worker executa TypeScript direto, sem etapa de compilação. O `.nvmrc` pede a
-**24**, que é a LTS ativa (Krypton) e a versão em que a publicação deve rodar.
+Requer **Node 24 ou mais novo**: é a LTS ativa (Krypton), a versão pedida no
+`.nvmrc` e a que a publicação usa. Nela o servidor local do Worker executa
+TypeScript direto, sem etapa de compilação e sem flag experimental.
 
 A 26 é Current, não LTS: entra em LTS só em outubro de 2026. Numa página que
 vende estabilidade não vale rodar na linha que ainda recebe mudança de
