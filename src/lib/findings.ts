@@ -566,6 +566,25 @@ export const buildFindings = (result: AuditResult): Finding[] => {
         action:
           'Significa que o contato ainda usa endereço de Gmail ou Hotmail em vez de um e-mail no próprio domínio.',
       });
+
+      // Não receber e-mail não protege contra ser usado como remetente: quem
+      // falsifica escreve o endereço que quiser no "De:", e a caixa de entrada
+      // de quem recebe não consulta o MX de quem enviou. Um domínio que nunca
+      // envia é justamente o caso mais fácil de fechar, porque a resposta certa
+      // é negar tudo, sem exceção que possa quebrar envio legítimo.
+      if (!email.spf || !email.dmarc) {
+        const faltando =
+          !email.spf && !email.dmarc ? 'SPF nem DMARC' : !email.spf ? 'SPF' : 'DMARC';
+        push({
+          id: 'dominio-falsificavel',
+          area: 'seguranca',
+          severity: 'warning',
+          title: 'Dá para mandar e-mail se passando pelo seu domínio',
+          evidence: `O domínio não publica ${faltando}, então nada declara quem pode enviar em nome dele.`,
+          action:
+            'Como este domínio não envia e-mail, a proteção é fechar tudo: um registro TXT com "v=spf1 -all" e outro em _dmarc com "v=DMARC1; p=reject;". Sem eles, um golpista pode escrever para seus clientes usando o seu endereço.',
+        });
+      }
     } else {
       if (!email.spf) {
         push({
