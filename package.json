@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
     "lint": "oxlint",
-    "typecheck": "tsc -b && npm --prefix worker exec tsc -- --noEmit",
+    "typecheck": "tsc -b && tsc -p worker/tsconfig.json --noEmit",
     "preview": "vite preview",
     "worker:dev": "node worker/dev-server.mjs",
     "worker:deploy": "npm --prefix worker run deploy"

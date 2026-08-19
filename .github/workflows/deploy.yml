@@ -11,6 +11,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,16 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            worker/package-lock.json
 
-      - name: Install dependencies
+      - name: Install root dependencies
         run: npm ci
+
+      - name: Install worker dependencies
+        run: npm --prefix worker ci
 
       - name: Lint
         run: npm run lint
@@ -51,13 +60,16 @@ jobs:
     if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            worker/package-lock.json
 
       - name: Install root dependencies
         run: npm ci
@@ -72,13 +84,13 @@ jobs:
           VITE_PSI_KEY: ${{ secrets.VITE_PSI_KEY || vars.VITE_PSI_KEY }}
 
       - name: Deploy Pages
-        run: npx wrangler pages deploy dist --project-name=pedrosatin-servicos --branch=master
+        run: npm --prefix worker exec wrangler -- pages deploy dist --project-name=pedrosatin-servicos --branch=master
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '47584a1cc0e6303cda1f64c39ee59c73' }}
 
       - name: Deploy Worker
-        run: npx wrangler deploy --config worker/wrangler.toml
+        run: npm --prefix worker exec wrangler -- deploy --config worker/wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '47584a1cc0e6303cda1f64c39ee59c73' }}
