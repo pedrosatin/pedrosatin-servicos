@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=22.6"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,7 @@
     "lint": "oxlint",
     "typecheck": "tsc -b && npm --prefix worker exec tsc -- --noEmit",
     "preview": "vite preview",
-    "worker:dev": "node --experimental-strip-types worker/dev-server.mjs",
+    "worker:dev": "node worker/dev-server.mjs",
     "worker:deploy": "npm --prefix worker run deploy"
   },
   "dependencies": {
