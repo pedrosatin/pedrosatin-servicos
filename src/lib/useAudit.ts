@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { createSteps, runAudit, type AuditOptions } from './audit';
-import { normalizeDomain } from './sources';
+import type { AuditOptions } from './audit';
+import { normalizeDomain } from './dominio';
 import type { AuditResult, AuditStep } from './types';
 
 export type AuditPhase = 'idle' | 'running' | 'done' | 'error';
@@ -40,9 +40,18 @@ export const useAudit = (options: AuditOptions = {}): UseAuditReturn => {
     setPhase('running');
     setError(null);
     setResult(null);
-    setSteps(createSteps(target));
 
     try {
+      // O motor da análise só serve depois deste clique, e responder à primeira
+      // pintura da página é o que decide a nota de quem chega pelo celular. Por
+      // isso ele é buscado aqui, e não no pacote que abre a página. A espera é
+      // de um arquivo já em cache do mesmo domínio, muito menor que os 15 a 40
+      // segundos da medição que vem em seguida.
+      const { createSteps, runAudit } = await import('./audit');
+
+      if (runId.current !== current) return null;
+      setSteps(createSteps(target));
+
       const audit = await runAudit(input, {
         ...optionsRef.current,
         onStep: (step) => {
