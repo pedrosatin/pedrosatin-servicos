@@ -13,15 +13,15 @@ magick -size 1200x630 xc:'#0f172a' \
   -font JetBrainsMono-NF-Regular -pointsize 26 -fill '#10b981' \
   -annotate +80+130 'servicos.pedrosatin.com' \
   -font Liberation-Sans-Bold -pointsize 62 -fill '#f1f5f9' \
-  -annotate +80+245 'Digite o endereço do seu site.' \
+  -annotate +80+245 'Criou seu projeto com IA?' \
   -font Liberation-Sans -pointsize 62 -fill '#97a6bb' \
-  -annotate +80+325 'Eu mostro o que o Google' \
-  -annotate +80+400 'encontra nele.' \
+  -annotate +80+325 'Eu levo para produção e' \
+  -annotate +80+400 'resolvo a próxima etapa.' \
   -fill '#253044' -draw 'rectangle 80,470 1120,471' \
-  -font JetBrainsMono-NF-Regular -pointsize 24 -fill '#64748b' \
-  -annotate +80+528 'PageSpeed do Google · RDAP · DNS · HTML entregue ao robô' \
+  -font JetBrainsMono-NF-Regular -pointsize 22 -fill '#64748b' \
+  -annotate +80+528 'Deploy · Banco de dados · Correção de bugs · Performance · Domínio próprio' \
   -font Liberation-Sans-Bold -pointsize 26 -fill '#f1f5f9' \
-  -annotate +80+575 'Pedro Satin' \
+  -annotate +80+575 'Pedro Satin · Engenharia de Software' \
   -strip -colors 64 -define png:compression-level=9 \
   PNG8:public/imagens/compartilhamento.png
 
