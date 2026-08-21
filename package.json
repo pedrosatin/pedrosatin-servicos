@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "typecheck": "tsc -b && tsc -p worker/tsconfig.json --noEmit",
     "preview": "vite preview",
+    "indexnow": "node scripts/indexnow.mjs",
     "worker:dev": "node worker/dev-server.mjs",
     "worker:deploy": "npm --prefix worker run deploy"
   },
