@@ -63,12 +63,12 @@ const StatusGlyph: React.FC<{ status: string }> = ({ status }) => {
 };
 
 const NEEDS = [
-  'Tenho um site e ele não aparece no Google',
-  'Meu site está lento ou quebrado no celular',
-  'Meu site está no ar sem endereço próprio',
-  'Preciso de um site novo, do zero',
-  'Preciso registrar domínio e publicar',
-  'Ainda não sei, quero uma avaliação',
+  'Fiz um projeto com IA e não sei como publicar',
+  'Meu projeto feito com IA está com bugs ou travou',
+  'Preciso integrar banco de dados, login ou pagamentos',
+  'Meu site feito com IA está lento ou quebrado no celular',
+  'Quero transformar meu protótipo de IA em um produto real',
+  'Ainda não sei, quero uma avaliação técnica',
 ];
 
 export const LandingPage: React.FC = () => {
@@ -191,7 +191,7 @@ export const LandingPage: React.FC = () => {
           <span className="lp-statusbar-sep">/</span>
           <span className="lp-statusbar-item">atendimento remoto, sob demanda</span>
           <span className="lp-statusbar-sep">/</span>
-          <span className="lp-statusbar-item">nenhum resultado desta página é simulado</span>
+          <span className="lp-statusbar-item">projetos com IA e aplicações web</span>
         </div>
       </div>
 
@@ -235,15 +235,13 @@ export const LandingPage: React.FC = () => {
         <div className="lp-wrap">
           <div className="lp-hero-top">
             <div className="lp-hero-intro">
-              <p className="lp-eyebrow">Diagnóstico antes de proposta</p>
+              <p className="lp-eyebrow">Da IA para a produção</p>
               <h1 className="lp-title">
-                Digite o endereço do seu site.
-                <span className="lp-title-dim"> Eu mostro o que o Google encontra nele.</span>
+                Criou seu projeto com inteligência artificial?
+                <span className="lp-title-dim"> Eu levo para produção e resolvo a próxima etapa.</span>
               </h1>
               <p className="lp-lede">
-                A análise consulta o registro do domínio, a configuração de DNS, o HTML entregue aos
-                buscadores e a medição de velocidade do próprio Google, incluindo a captura de como
-                a página aparece em um celular. O resultado vem com a evidência de cada ponto.
+                Transforme protótipos e códigos gerados em ferramentas de IA (Cursor, Lovable, v0, Bolt) em produtos reais e prontos para o usuário: deploy com domínio próprio, banco de dados, correção de bugs, performance no celular e indexação no Google. Se o seu projeto já tem um link, digite abaixo para auditar a saúde dele.
               </p>
             </div>
 
@@ -316,7 +314,7 @@ export const LandingPage: React.FC = () => {
 
                 {phase === 'idle' && steps.length === 0 && (
                   <div className="lp-hint">
-                    <p>Sem site para testar? Analise esta própria página ou um destes projetos que construí:</p>
+                    <p>Já publicou em um link temporário ou domínio? Teste a saúde do seu site ou analise um destes projetos:</p>
                     <div className="lp-presets">
                       {CASE_STUDIES.map((item) => (
                         <button key={item.domain} type="button" onClick={() => runFor(item.domain)}>
@@ -856,15 +854,16 @@ export const LandingPage: React.FC = () => {
               <p>
                 Sou também professor universitário na UniCesumar, onde ministro a disciplina de
                 Tecnologias Emergentes (cobrindo IA generativa, agentes autônomos e arquiteturas web)
-                no curso de Engenharia de Software, além de passagens anteriores por Análise e
-                Desenvolvimento de Sistemas. A rotina docente exige clareza conceitual e domínio profundo
-                de cada camada do desenvolvimento.
+                no curso de Engenharia de Software. Essa vivência diária com modelos de IA e desenvolvimento prático
+                me permite entender a fundo como ferramentas como Cursor, Lovable, v0 e Bolt geram código — e exatamente
+                onde a engenharia sênior precisa intervir para resolver banco de dados, login, segurança, correção de bugs
+                e publicação com estabilidade.
               </p>
               <p>
                 Antes disso fui desenvolvedor frontend no Inter (time do Intershop), participando da
                 migração de Gatsby para Next.js, da evolução do SEO da loja, de design systems e de
-                observabilidade em grande escala. Esse histórico une o rigor técnico de quem ensina
-                com a experiência prática de quem coloca produtos no ar com alta performance.
+                observabilidade em grande escala. Esse histórico une o rigor conceitual de quem ensina sobre IA com a
+                experiência prática de quem coloca projetos reais no ar com alta performance.
               </p>
             </div>
 
@@ -875,7 +874,7 @@ export const LandingPage: React.FC = () => {
               </li>
               <li>
                 <strong>Docência</strong>
-                <span>Professor de Engenharia de Software na UniCesumar</span>
+                <span>Professor de Tecnologias Emergentes (IA e agentes) na UniCesumar</span>
               </li>
               <li>
                 <strong>Experiência</strong>
@@ -960,13 +959,13 @@ export const LandingPage: React.FC = () => {
                       />
                     </label>
                     <label className="lp-field">
-                      <span>Atividade</span>
+                      <span>Atividade ou projeto</span>
                       <input
                         value={briefing.activity}
                         onChange={(event) =>
                           setBriefing({ ...briefing, activity: event.target.value })
                         }
-                        placeholder="advocacia, clínica, comércio"
+                        placeholder="aplicação web, MVP, SaaS, clínica, e-commerce"
                       />
                     </label>
                   </div>
@@ -997,13 +996,13 @@ export const LandingPage: React.FC = () => {
                 <div className="lp-step-body">
                   <h3>Situação atual</h3>
                   <label className="lp-field">
-                    <span>Site atual, se houver</span>
+                    <span>Link do projeto ou site atual</span>
                     <input
                       value={briefing.currentSite}
                       onChange={(event) =>
                         setBriefing({ ...briefing, currentSite: event.target.value })
                       }
-                      placeholder="seusite.com.br"
+                      placeholder="seusite.com.br ou link do Lovable/v0/Bolt"
                       spellCheck={false}
                     />
                   </label>
@@ -1012,7 +1011,7 @@ export const LandingPage: React.FC = () => {
                     <textarea
                       value={briefing.notes}
                       onChange={(event) => setBriefing({ ...briefing, notes: event.target.value })}
-                      placeholder="prazo, orçamento previsto, quem fez o site hoje"
+                      placeholder="ferramenta usada (Cursor, Lovable, v0, Bolt), erros encontrados, integrações necessárias"
                       rows={3}
                     />
                   </label>
@@ -1125,10 +1124,9 @@ export const LandingPage: React.FC = () => {
       <section className="lp-cta">
         <div className="lp-wrap lp-cta-inner">
           <div>
-            <h2>Comece pela análise, não pela proposta</h2>
+            <h2>Leve seu projeto de IA para o próximo nível</h2>
             <p>
-              Rode o diagnóstico no seu site e me mande o resultado. Eu respondo dizendo o que é
-              urgente, o que pode esperar e quanto custa cada parte, antes de qualquer compromisso.
+              Seja para publicar do zero, consertar um bug travado ou conectar banco de dados e pagamentos: fale comigo no WhatsApp com o que você precisa.
             </p>
           </div>
           <div className="lp-cta-actions">
