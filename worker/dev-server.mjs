@@ -53,6 +53,4 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Auditoria disponível em http://localhost:${PORT}/audit?url=exemplo.com.br`);
-});
+server.listen(PORT);
