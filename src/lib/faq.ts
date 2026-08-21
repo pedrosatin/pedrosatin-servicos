@@ -17,62 +17,63 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Como funciona a cobrança? Existe mensalidade?',
     a: [
-      'Não existe mensalidade e não existe contrato de manutenção. O atendimento é sob demanda: eu faço o levantamento do que você precisa, apresento o orçamento daquele trabalho, e o combinado é aquilo. Se meses depois surgir outra necessidade, fazemos um novo levantamento.',
-      'O que continua sendo pago periodicamente é o domínio, direto ao órgão de registro, e a hospedagem, quando o projeto exigir uma que não seja gratuita.',
+      'Não cobro mensalidade e não exijo contrato de fidelidade. O atendimento é sob demanda: analisamos o que você precisa no projeto, apresento o orçamento com escopo fechado daquele trabalho, e o combinado é cumprido. Se meses depois você precisar de novas funcionalidades ou melhorias, fazemos um novo alinhamento.',
+      'Os únicos custos periódicos são os dos provedores da sua escolha (como o domínio no Registro.br e hospedagens que ultrapassarem planos gratuitos), pagos diretamente por você aos serviços.',
     ],
   },
   {
-    q: 'De quem é o código depois da entrega?',
+    q: 'De quem é o código e as contas após a entrega?',
     a: [
-      'Seu. O domínio fica no seu CPF ou CNPJ, as contas de hospedagem e de serviços ficam no seu nome, e o código-fonte é entregue a você. Se um dia quiser trabalhar com outra pessoa, ela assume sem depender de mim para liberar acesso a nada. Não uso construtor proprietário que prenda o site a uma plataforma.',
+      'Tudo é seu. O domínio fica registrado no seu CPF ou CNPJ, as contas de hospedagem, banco de dados e plataformas de pagamento ficam no seu nome, e o código-fonte no GitHub é transferido para você. Você tem autonomia total para manter, evoluir ou contratar outro profissional a qualquer momento sem nenhuma dependência de mim.',
     ],
   },
   {
-    q: 'O que é aquela assinatura no rodapé e dá para tirar?',
+    q: 'Fiz meu projeto no Lovable, Bolt.new, v0 ou Cursor. Você consegue assumir de onde parei?',
     a: [
-      'Sites entregues levam uma linha discreta de crédito no rodapé, com o meu perfil. Ela pode ser removida: é um item opcional do orçamento, com acréscimo sobre o valor do projeto. Basta pedir no levantamento e eu incluo o valor separado, para você decidir vendo os dois números.',
+      'Sim. Você pode me conceder acesso ao repositório no GitHub ou exportar o código gerado. Eu analiso a estrutura existente, verifico as dependências, resolvo as pendências técnicas e continuo o desenvolvimento ou levo a aplicação para produção.',
     ],
   },
   {
-    q: 'Quanto custa o domínio?',
+    q: 'O código gerado por IA está com bugs ou travando. Precisa refazer do zero?',
     a: [
-      'Domínios terminados em .br são registrados no Registro.br, que é o órgão oficial no Brasil, a partir de aproximadamente R$ 40 por ano conforme a extensão escolhida. Fora do .br, como .com e .dev, o registro é feito em registradores internacionais, com preço próprio de cada um. Em todos os casos você paga direto ao registrador e eu não coloco margem sobre isso.',
+      'Na grande maioria dos casos não é necessário refazer do zero. Erros de renderização, loops de reatividade, falhas de sincronização de estado ou formulários quebrados costumam ser pontuais. Eu identifico a causa raiz e corrijo onde está o problema, o que sai mais rápido e mais barato do que recomeçar.',
+      'Se após a análise técnica for constatado que a base está inviável, eu aviso com transparência antes de qualquer decisão.',
     ],
   },
   {
-    q: 'Você atende presencialmente?',
+    q: 'Como funciona para colocar domínio próprio e publicar?',
     a: [
-      'O atendimento é remoto, por WhatsApp e chamada de vídeo quando necessário. Isso vale para o levantamento, o acompanhamento durante o desenvolvimento e o suporte depois da entrega.',
+      'Eu oriento a compra do domínio diretamente no Registro.br ou registrador internacional (sem taxa adicional sobre o domínio). Em seguida, configuro os registros de DNS, ativo o certificado SSL HTTPS e configuro o pipeline de deploy em plataformas como Vercel, Cloudflare Pages, VPS ou AWS, com publicação automática a cada atualização no repositório.',
     ],
   },
   {
-    q: 'Meu site foi feito por outra pessoa. Dá para consertar em vez de refazer?',
+    q: 'Você integra banco de dados (como Supabase) e login no meu projeto de IA?',
     a: [
-      'Na maior parte das vezes, sim, e costuma sair mais barato. A análise no topo desta página já mostra boa parte do que está errado. Com base nela eu digo se vale corrigir o que existe ou se refazer sai mais em conta. Se for melhor corrigir, eu corrijo.',
+      'Sim. Projetos gerados em ferramentas visuais costumam usar dados mockados em memória. Eu integro bancos relacionais (PostgreSQL via Supabase, Firebase ou Prisma), defino esquemas e regras de segurança (RLS), configuro autenticação de usuários (OAuth, magic link ou e-mail/senha) e ligo formulários e tabelas.',
     ],
   },
   {
     q: 'Você garante primeiro lugar no Google?',
     a: [
-      'Não, e desconfie de quem garante. Posição na busca depende de concorrência, histórico do domínio e de fatores que ninguém controla. O que eu faço é garantir que o site esteja tecnicamente apto a ser encontrado: rastreável, rápido, legível no celular e com o conteúdo visível ao robô. Sem isso, nenhuma estratégia funciona.',
+      'Não, e você deve desconfiar de quem promete isso. Posicionamento na busca depende de histórico do domínio, concorrência e autoridade, fatores que ninguém controla. O que eu garanto é a excelência técnica: código semântico, metadados corretos, sitemap válido, alta velocidade de carregamento no celular e renderização adequada para que o robô do Google leia o conteúdo.',
     ],
   },
   {
-    q: 'A análise desta página é real?',
+    q: 'A análise desta página funciona para testar meu projeto de IA?',
     a: [
-      'É. Ela consulta o registro do domínio no RDAP, a configuração de DNS em servidores públicos, o HTML que o seu servidor entrega e a medição do PageSpeed Insights do Google, que inclui os dados de campo de visitantes reais quando existem. Cada achado traz a evidência que o gerou. Quando um dado não pode ser obtido, a página diz isso em vez de estimar um número.',
+      'Sim. Se a sua aplicação já estiver disponível em qualquer endereço público (inclusive links temporários de teste da Vercel, Lovable ou Bolt), a ferramenta no topo desta página mede a velocidade de carregamento em aparelho móvel real via PageSpeed do Google e inspeciona o HTML retornado.',
     ],
   },
   {
-    q: 'Em quanto tempo o site fica pronto?',
+    q: 'Em quanto tempo o projeto fica pronto?',
     a: [
-      'Depende do tamanho, e o prazo sai junto com o orçamento, antes de começar. Publicar um site simples com domínio próprio costuma levar poucos dias; corrigir desempenho ou indexação de um site que já existe é normalmente mais rápido, porque o diagnóstico já aponta o que mexer.',
+      'Depende do escopo definido. Publicações com apontamento de domínio próprio e deploy levam de 1 a 3 dias úteis. Correções de bugs ou integrações de banco de dados e pagamentos em MVPs costumam levar de poucos dias a uma semana. O prazo exato é informado junto com o orçamento antes de iniciar o trabalho.',
     ],
   },
   {
-    q: 'Você trabalha com site de qual tipo?',
+    q: 'Com que tipos de tecnologias você trabalha?',
     a: [
-      'Sites institucionais, páginas de captação, portfólios, catálogos e aplicações web sob medida. O que eu não faço é montar loja em construtor fechado com mensalidade: quando a necessidade é essa, eu digo, em vez de empurrar um projeto que não serve.',
+      'Trabalho principalmente com TypeScript e o ecossistema web moderno: React, Next.js, Vite e Node.js no desenvolvimento; Supabase, Firebase e PostgreSQL para persistência; Vercel, Cloudflare, VPS e AWS para infraestrutura e deploy; Stripe, Asaas e Mercado Pago para pagamentos.',
     ],
   },
 ];
