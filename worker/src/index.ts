@@ -216,7 +216,7 @@ const readBodyLimited = async (response: Response): Promise<{ text: string; byte
   return { text: new TextDecoder('utf-8').decode(slice), bytes };
 };
 
-const auditRobotsAndSitemap = async (
+export const auditRobotsAndSitemap = async (
   origin: string,
 ): Promise<{ robots: RobotsReport | null; sitemap: AuditResponse['sitemap'] }> => {
   let robots: RobotsReport | null = null;
