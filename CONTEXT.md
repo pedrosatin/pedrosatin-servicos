@@ -4,11 +4,11 @@
 Criar uma Landing Page de Captação de Clientes (MVP) independente para a marca/subdomínio `servicos.pedrosatin.com`.
 
 ## 👤 Público-Alvo (Target)
-Empresários, profissionais liberais (advogados, médicos, dentistas, comerciantes, prestadores de serviço) e pequenos negócios que possuem ou precisam de um site, mas:
-- Não aparecem no Google Search quando pesquisados.
-- Não sabem como hospedar ou registrar o domínio.
-- Possuem sites lentos, com erros ou desconfigurados em celulares.
-- Desejam uma Landing Page profissional do zero.
+Criadores, fundadores, designers, desenvolvedores e empreendedores que criaram sites, MVPs ou aplicações utilizando ferramentas de Inteligência Artificial (vibe-coding, Cursor, v0, Lovable, Bolt.new, ChatGPT, Claude), mas:
+- Não sabem como publicar com domínio próprio, DNS, SSL e infraestrutura em produção (Vercel, Cloudflare, VPS, AWS).
+- Estão travados com bugs de estado, reatividade, componentes quebrados no celular ou erros que o chat da IA não conseguiu resolver.
+- Precisam integrar persistência real (banco de dados Supabase/Firebase/PostgreSQL), autenticação de usuários e pagamentos (Stripe/Asaas/Mercado Pago).
+- Possuem sites lentos, com bundle inchado de IA ou que não são indexados pelo robô do Google.
 
 ## 🚫 Diretrizes de Design & Tom (Sem Clichês de IA)
 - **ZERO Emojis** em títulos, botões, badges e corpo de texto.
