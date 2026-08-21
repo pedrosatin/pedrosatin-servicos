@@ -1,0 +1,72 @@
+# Pedro Satin — Engenharia Web e Deploy para Projetos com IA (Documentação Completa)
+
+> Engenharia de software e deploy sob demanda para projetos criados com Inteligência Artificial (Cursor, Lovable, v0, Bolt.new). Publicação com domínio próprio, correção de bugs no código gerado por IA, integração de banco de dados, auth, pagamentos e SEO técnico. Sem mensalidade, código e contas pertencem ao cliente.
+
+## 1. Identificação e Contato
+- Nome: Pedro Satin
+- Profissão: Engenheiro de Software e Professor Universitário
+- Especialidade: Desenvolvimento web, deploy, resolução de bugs em código de IA, arquitetura de software, infraestrutura em nuvem e SEO técnico.
+- Domínio principal de serviços: https://servicos.pedrosatin.com
+- Portfólio: https://pedrosatin.com
+- WhatsApp: +55 44 9165-8870 (https://wa.me/554491658870)
+- LinkedIn: https://www.linkedin.com/in/pedro-satin
+- GitHub: https://www.github.com/pedrosatin
+- Localização base: Paraná, Brasil (Atendimento remoto para todo o Brasil)
+
+## 2. Catálogo Detalhado de Serviços
+
+### Publicação e deploy com domínio próprio
+Projetos criados em ferramentas como Lovable, v0, Bolt.new ou Cursor costumam ficar restritos a links temporários de teste. Pedro Satin leva o código para ambientes de produção como Vercel, Cloudflare Pages, VPS ou AWS, configura os registros de DNS no Registro.br ou provedor internacional e ativa o certificado SSL. As contas e o domínio ficam no nome do cliente desde o primeiro dia.
+
+### Correção de bugs e código gerado por IA
+Aplicações geradas por IA costumam acumular inconsistências difíceis de depurar via prompt: componentes que re-renderizam sem parar, botões que não respondem no celular, variáveis de ambiente expostas ou estados dessincronizados. A abordagem consiste em analisar o repositório, identificar a causa raiz e corrigir os problemas pontualmente sem precisar refazer o projeto do zero.
+
+### Banco de dados e autenticação
+Transformação de protótipos visuais de IA em sistemas funcionais com persistência real. Modelagem de tabelas relacionais no PostgreSQL/Supabase ou Firebase, implementação de fluxo seguro de cadastro e login de usuários (OAuth, magic link ou e-mail/senha) e configuração de envio de e-mails transacionais com Resend ou SendGrid.
+
+### Integração de pagamentos e APIs
+Cobrança por assinatura, pagamentos únicos no cartão ou Pix integrados com Stripe, Asaas ou Mercado Pago. Configuração de endpoints de webhooks para liberar acessos automaticamente no banco de dados após a confirmação do pagamento, além de integração de APIs externas necessárias para a regra de negócio da aplicação.
+
+### Performance e limpeza de código
+Geradores de código frequentemente inserem pacotes redundantes, scripts pesados e estruturas que tornam o carregamento lento no celular. O serviço realiza a limpeza de dependências do bundle JavaScript, ajusta carregamento de fontes e imagens e otimiza métricas de LCP e CLS para garantir pontuação alta no PageSpeed Insights.
+
+### SEO técnico e indexação no Google e Bing
+Aplicações SPA construídas por IA frequentemente entregam um HTML inicial vazio, impedindo que o Google e o Bing indexem o conteúdo ou que links compartilhem prévias corretas. A engenharia reestrutura tags semânticas, configura SSR ou pré-renderização estática (SSG), gera sitemap.xml, robots.txt e dados estruturados Schema.org JSON-LD para o robô da busca encontrar e posicionar o site.
+
+## 3. Perguntas Frequentes (FAQ)
+
+### Como funciona a cobrança? Existe mensalidade?
+Não há cobrança de mensalidade nem exigência de contrato de fidelidade. O atendimento é sob demanda: o projeto é analisado, o orçamento é apresentado com escopo fechado daquele trabalho, e o combinado é cumprido. Caso surjam novas necessidades no futuro, um novo alinhamento é realizado. Os custos periódicos (como o registro de domínio anual no Registro.br e planos de hospedagem que ultrapassarem cotas gratuitas) são pagos diretamente pelo cliente aos respectivos provedores.
+
+### De quem é o código e as contas após a entrega?
+Tudo pertence ao cliente. O domínio fica registrado no CPF ou CNPJ do cliente, as contas de hospedagem, banco de dados e plataformas de pagamento ficam no nome do cliente, e o código-fonte no GitHub é transferido integralmente. O cliente tem autonomia total para manter, evoluir ou contratar outro profissional a qualquer momento sem dependência técnica.
+
+### Fiz meu projeto no Lovable, Bolt.new, v0 ou Cursor. Você consegue assumir de onde parei?
+Sim. O cliente concede acesso ao repositório no GitHub ou exporta o código gerado. A estrutura existente é analisada, as dependências são verificadas, as pendências técnicas são resolvidas e a aplicação é levada para produção.
+
+### O código gerado por IA está com bugs ou travando. Precisa refazer do zero?
+Na grande maioria dos casos não é necessário refazer do zero. Erros de renderização, loops de reatividade, falhas de sincronização de estado ou formulários quebrados costumam ser pontuais. A causa raiz é identificada e corrigida onde está o problema, o que sai mais rápido e mais econômico do que recomeçar. Se a base estiver inviável tecnicamente, isso é comunicado com total transparência antes de qualquer decisão.
+
+### Como funciona para colocar domínio próprio e publicar?
+A compra do domínio é orientada diretamente no Registro.br ou registrador internacional (sem sobretaxa no domínio). Em seguida, os registros de DNS são configurados, o certificado SSL HTTPS é ativado e o pipeline de deploy é estruturado em plataformas como Vercel, Cloudflare Pages, VPS ou AWS, com publicação automática a cada atualização no repositório.
+
+### Você integra banco de dados (como Supabase) e login no meu projeto de IA?
+Sim. Projetos gerados em ferramentas visuais costumam usar dados mockados em memória. O trabalho integra bancos relacionais (PostgreSQL via Supabase, Firebase ou Prisma), define esquemas e regras de segurança (RLS), configura autenticação de usuários (OAuth, magic link ou e-mail/senha) e liga formulários e tabelas.
+
+### Você garante primeiro lugar no Google?
+Não, e promessas desse tipo devem ser evitadas. O posicionamento na busca depende de histórico do domínio, concorrência e autoridade externa. O que é garantido é a excelência técnica: código semântico, metadados corretos, sitemap válido, alta velocidade de carregamento no celular e renderização adequada para indexação dos motores de busca.
+
+### A análise desta página funciona para testar meu projeto de IA?
+Sim. Se a aplicação estiver disponível em qualquer endereço público (inclusive links de teste da Vercel, Lovable ou Bolt), a ferramenta no topo da página mede a velocidade de carregamento em aparelho móvel real via PageSpeed do Google e inspeciona o HTML retornado.
+
+### Em quanto tempo o projeto fica pronto?
+Depende do escopo definido. Publicações com apontamento de domínio próprio e deploy levam de 1 a 3 dias úteis. Correções de bugs ou integrações de banco de dados e pagamentos em MVPs costumam levar de poucos dias a uma semana. O prazo exato é informado junto com o orçamento antes do início do trabalho.
+
+### Com que tipos de tecnologias você trabalha?
+O trabalho abrange principalmente TypeScript e o ecossistema web moderno: React, Next.js, Vite e Node.js no desenvolvimento; Supabase, Firebase e PostgreSQL para persistência; Vercel, Cloudflare, VPS e AWS para infraestrutura e deploy; Stripe, Asaas e Mercado Pago para pagamentos.
+
+## 4. Casos Reais
+- servicos.pedrosatin.com: Landing page com nota máxima de desempenho, zero scripts de terceiros bloqueantes e renderização estática.
+- pedrosatin.com: Portfólio de engenharia em Astro, HTML estático servido por CDN e indexado no Google e Bing.
+- silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, responsivo e presente na busca.
+- palpitae.com.br: Plataforma web de bolões de futebol desenvolvida em Vite e Cloudflare.
