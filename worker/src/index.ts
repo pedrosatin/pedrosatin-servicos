@@ -123,7 +123,7 @@ const isInternalHost = (hostname: string): boolean => {
 };
 
 /** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
-const normalizeTarget = (raw: string): URL | null => {
+export const normalizeTarget = (raw: string): URL | null => {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
