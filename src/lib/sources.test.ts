@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchRegistration } from './sources';
 
 describe('fetchRegistration', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     // Reset vi mocks
@@ -11,12 +11,12 @@ describe('fetchRegistration', () => {
 
   afterEach(() => {
     // Restore original fetch
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   it('should return a default object with found: false when fetch throws an error', async () => {
     // Arrange: Mock fetch to throw a network error
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
 
     // Act: Call fetchRegistration
     const result = await fetchRegistration('example.com');
@@ -36,8 +36,8 @@ describe('fetchRegistration', () => {
       source: 'rdap.org',
     });
 
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://rdap.org/domain/example.com',
       { headers: { accept: 'application/rdap+json' } }
     );
@@ -45,7 +45,7 @@ describe('fetchRegistration', () => {
 
   it('should return a default object with found: false for .br domains when fetch throws an error', async () => {
     // Arrange: Mock fetch to throw a network error
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
 
     // Act: Call fetchRegistration
     const result = await fetchRegistration('example.com.br');
@@ -65,8 +65,8 @@ describe('fetchRegistration', () => {
       source: 'registro.br',
     });
 
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://rdap.registro.br/domain/example.com.br',
       { headers: { accept: 'application/rdap+json' } }
     );
