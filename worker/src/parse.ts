@@ -78,8 +78,7 @@ const hasAttr = (tag: string, name: string): boolean =>
 const collectTags = (html: string, tagName: string): string[] =>
   html.match(new RegExp(`<${tagName}\\b[^>]*>`, 'gi')) ?? [];
 
-const metaContent = (html: string, keyAttr: 'name' | 'property', key: string): string | null => {
-  const tags = collectTags(html, 'meta');
+const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string): string | null => {
   for (const tag of tags) {
     const found = attr(tag, keyAttr);
     if (found && found.toLowerCase() === key.toLowerCase()) {
@@ -197,10 +196,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // documentados nela.
   const markup = stripComments(html);
 
+  const metaTags = collectTags(markup, 'meta');
+
   const htmlTag = /<html\b[^>]*>/i.exec(markup)?.[0] ?? '';
 
   const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null);
-  const metaDescription = metaContent(markup, 'name', 'description');
+  const metaDescription = metaContent(metaTags, 'name', 'description');
 
   const h1 = [...markup.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
@@ -234,7 +235,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     0,
   );
 
-  const generator = metaContent(markup, 'name', 'generator');
+  const generator = metaContent(metaTags, 'name', 'generator');
   const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
   const wordCount = decodeEntities(textContent)
     .split(/\s+/)
@@ -252,17 +253,17 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     canonical: clean(
       linkTags.filter((tag) => relOf(tag) === 'canonical').map((tag) => attr(tag, 'href'))[0] ?? null,
     ),
-    robotsMeta: metaContent(markup, 'name', 'robots'),
-    viewport: metaContent(markup, 'name', 'viewport'),
+    robotsMeta: metaContent(metaTags, 'name', 'robots'),
+    viewport: metaContent(metaTags, 'name', 'viewport'),
     h1,
     h2Count: (markup.match(/<h2\b/gi) ?? []).length,
     images,
     openGraph: {
-      title: metaContent(markup, 'property', 'og:title'),
-      description: metaContent(markup, 'property', 'og:description'),
-      image: metaContent(markup, 'property', 'og:image'),
+      title: metaContent(metaTags, 'property', 'og:title'),
+      description: metaContent(metaTags, 'property', 'og:description'),
+      image: metaContent(metaTags, 'property', 'og:image'),
     },
-    twitterCard: metaContent(markup, 'name', 'twitter:card'),
+    twitterCard: metaContent(metaTags, 'name', 'twitter:card'),
     jsonLdTypes: collectJsonLdTypes(markup),
     favicon: linkTags.some((tag) => relOf(tag).includes('icon')),
     scripts,
