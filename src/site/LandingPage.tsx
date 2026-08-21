@@ -1164,11 +1164,33 @@ export const LandingPage: React.FC = () => {
             <span className="lp-signature-label">feito por</span>
             <a
               className="lp-signature-handle"
-              href="https://pedrosatin.com"
+              href={PROFILE.portfolio}
               target="_blank"
               rel="noopener noreferrer"
             >
               {CONTACT.handle}
+            </a>
+            <span className="lp-footer-divider" aria-hidden="true">·</span>
+            <a
+              className="lp-footer-link"
+              href={PROFILE.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LinkedIn
+            </a>
+            <span className="lp-footer-divider" aria-hidden="true">·</span>
+            <a
+              className="lp-footer-link"
+              href={PROFILE.github}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+            <span className="lp-footer-divider" aria-hidden="true">·</span>
+            <a className="lp-footer-link" href="/llms.txt" target="_blank" rel="noopener noreferrer">
+              llms.txt
             </a>
           </div>
         </div>

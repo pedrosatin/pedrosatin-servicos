@@ -1,0 +1,34 @@
+# Pedro Satin — Engenharia Web e Deploy para Projetos com IA
+
+> Engenharia de software sob demanda para publicar, corrigir e escalar projetos e MVPs criados com ferramentas de IA (Cursor, Lovable, v0, Bolt.new). Sem mensalidade, código e infraestrutura pertencem 100% ao cliente.
+
+## Sobre o profissional
+Pedro Satin é engenheiro de software e professor universitário de Tecnologias Emergentes e Inteligência Artificial no Paraná, Brasil. Atua na resolução de problemas técnicos de código gerado por IA, publicação em produção com domínio próprio, integração de bancos relacionais e pagamentos, além de otimização de Core Web Vitals e SEO técnico.
+
+- Portfólio oficial: https://pedrosatin.com
+- LinkedIn: https://www.linkedin.com/in/pedro-satin
+- GitHub: https://www.github.com/pedrosatin
+- WhatsApp direto: +55 44 9165-8870 (https://wa.me/554491658870)
+
+## Serviços prestados
+- Publicação e deploy com domínio próprio: Configuração de DNS no Registro.br ou provedores internacionais, emissão de certificado SSL/TLS HTTPS e deploy em Cloudflare Pages, Vercel, VPS ou AWS.
+- Correção de bugs em código de IA: Diagnóstico e correção de loops de re-renderização, quebras de layout mobile, problemas de reatividade e erros de estado em aplicações originadas no Cursor, Lovable, v0 ou Bolt.new.
+- Banco de dados e autenticação: Modelagem de tabelas relacionais em PostgreSQL/Supabase ou Firebase, implementação de Row Level Security (RLS) e autenticação de usuários (OAuth, magic link ou e-mail/senha).
+- Integração de pagamentos e APIs: Cobrança recorrente (assinaturas) e avulsa com Stripe, Asaas e Mercado Pago, com processamento seguro de webhooks.
+- Performance e Core Web Vitals: Redução do bundle JavaScript, eliminação de scripts bloqueantes, renderização estática/SSG e notas máximas no PageSpeed Insights.
+- SEO técnico: Estruturação de HTML semântico, metadados Open Graph, sitemap.xml e dados estruturados Schema.org JSON-LD para indexação no Google, Bing e motores generativos.
+
+## Modelo de trabalho
+- Cobrança por escopo fechado ou hora técnica, sem mensalidade obrigatória e sem fidelidade.
+- Domínios, contas de hospedagem, bancos de dados e repositórios são criados ou transferidos diretamente no nome, CPF ou CNPJ do cliente.
+- Transparência prévia: orçamento e prazo acordados antes de iniciar o trabalho.
+
+## Casos reais de engenharia
+- https://servicos.pedrosatin.com: Landing page com nota máxima de desempenho no PageSpeed, zero dependências bloqueantes de terceiros e renderização estática.
+- https://pedrosatin.com: Portfólio de engenharia em Astro, leve e indexado.
+- https://silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, 100% responsivo e indexado em buscas locais.
+- https://palpitae.com.br: Plataforma web de bolões de futebol em Vite e Cloudflare.
+
+## Links complementares
+- Detalhamento completo e FAQ: https://servicos.pedrosatin.com/llms-full.txt
+- Ferramenta de auditoria de site ao vivo: https://servicos.pedrosatin.com/#analise
