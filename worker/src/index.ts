@@ -193,7 +193,7 @@ const followRedirects = async (
 };
 
 /** Verifica se a versão http:// do domínio força HTTPS. */
-const checkHttpsUpgrade = async (hostname: string): Promise<boolean | null> => {
+export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | null> => {
   try {
     const response = await fetchWithTimeout(`http://${hostname}/`, { redirect: 'manual' });
     const location = response.headers.get('location');
