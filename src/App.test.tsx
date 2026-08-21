@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
 
 // Mock the LandingPage component so we don't need to render its full complex tree
