@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "indexnow": "node scripts/indexnow.mjs",
     "worker:dev": "node worker/dev-server.mjs",
-    "worker:deploy": "npm --prefix worker run deploy"
+    "worker:deploy": "npm --prefix worker run deploy",
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -27,6 +28,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
     "typescript": "~7.0.2",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "vitest": "^4.1.11"
   }
 }
