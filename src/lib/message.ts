@@ -1,6 +1,7 @@
 /** Monta a mensagem de WhatsApp a partir do que a auditoria realmente encontrou. */
 
 import { buildWhatsAppUrl } from './config';
+import { normalizeDomain } from './dominio';
 import type { AuditResult, Finding } from './types';
 
 export const auditWhatsAppUrl = (result: AuditResult | null, domain?: string): string => {
@@ -54,7 +55,7 @@ export const briefingWhatsAppUrl = (briefing: Briefing, result: AuditResult | nu
   const site = briefing.currentSite.trim();
   if (site) lines.push(`Link / Site atual: ${site}`);
 
-  if (result && result.domain === site.replace(/^https?:\/\//, '').replace(/\/.*$/, '')) {
+  if (result && result.domain === normalizeDomain(site)) {
     if (result.score) lines.push(`Resultado do diagnóstico: ${result.score.value}/100.`);
     const problems = result.findings
       .filter((f) => f.severity === 'critical' || f.severity === 'warning')

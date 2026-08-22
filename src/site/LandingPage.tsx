@@ -221,7 +221,7 @@ export const LandingPage: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            WhatsApp
+            Falar no WhatsApp
           </a>
         </div>
       </header>
@@ -237,13 +237,13 @@ export const LandingPage: React.FC = () => {
         <div className="lp-wrap">
           <div className="lp-hero-top">
             <div className="lp-hero-intro">
-              <p className="lp-eyebrow">Da IA para a produção</p>
+              <p className="lp-eyebrow">Engenharia web para projetos de IA</p>
               <h1 className="lp-title">
-                Criou seu projeto com inteligência artificial?
-                <span className="lp-title-dim"> Eu levo para produção e resolvo a próxima etapa.</span>
+                Você criou no Cursor, Lovable ou v0.
+                <span className="lp-title-dim"> Eu coloco em produção.</span>
               </h1>
               <p className="lp-lede">
-                Transforme protótipos e códigos gerados em ferramentas de IA (Cursor, Lovable, v0, Bolt) em produtos reais e prontos para o usuário: deploy com domínio próprio, banco de dados, correção de bugs, performance no celular e indexação no Google. Se o seu projeto já tem um link, digite abaixo para auditar a saúde dele.
+                Deploy com domínio próprio, banco de dados real, correção de bugs e velocidade no celular. Sem mensalidade, código 100% seu. Tem um link público ou protótipo? Teste a saúde dele abaixo.
               </p>
             </div>
 
@@ -284,7 +284,7 @@ export const LandingPage: React.FC = () => {
                   <span />
                   <span />
                 </div>
-                <span className="lp-terminal-title">auditoria{domain ? ` — ${domain}` : ''}</span>
+                <span className="lp-terminal-title">auditoria{domain ? `: ${domain}` : ''}</span>
                 <span className="lp-terminal-meta">
                   {phase === 'running' ? 'executando' : phase === 'done' ? 'concluída' : 'aguardando'}
                 </span>
@@ -316,7 +316,7 @@ export const LandingPage: React.FC = () => {
 
                 {phase === 'idle' && steps.length === 0 && (
                   <div className="lp-hint">
-                    <p>Já publicou em um link temporário ou domínio? Teste a saúde do seu site ou analise um destes projetos:</p>
+                    <p>Já publicou em um link temporário ou domínio? Teste seu projeto ou analise um destes:</p>
                     <div className="lp-presets">
                       {CASE_STUDIES.map((item) => (
                         <button key={item.domain} type="button" onClick={() => runFor(item.domain)}>
@@ -437,7 +437,7 @@ export const LandingPage: React.FC = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Enviar este diagnóstico
+                  Enviar diagnóstico no WhatsApp
                 </a>
                 <a
                   className="lp-btn lp-btn-ghost"
@@ -445,7 +445,7 @@ export const LandingPage: React.FC = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Ver o que o Google indexou
+                  Ver no Google
                 </a>
               </div>
             </div>
@@ -593,8 +593,8 @@ export const LandingPage: React.FC = () => {
 
             <div className="lp-findings-cta">
               <p>
-                Quer entender o que é urgente e o que pode esperar? Me mande este diagnóstico. Eu
-                respondo com a leitura de cada ponto antes de qualquer compromisso.
+                Quer saber o que é crítico e o que pode esperar? Me envie este diagnóstico no WhatsApp.
+                Respondo com a leitura técnica antes de qualquer compromisso.
               </p>
               <a
                 className="lp-btn lp-btn-solid"
@@ -602,7 +602,7 @@ export const LandingPage: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Enviar no WhatsApp
+                Enviar diagnóstico no WhatsApp
               </a>
             </div>
           </div>
@@ -615,8 +615,7 @@ export const LandingPage: React.FC = () => {
         <div className="lp-wrap">
           <h2 className="lp-h2">O que eu resolvo</h2>
           <p className="lp-h2-sub">
-            Cada item abaixo é um problema concreto que aparece com frequência. Se o seu caso for um
-            deles, a análise no topo já mostra o tamanho do estrago.
+            Problemas reais que destravam o lançamento do seu projeto. A auditoria no topo mede o impacto de cada um.
           </p>
           <div className="lp-service-grid">
             {SERVICES.map((service, index) => (
@@ -634,11 +633,9 @@ export const LandingPage: React.FC = () => {
 
       <section className="lp-google" id="google">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Como o Google encontra o seu site</h2>
+          <h2 className="lp-h2">Por que seu projeto de IA não aparece no Google?</h2>
           <p className="lp-h2-sub">
-            Aparecer na busca não é uma configuração que se liga. São quatro etapas, e um site pode
-            falhar em qualquer uma delas enquanto continua abrindo normalmente para quem digita o
-            endereço.
+            Aparecer na busca não é uma chave que se liga. Aplicações geradas por IA costumam entregar um HTML vazio: o usuário vê a tela, mas o robô lê uma página em branco.
           </p>
 
           <ol className="lp-steps-flow">
@@ -646,47 +643,37 @@ export const LandingPage: React.FC = () => {
               <span className="lp-flow-num">1</span>
               <h3>Descoberta</h3>
               <p>
-                O Google precisa saber que a página existe. Isso vem de um sitemap enviado, de links
-                apontando para ela ou do rastreamento do próprio domínio. Sem nenhum desses
-                caminhos, a página fica invisível por tempo indeterminado.
+                O robô precisa encontrar seu endereço através de sitemap e links indexados.
               </p>
             </li>
             <li>
               <span className="lp-flow-num">2</span>
               <h3>Rastreamento</h3>
               <p>
-                O robô visita a página com um agente móvel. Um arquivo robots.txt mal configurado,
-                uma meta tag de bloqueio ou um servidor que demora demais para responder fazem a
-                visita terminar sem que nada seja lido.
+                O robô precisa acessar seu servidor sem bloqueios de robots.txt ou lentidão de resposta.
               </p>
             </li>
             <li>
               <span className="lp-flow-num">3</span>
               <h3>Indexação</h3>
               <p>
-                O conteúdo lido é interpretado e arquivado. Aqui pesam o título, a descrição, a
-                estrutura de cabeçalhos e a tag canônica. Se o texto só aparece depois que o
-                JavaScript roda, o robô pode arquivar uma página praticamente vazia.
+                O conteúdo precisa estar no HTML inicial para ser arquivado, e não apenas no JavaScript.
               </p>
             </li>
             <li>
               <span className="lp-flow-num">4</span>
               <h3>Posicionamento</h3>
               <p>
-                Entre as páginas indexadas, o Google escolhe a ordem. Velocidade no celular,
-                estabilidade do layout e clareza do conteúdo entram nessa conta, junto com fatores
-                que ninguém controla. Sem passar pelas três etapas anteriores, esta nem começa.
+                Velocidade no celular e estabilidade de layout definem a ordem nas buscas.
               </p>
             </li>
           </ol>
 
           <div className="lp-google-check">
             <div>
-              <h3>Veja você mesmo o que está indexado</h3>
+              <h3>Consulte o que o Google guardou do seu site</h3>
               <p>
-                O operador <code>site:</code> lista o que o Google guardou do seu domínio. Não existe
-                API pública que devolva esse número, então em vez de inventar uma contagem, esta
-                página leva você direto à busca real.
+                O comando <code>site:seusite.com.br</code> mostra exatamente as páginas arquivadas pelo Google. Veja o resultado real da busca.
               </p>
             </div>
             <a
@@ -705,31 +692,28 @@ export const LandingPage: React.FC = () => {
 
       <section className="lp-domain" id="dominio">
         <div className="lp-wrap">
-          <h2 className="lp-h2">O domínio é seu, e a escolha também</h2>
+          <h2 className="lp-h2">Domínio e infraestrutura no seu nome</h2>
           <p className="lp-h2-sub">
-            Domínios terminados em .br saem no Registro.br, o órgão oficial no Brasil, a partir de
-            aproximadamente R$ 40 por ano conforme a extensão. Fora do .br, o registro é feito em
-            registradores internacionais, com preços próprios. Em qualquer caso o pagamento é seu,
-            direto ao registrador, e eu não coloco margem sobre isso.
+            Domínios .com.br custam a partir de R$ 40 por ano direto no Registro.br. Você paga aos provedores oficiais, sem taxa intermediária ou dependência técnica.
           </p>
 
           <div className="lp-domain-facts">
             <ul>
               <li>
                 <strong>Titularidade</strong>
-                <span>seu CPF ou CNPJ desde o primeiro dia, sem intermediário no cadastro</span>
+                <span>seu CPF ou CNPJ desde o primeiro dia, sem intermediário</span>
               </li>
               <li>
-                <strong>Custo do registro</strong>
-                <span>a partir de cerca de R$ 40 ao ano, pago por você direto ao registrador</span>
+                <strong>Custo do domínio</strong>
+                <span>a partir de R$ 40 ao ano pago direto ao Registro.br</span>
               </li>
               <li>
-                <strong>Acréscimo meu sobre o domínio</strong>
-                <span>nenhum</span>
+                <strong>Hospedagem</strong>
+                <span>configurada em contas suas (Vercel, Cloudflare, AWS)</span>
               </li>
               <li>
                 <strong>Meu trabalho</strong>
-                <span>orientação na escolha e no cadastro, DNS, certificado e publicação</span>
+                <span>arquitetura, apontamento de DNS, SSL e publicação</span>
               </li>
             </ul>
           </div>
@@ -766,12 +750,9 @@ export const LandingPage: React.FC = () => {
           )}
 
           <div className="lp-domain-ext">
-            <h3>A extensão fala pela profissão</h3>
+            <h3>Extensões mais comuns</h3>
             <p className="lp-domain-ext-lede">
-              O .com.br atende quase todo mundo, mas o Registro.br mantém extensões por área de
-              atuação. Um endereço terminado em .adv.br já diz que ali existe um advogado, e o
-              mesmo vale para as demais. Algumas têm regras próprias de cadastro, que eu verifico
-              junto com você antes de registrar.
+              O .com.br atende a maioria dos projetos. Para apps e MVPs, extensões como .app.br e .dev.br destacam seu produto.
             </p>
             <ul className="lp-ext-list">
               {DOMAIN_EXTENSIONS.map((item) => (
@@ -802,33 +783,25 @@ export const LandingPage: React.FC = () => {
             <article>
               <h3>Sob demanda, sem mensalidade</h3>
               <p>
-                Não vendo plano mensal nem contrato de manutenção. Fazemos o levantamento do que
-                você precisa, eu orço aquele trabalho e o combinado é aquilo. Se meses depois surgir
-                outra necessidade, fazemos um novo levantamento e um novo orçamento.
+                Levantamento técnico, orçamento com valor fechado e prazo definido. Sem contratos recorrentes obrigatórios.
               </p>
             </article>
             <article>
-              <h3>O código é seu</h3>
+              <h3>Código 100% seu</h3>
               <p>
-                O código-fonte é entregue a você e não fica preso a nenhuma plataforma proprietária.
-                Se um dia quiser trabalhar com outra pessoa, ela assume o projeto sem precisar
-                pedir nada a mim.
+                Repositório no GitHub transferido para a sua conta. Sem amarras nem plataformas proprietárias.
               </p>
             </article>
             <article>
-              <h3>As contas ficam no seu nome</h3>
+              <h3>Contas na sua titularidade</h3>
               <p>
-                Domínio, hospedagem e serviços são criados em contas suas, com o seu acesso. Eu
-                configuro tudo, mas a titularidade é sua desde o começo, não algo transferido no
-                fim.
+                Domínio, hospedagem e banco pertencem a você desde o primeiro dia.
               </p>
             </article>
             <article>
-              <h3>Atendimento remoto</h3>
+              <h3>Atendimento direto</h3>
               <p>
-                Todo o processo acontece por WhatsApp e, quando ajuda, por chamada de vídeo. Vale
-                para o levantamento, o acompanhamento do desenvolvimento e o suporte depois de
-                publicado.
+                Contato direto comigo pelo WhatsApp durante todo o projeto.
               </p>
             </article>
           </div>
@@ -841,46 +814,34 @@ export const LandingPage: React.FC = () => {
         <div className="lp-wrap">
           <h2 className="lp-h2">Quem faz o trabalho</h2>
           <p className="lp-h2-sub">
-            Não é uma agência nem um revendedor de plataforma. Quem levanta o requisito, escreve o
-            código e responde no WhatsApp é a mesma pessoa.
+            Você fala diretamente com quem programa e resolve, sem intermediários ou agências.
           </p>
 
           <div className="lp-about-grid">
             <div className="lp-about-text">
               <p>
-                Sou Pedro Satin, bacharel em Engenharia de Software pela UniCesumar e pós-graduado
-                em Desenvolvimento Frontend. Atuo como engenheiro de software na Saúde Bliss,
-                desenvolvendo automações com inteligência artificial e integrações com operadoras de
-                plano de saúde, com React e TypeScript no frontend, serviços em Node.js e infraestrutura na AWS.
+                Sou Pedro Satin, Engenheiro de Software na Saúde Bliss, desenvolvendo automações com inteligência artificial, integrações e arquiteturas web com React, TypeScript e AWS.
               </p>
               <p>
-                Sou também professor universitário na UniCesumar, onde ministro a disciplina de
-                Tecnologias Emergentes (cobrindo IA generativa, agentes autônomos e arquiteturas web)
-                no curso de Engenharia de Software. Essa vivência diária com modelos de IA e desenvolvimento prático
-                me permite entender a fundo como ferramentas como Cursor, Lovable, v0 e Bolt geram código — e exatamente
-                onde a engenharia sênior precisa intervir para resolver banco de dados, login, segurança, correção de bugs
-                e publicação com estabilidade.
+                Sou também Professor de Tecnologias Emergentes e IA na UniCesumar. Entendo a fundo como Cursor, Lovable, v0 e Bolt geram código, e sei onde a engenharia sênior precisa intervir para garantir banco de dados, segurança, estabilidade e performance.
               </p>
               <p>
-                Antes disso fui desenvolvedor frontend no Inter (time do Intershop), participando da
-                migração de Gatsby para Next.js, da evolução do SEO da loja, de design systems e de
-                observabilidade em grande escala. Esse histórico une o rigor conceitual de quem ensina sobre IA com a
-                experiência prática de quem coloca projetos reais no ar com alta performance.
+                Atuei no time do Intershop (Inter), trabalhando com SEO em grande escala, migração de arquiteturas web e design systems.
               </p>
             </div>
 
             <ul className="lp-about-facts">
               <li>
                 <strong>Engenharia</strong>
-                <span>Engenheiro de software na Saúde Bliss (IA e integrações)</span>
+                <span>Software Engineer na Saúde Bliss (IA e integrações)</span>
               </li>
               <li>
                 <strong>Docência</strong>
-                <span>Professor de Tecnologias Emergentes (IA e agentes) na UniCesumar</span>
+                <span>Professor de IA e Tecnologias Emergentes na UniCesumar</span>
               </li>
               <li>
                 <strong>Experiência</strong>
-                <span>Frontend no Inter (Intershop), Claranet e UniCesumar (Studeo)</span>
+                <span>Frontend no Inter (Intershop), Claranet e UniCesumar</span>
               </li>
               <li>
                 <strong>Formação</strong>
@@ -907,10 +868,9 @@ export const LandingPage: React.FC = () => {
 
       <section className="lp-work" id="trabalhos">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Sites que eu fiz</h2>
+          <h2 className="lp-h2">Sites no ar</h2>
           <p className="lp-h2-sub">
-            Estão no ar agora. Rode a análise em qualquer um deles e compare com a do seu site. Os
-            números vêm da mesma fonte.
+            Projetos em produção agora. Teste qualquer um deles na ferramenta de auditoria e compare com o seu.
           </p>
           <div className="lp-work-grid">
             {CASE_STUDIES.map((item) => (
@@ -936,10 +896,9 @@ export const LandingPage: React.FC = () => {
 
       <section className="lp-request" id="atendimento">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Solicitar atendimento em três passos</h2>
+          <h2 className="lp-h2">Solicitar orçamento em 3 passos</h2>
           <p className="lp-h2-sub">
-            Preencha o essencial abaixo. O botão abre o WhatsApp com a mensagem já escrita, incluindo
-            o resultado da análise se você tiver rodado. Nada é enviado antes disso.
+            Preencha o essencial abaixo. O botão gera a mensagem pronta no WhatsApp com o diagnóstico da análise se você tiver rodado.
           </p>
 
           <div className="lp-request-grid">
@@ -998,13 +957,13 @@ export const LandingPage: React.FC = () => {
                 <div className="lp-step-body">
                   <h3>Situação atual</h3>
                   <label className="lp-field">
-                    <span>Link do projeto ou site atual</span>
+                    <span>Link do projeto ou site atual (opcional)</span>
                     <input
                       value={briefing.currentSite}
                       onChange={(event) =>
                         setBriefing({ ...briefing, currentSite: event.target.value })
                       }
-                      placeholder="seusite.com.br ou link do Lovable/v0/Bolt"
+                      placeholder="seusite.com.br, link do Lovable/v0/Bolt ou deixe em branco"
                       spellCheck={false}
                     />
                   </label>
@@ -1022,7 +981,7 @@ export const LandingPage: React.FC = () => {
 
               <div className="lp-request-submit">
                 <p className="lp-request-note">
-                  Resposta em horário comercial. O levantamento não tem custo e não obriga a nada.
+                  Resposta rápida em horário comercial. O levantamento não tem custo.
                 </p>
                 {briefingReady ? (
                   <a
@@ -1051,22 +1010,19 @@ export const LandingPage: React.FC = () => {
                 <li>
                   <strong>Levantamento</strong>
                   <span>
-                    conversamos sobre o que existe hoje e o que você precisa. Se houver site, eu
-                    analiso antes de opinar.
+                    conversamos sobre o projeto e necessidades. Se houver link, eu analiso a saúde técnica.
                   </span>
                 </li>
                 <li>
                   <strong>Orçamento</strong>
                   <span>
-                    valor fechado do trabalho, com escopo escrito e prazo. Itens opcionais aparecem
-                    com preço separado.
+                    valor fechado do trabalho com escopo escrito e prazo claro.
                   </span>
                 </li>
                 <li>
                   <strong>Execução e entrega</strong>
                   <span>
-                    desenvolvimento com acompanhamento, publicação nas suas contas e a mesma medição
-                    refeita para comparar.
+                    desenvolvimento com acompanhamento, publicação nas suas contas e auditoria final.
                   </span>
                 </li>
               </ol>
@@ -1091,7 +1047,7 @@ export const LandingPage: React.FC = () => {
         <div className="lp-wrap">
           <h2 className="lp-h2">Perguntas frequentes</h2>
           <p className="lp-h2-sub">
-            As dúvidas que aparecem em quase toda primeira conversa, respondidas antes dela.
+            Respostas diretas para as dúvidas mais comuns.
           </p>
           <div className="lp-faq-list">
             {/* `<details>` em vez de estado do React por três razões: a resposta
@@ -1126,14 +1082,14 @@ export const LandingPage: React.FC = () => {
       <section className="lp-cta">
         <div className="lp-wrap lp-cta-inner">
           <div>
-            <h2>Leve seu projeto de IA para o próximo nível</h2>
+            <h2>Pronto para colocar seu projeto no ar?</h2>
             <p>
-              Seja para publicar do zero, consertar um bug travado ou conectar banco de dados e pagamentos: fale comigo no WhatsApp com o que você precisa.
+              Seja para publicar do zero, corrigir bugs ou integrar banco de dados e pagamentos: fale comigo no WhatsApp.
             </p>
           </div>
           <div className="lp-cta-actions">
             <a className="lp-btn lp-btn-solid lp-btn-lg" href="#analise">
-              Analisar meu site
+              Analisar meu projeto
             </a>
             <a
               className="lp-btn lp-btn-ghost lp-btn-lg"
@@ -1141,7 +1097,7 @@ export const LandingPage: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Falar no WhatsApp
+              Chamar no WhatsApp
             </a>
           </div>
         </div>
