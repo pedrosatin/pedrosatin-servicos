@@ -4,7 +4,7 @@
 
 ## 1. Identificação e Contato
 - Nome: Pedro Satin
-- Profissão: Engenheiro de Software e Professor Universitário
+- Profissão: Engenheiro de Software e Professor de Tecnologias Emergentes
 - Especialidade: Desenvolvimento web, deploy, resolução de bugs em código de IA, arquitetura de software, infraestrutura em nuvem e SEO técnico.
 - Domínio principal de serviços: https://servicos.pedrosatin.com
 - Portfólio: https://pedrosatin.com
