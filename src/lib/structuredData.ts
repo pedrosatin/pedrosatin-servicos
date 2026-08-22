@@ -23,10 +23,10 @@ const PAGE_ID = `${SITE_URL}/#pagina`;
 const PERSON_ID = `${PROFILE.portfolio}/#pedro-satin`;
 const BUSINESS_ID = `${SITE_URL}/#servico`;
 
-const SITE_NAME = 'Pedro Satin — Engenharia Web e Deploy para Projetos com IA';
+const SITE_NAME = 'Pedro Satin: Engenharia Web e Deploy para Projetos com IA';
 
 const DESCRIPTION =
-  'Engenharia web e deploy sob demanda para projetos criados com Inteligência Artificial (Cursor, Lovable, v0, Bolt). Publicação com domínio próprio, correção de bugs de código gerado por IA, integração de banco de dados, auth, pagamentos e SEO técnico. Sem mensalidade, código e contas do cliente.';
+  'Engenharia web e deploy sob demanda para projetos criados com IA (Cursor, Lovable, v0, Bolt). Publicação com domínio próprio, correção de bugs, banco de dados, pagamentos e SEO técnico. Sem mensalidade, código 100% seu.';
 
 export const buildStructuredData = (): string =>
   JSON.stringify({
