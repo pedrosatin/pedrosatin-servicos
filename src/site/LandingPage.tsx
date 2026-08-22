@@ -836,13 +836,7 @@ export const LandingPage: React.FC = () => {
           <div className="lp-about-grid">
             <div className="lp-about-text">
               <p>
-                Sou Pedro Satin, Engenheiro de Software na Saúde Bliss, desenvolvendo automações com inteligência artificial, integrações e arquiteturas web com React, TypeScript e AWS.
-              </p>
-              <p>
-                Também sou Professor de Tecnologias Emergentes na UniCesumar e atuo na publicação e evolução técnica de projetos criados com IA.
-              </p>
-              <p>
-                Mais detalhes estão no LinkedIn e em pedrosatin.com.
+                Sou Pedro Satin, engenheiro de software na Saúde Bliss e professor universitário. Entendo a fundo como Cursor, Lovable, v0 e Bolt geram código, e sei onde a engenharia sênior precisa intervir para garantir banco de dados, segurança, estabilidade e performance.
               </p>
             </div>
 
