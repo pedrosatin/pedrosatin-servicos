@@ -20,11 +20,11 @@ export const PROFILE = {
   photo: '/imagens/pedro-satin-linkedin.webp',
   /** Recorte fechado no rosto, para a miniatura em telas estreitas. */
   photoSquare: '/imagens/pedro-satin-linkedin-quadrado.webp',
-  photoAlt: 'Pedro Satin, engenheiro de software e professor',
+  photoAlt: 'Pedro Satin, engenheiro de software',
   linkedin: 'https://www.linkedin.com/in/pedro-satin',
   github: 'https://www.github.com/pedrosatin',
   portfolio: 'https://pedrosatin.com',
-  role: 'Engenheiro de software e professor',
+  role: 'Engenheiro de software e tecnologias emergentes',
 };
 
 /**

@@ -87,6 +87,8 @@ export const LandingPage: React.FC = () => {
   const { phase, steps, result, error, domain, start } = useAudit();
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const queuedPresetRef = useRef<string | null>(null);
+  const runRef = useRef<(target: string) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -165,11 +167,25 @@ export const LandingPage: React.FC = () => {
   };
 
   const runFor = (value: string): void => {
-    setInput(value);
-    void run(value);
+    const target = normalizeDomain(value);
+    setInput(target);
     document.getElementById('analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (phase === 'running') {
+      queuedPresetRef.current = target;
+      return;
+    }
+    void run(target);
     inputRef.current?.focus();
   };
+
+  runRef.current = run;
+
+  useEffect(() => {
+    if (phase === 'running' || !queuedPresetRef.current) return;
+    const target = queuedPresetRef.current;
+    queuedPresetRef.current = null;
+    void runRef.current(target);
+  }, [phase]);
 
   const mobile = result?.pagespeed ?? null;
   const briefingReady = briefing.name.trim().length > 0 && briefing.need.trim().length > 0;
@@ -823,10 +839,10 @@ export const LandingPage: React.FC = () => {
                 Sou Pedro Satin, Engenheiro de Software na Saúde Bliss, desenvolvendo automações com inteligência artificial, integrações e arquiteturas web com React, TypeScript e AWS.
               </p>
               <p>
-                Sou também Professor de Tecnologias Emergentes e IA na UniCesumar. Entendo a fundo como Cursor, Lovable, v0 e Bolt geram código, e sei onde a engenharia sênior precisa intervir para garantir banco de dados, segurança, estabilidade e performance.
+                Também sou Professor de Tecnologias Emergentes na UniCesumar e atuo na publicação e evolução técnica de projetos criados com IA.
               </p>
               <p>
-                Atuei no time do Intershop (Inter), trabalhando com SEO em grande escala, migração de arquiteturas web e design systems.
+                Mais detalhes estão no LinkedIn e em pedrosatin.com.
               </p>
             </div>
 
@@ -837,7 +853,7 @@ export const LandingPage: React.FC = () => {
               </li>
               <li>
                 <strong>Docência</strong>
-                <span>Professor de IA e Tecnologias Emergentes na UniCesumar</span>
+                <span>Professor de Tecnologias Emergentes na UniCesumar</span>
               </li>
               <li>
                 <strong>Experiência</strong>
