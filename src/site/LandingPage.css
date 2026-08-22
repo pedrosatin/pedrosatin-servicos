@@ -55,6 +55,10 @@
   line-height: 1.25;
 }
 
+.lp :is(h1, h2, h3, h4, p, li, dt, dd, figcaption, blockquote, label, summary, a, button) {
+  text-wrap: pretty;
+}
+
 .lp p {
   margin: 0;
 }
@@ -1940,9 +1944,17 @@
 }
 
 .lp-cta-actions {
-  display: flex;
+  display: grid;
   gap: 0.7rem;
-  flex-wrap: wrap;
+  flex: 1 1 21rem;
+  max-width: 21rem;
+}
+
+.lp-cta-actions .lp-btn {
+  width: 100%;
+  min-height: 3.5rem;
+  text-align: center;
+  white-space: normal;
 }
 
 /* ---------- rodapé ---------- */
@@ -2108,6 +2120,10 @@
 
   .lp-request-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-cta-actions {
+    max-width: none;
   }
 }
 
