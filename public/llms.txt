@@ -3,7 +3,7 @@
 > Engenharia de software sob demanda para publicar, corrigir e escalar projetos e MVPs criados com ferramentas de IA (Cursor, Lovable, v0, Bolt.new). Sem mensalidade, código e infraestrutura pertencem 100% ao cliente.
 
 ## Sobre o profissional
-Pedro Satin é engenheiro de software e professor universitário de Tecnologias Emergentes e Inteligência Artificial no Paraná, Brasil. Atua na resolução de problemas técnicos de código gerado por IA, publicação em produção com domínio próprio, integração de bancos relacionais e pagamentos, além de otimização de Core Web Vitals e SEO técnico.
+Pedro Satin é engenheiro de software e professor universitário no Paraná, Brasil. Atua na resolução de problemas técnicos de código gerado por IA, publicação em produção com domínio próprio, integração de bancos relacionais e pagamentos, além de otimização de Core Web Vitals e SEO técnico.
 
 - Portfólio oficial: https://pedrosatin.com
 - LinkedIn: https://www.linkedin.com/in/pedro-satin
