@@ -17,63 +17,56 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Como funciona a cobrança? Existe mensalidade?',
     a: [
-      'Não cobro mensalidade e não exijo contrato de fidelidade. O atendimento é sob demanda: analisamos o que você precisa no projeto, apresento o orçamento com escopo fechado daquele trabalho, e o combinado é cumprido. Se meses depois você precisar de novas funcionalidades ou melhorias, fazemos um novo alinhamento.',
-      'Os únicos custos periódicos são os dos provedores da sua escolha (como o domínio no Registro.br e hospedagens que ultrapassarem planos gratuitos), pagos diretamente por você aos serviços.',
+      'Não cobro mensalidade e não exijo contrato de fidelidade. O atendimento é sob demanda. Fazemos o levantamento do que você precisa, apresento o orçamento com valor fechado e prazo definido, e o combinado é cumprido.',
+      'Os custos de infraestrutura (domínio no Registro.br e eventuais planos pagos de hospedagem) são pagos diretamente por você aos serviços.',
     ],
   },
   {
     q: 'De quem é o código e as contas após a entrega?',
     a: [
-      'Tudo é seu. O domínio fica registrado no seu CPF ou CNPJ, as contas de hospedagem, banco de dados e plataformas de pagamento ficam no seu nome, e o código-fonte no GitHub é transferido para você. Você tem autonomia total para manter, evoluir ou contratar outro profissional a qualquer momento sem nenhuma dependência de mim.',
+      'Tudo fica no seu nome. O domínio é registrado no seu CPF ou CNPJ, as contas de hospedagem e banco pertencem a você, e o repositório no GitHub é transferido para o seu usuário. Você tem autonomia total para manter ou contratar outros profissionais quando quiser.',
     ],
   },
   {
-    q: 'Fiz meu projeto no Lovable, Bolt.new, v0 ou Cursor. Você consegue assumir de onde parei?',
+    q: 'Fiz meu projeto no Lovable, Bolt.new, v0 ou Cursor. Você assume de onde parei?',
     a: [
-      'Sim. Você pode me conceder acesso ao repositório no GitHub ou exportar o código gerado. Eu analiso a estrutura existente, verifico as dependências, resolvo as pendências técnicas e continuo o desenvolvimento ou levo a aplicação para produção.',
+      'Sim. Você compartilha o repositório no GitHub ou o código exportado. Eu analiso a estrutura, resolvo pendências técnicas e continuo o desenvolvimento ou levo direto para produção.',
     ],
   },
   {
     q: 'O código gerado por IA está com bugs ou travando. Precisa refazer do zero?',
     a: [
-      'Na grande maioria dos casos não é necessário refazer do zero. Erros de renderização, loops de reatividade, falhas de sincronização de estado ou formulários quebrados costumam ser pontuais. Eu identifico a causa raiz e corrijo onde está o problema, o que sai mais rápido e mais barato do que recomeçar.',
-      'Se após a análise técnica for constatado que a base está inviável, eu aviso com transparência antes de qualquer decisão.',
+      'Na grande maioria dos casos, não. Erros de renderização, loops de reatividade e botões quebrados no celular são pontuais. Eu identifico a causa raiz e corrijo onde está o defeito, o que é muito mais rápido e econômico do que recomeçar.',
     ],
   },
   {
     q: 'Como funciona para colocar domínio próprio e publicar?',
     a: [
-      'Eu oriento a compra do domínio diretamente no Registro.br ou registrador internacional (sem taxa adicional sobre o domínio). Em seguida, configuro os registros de DNS, ativo o certificado SSL HTTPS e configuro o pipeline de deploy em plataformas como Vercel, Cloudflare Pages, VPS ou AWS, com publicação automática a cada atualização no repositório.',
+      'Você compra o domínio diretamente no Registro.br ou registrador internacional (sem intermediário ou sobretaxa). Eu configuro os apontamentos de DNS, ativo o certificado SSL HTTPS e monto o deploy automático na Vercel, Cloudflare Pages ou AWS.',
     ],
   },
   {
-    q: 'Você integra banco de dados (como Supabase) e login no meu projeto de IA?',
+    q: 'Você integra banco de dados (como Supabase) e autenticação?',
     a: [
-      'Sim. Projetos gerados em ferramentas visuais costumam usar dados mockados em memória. Eu integro bancos relacionais (PostgreSQL via Supabase, Firebase ou Prisma), defino esquemas e regras de segurança (RLS), configuro autenticação de usuários (OAuth, magic link ou e-mail/senha) e ligo formulários e tabelas.',
+      'Sim. Conecto bancos relacionais (PostgreSQL via Supabase, Firebase ou Prisma), configuro autenticação de usuários (Google, e-mail e senha) e ligo as tabelas reais aos formulários da aplicação.',
     ],
   },
   {
     q: 'Você garante primeiro lugar no Google?',
     a: [
-      'Não, e você deve desconfiar de quem promete isso. Posicionamento na busca depende de histórico do domínio, concorrência e autoridade, fatores que ninguém controla. O que eu garanto é a excelência técnica: código semântico, metadados corretos, sitemap válido, alta velocidade de carregamento no celular e renderização adequada para que o robô do Google leia o conteúdo.',
-    ],
-  },
-  {
-    q: 'A análise desta página funciona para testar meu projeto de IA?',
-    a: [
-      'Sim. Se a sua aplicação já estiver disponível em qualquer endereço público (inclusive links temporários de teste da Vercel, Lovable ou Bolt), a ferramenta no topo desta página mede a velocidade de carregamento em aparelho móvel real via PageSpeed do Google e inspeciona o HTML retornado.',
+      'Não, e desconfie de quem promete isso. O posicionamento depende de concorrência e autoridade do domínio. O que eu garanto é a base técnica perfeita: HTML semântico, metadados corretos, sitemap válido, alta velocidade no celular e renderização para o robô da busca indexar seu conteúdo.',
     ],
   },
   {
     q: 'Em quanto tempo o projeto fica pronto?',
     a: [
-      'Depende do escopo definido. Publicações com apontamento de domínio próprio e deploy levam de 1 a 3 dias úteis. Correções de bugs ou integrações de banco de dados e pagamentos em MVPs costumam levar de poucos dias a uma semana. O prazo exato é informado junto com o orçamento antes de iniciar o trabalho.',
+      'Publicações com domínio próprio e deploy levam de 1 a 3 dias úteis. Correções de bugs ou integrações de banco de dados e pagamentos costumam levar poucos dias. O prazo exato é informado junto com o orçamento antes do início.',
     ],
   },
   {
-    q: 'Com que tipos de tecnologias você trabalha?',
+    q: 'A análise desta página funciona para testar meu projeto de IA?',
     a: [
-      'Trabalho principalmente com TypeScript e o ecossistema web moderno: React, Next.js, Vite e Node.js no desenvolvimento; Supabase, Firebase e PostgreSQL para persistência; Vercel, Cloudflare, VPS e AWS para infraestrutura e deploy; Stripe, Asaas e Mercado Pago para pagamentos.',
+      'Sim. Se a aplicação já estiver em qualquer endereço público (inclusive links temporários de teste da Vercel, Lovable ou Bolt), a ferramenta no topo mede a velocidade no celular via Google PageSpeed e inspeciona a estrutura do HTML.',
     ],
   },
 ];
