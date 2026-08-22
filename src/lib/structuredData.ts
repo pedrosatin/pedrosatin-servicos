@@ -16,6 +16,7 @@
  */
 import { CASE_STUDIES, CONTACT, PROFILE, SITE_URL } from './config';
 import { FAQ_ITEMS } from './faq';
+import serialize from 'serialize-javascript';
 import { SERVICES } from './services';
 
 const SITE_ID = `${SITE_URL}/#site`;
@@ -29,7 +30,7 @@ const DESCRIPTION =
   'Engenharia web e deploy sob demanda para projetos criados com IA (Cursor, Lovable, v0, Bolt). Publicação com domínio próprio, correção de bugs, banco de dados, pagamentos e SEO técnico. Sem mensalidade, código 100% seu.';
 
 export const buildStructuredData = (): string =>
-  JSON.stringify({
+  serialize({
     '@context': 'https://schema.org',
     '@graph': [
       {
@@ -127,4 +128,4 @@ export const buildStructuredData = (): string =>
         })),
       },
     ],
-  });
+  }, { isJSON: true });
