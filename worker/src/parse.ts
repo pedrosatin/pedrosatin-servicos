@@ -210,22 +210,30 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   const imageTags = collectTags(markup, 'img');
   const images: ImageStats = {
     total: imageTags.length,
-    withoutAlt: imageTags.filter((tag) => attr(tag, 'alt') === null).length,
-    withoutDimensions: imageTags.filter(
-      (tag) => attr(tag, 'width') === null || attr(tag, 'height') === null,
-    ).length,
-    lazy: imageTags.filter((tag) => (attr(tag, 'loading') ?? '').toLowerCase() === 'lazy').length,
+    withoutAlt: 0,
+    withoutDimensions: 0,
+    lazy: 0,
   };
+  for (const tag of imageTags) {
+    if (attr(tag, 'alt') === null) images.withoutAlt++;
+    if (attr(tag, 'width') === null || attr(tag, 'height') === null) images.withoutDimensions++;
+    if ((attr(tag, 'loading') ?? '').toLowerCase() === 'lazy') images.lazy++;
+  }
 
   const scriptTags = collectTags(markup, 'script');
-  const externalScripts = scriptTags.filter((tag) => attr(tag, 'src') !== null);
   const scripts: ScriptStats = {
     total: scriptTags.length,
-    external: externalScripts.length,
-    blocking: externalScripts.filter(
-      (tag) => !hasAttr(tag, 'async') && !hasAttr(tag, 'defer') && (attr(tag, 'type') ?? '') !== 'module',
-    ).length,
+    external: 0,
+    blocking: 0,
   };
+  for (const tag of scriptTags) {
+    if (attr(tag, 'src') !== null) {
+      scripts.external++;
+      if (!hasAttr(tag, 'async') && !hasAttr(tag, 'defer') && (attr(tag, 'type') ?? '') !== 'module') {
+        scripts.blocking++;
+      }
+    }
+  }
 
   const linkTags = collectTags(markup, 'link');
   const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
