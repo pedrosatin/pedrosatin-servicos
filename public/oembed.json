@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "type": "rich",
+  "title": "Publicação, Deploy e Engenharia para Projetos criados com IA | Pedro Satin",
+  "author_name": "Pedro Satin",
+  "author_url": "https://pedrosatin.com",
+  "provider_name": "Pedro Satin",
+  "provider_url": "https://servicos.pedrosatin.com",
+  "thumbnail_url": "https://servicos.pedrosatin.com/imagens/compartilhamento.png",
+  "thumbnail_width": 1200,
+  "thumbnail_height": 630,
+  "html": "<p>Deploy e engenharia para projetos criados com IA (Cursor, Lovable, v0, Bolt). Por Pedro Satin.</p>",
+  "width": 600,
+  "height": 315
+}

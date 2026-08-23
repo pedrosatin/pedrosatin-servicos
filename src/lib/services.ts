@@ -16,33 +16,33 @@ export interface ServiceItem {
 
 export const SERVICES: ServiceItem[] = [
   {
-    title: 'Site no ar, mas sem endereço próprio',
-    short: 'Registro de domínio próprio e migração do site para ele, sem perder o que já existe.',
-    body: 'É comum ver um site funcionando em um endereço de plataforma, com sufixo de construtor ou de hospedagem gratuita no meio. Ele até abre, mas passa impressão de improviso, atrapalha a indexação e não pode ser levado embora se você trocar de serviço. Eu registro o domínio no seu nome, aponto o DNS e coloco o site nele, sem perder o que já existe.',
+    title: 'Deploy e domínio próprio',
+    short: 'Publicação de projetos do Cursor, Lovable, v0 ou Bolt na Vercel, Cloudflare ou AWS com DNS e SSL no seu nome.',
+    body: 'Publicação de aplicações em ambientes de produção como Vercel, Cloudflare Pages ou AWS. Configuração de DNS no Registro.br ou provedor internacional com certificado SSL ativo. Contas e domínio sempre no seu nome.',
   },
   {
-    title: 'Site lento, principalmente no celular',
-    short: 'Correção de desempenho no celular, guiada pela medição do PageSpeed Insights.',
-    body: 'Imagem pesada demais, script que trava a exibição, tema com recursos que a página não usa. O dono abre no computador com internet boa e acha que está tudo certo, enquanto o cliente espera segundos numa rede móvel e desiste. A medição do Google nesta página aponta onde está o peso, e é por ali que eu começo.',
+    title: 'Correção de bugs e código travado',
+    short: 'Correção de erros de estado, loops, quebras no celular e travamentos que o chat da IA não resolveu.',
+    body: 'Identificação da causa raiz em código TypeScript e React gerado por IA. Correção pontual de loops de renderização, estados dessincronizados e botões quebrados no celular, sem precisar refazer o projeto do zero.',
   },
   {
-    title: 'Bugs específicos em site que funciona',
-    short: 'Conserto pontual de formulário, botão, layout ou página quebrada, com orçamento fechado.',
-    body: 'Formulário que não envia, botão que não responde no telefone, layout que quebra em uma tela, página que some da busca depois de uma atualização. Não é caso de refazer o site inteiro. É caso de achar a causa e corrigir aquele ponto, e é um trabalho que dá para orçar fechado.',
+    title: 'Banco de dados e autenticação',
+    short: 'Conexão com Supabase, Firebase ou PostgreSQL, autenticação de usuários e fluxo seguro de login.',
+    body: 'Transformação de protótipos de tela em sistemas funcionais com persistência real. Modelagem de tabelas no PostgreSQL ou Supabase, login seguro (Google, e-mail e senha) e regras de proteção de dados.',
   },
   {
-    title: 'Site que não aparece no Google',
-    short: 'Diagnóstico e correção de indexação: rastreamento, sitemap e conteúdo visível ao robô.',
-    body: 'Às vezes o motivo é banal: um arquivo bloqueando o rastreamento, ausência de sitemap, conteúdo que só existe depois que o JavaScript roda. A análise verifica esses pontos e o próprio visitante pode conferir o resultado no operador de busca, sem depender da minha palavra.',
+    title: 'Pagamentos e integrações',
+    short: 'Integração de Stripe, Asaas ou Mercado Pago via Pix e cartão com liberação automática por webhooks.',
+    body: 'Cobrança por assinatura ou pagamento único no Pix e cartão. Configuração de webhooks para liberação imediata de acesso no banco de dados e integração de APIs externas para sua regra de negócio.',
   },
   {
-    title: 'Site novo, do zero',
-    short: 'Site institucional ou landing page em código, com domínio próprio e certificado.',
-    body: 'Página institucional ou landing page construída em código direto, sem construtor pesado por trás. Vai ao ar com domínio próprio, certificado de segurança e estrutura preparada para o Google ler desde o primeiro dia.',
+    title: 'Performance e Core Web Vitals',
+    short: 'Remoção de dependências pesadas de IA, carregamento rápido no celular e notas altas no PageSpeed.',
+    body: 'Limpeza de pacotes redundantes inseridos por geradores de código, otimização de imagens e fontes. Carregamento rápido no celular e pontuação alta nas métricas oficiais do Google.',
   },
   {
-    title: 'Domínio, e-mail e publicação',
-    short: 'Domínio, DNS, certificado, e-mail no endereço próprio e publicação, em contas suas.',
-    body: 'Registro do domínio, apontamento de DNS, certificado, e-mail no seu próprio endereço e publicação. Tudo criado em contas suas, que ficam com você no fim do trabalho.',
+    title: 'SEO técnico e indexação',
+    short: 'Renderização do HTML inicial, metadados Open Graph para redes sociais, sitemap e robots.txt.',
+    body: 'Estruturação de HTML semântico e pré-renderização estática para o Google indexar o conteúdo real em vez de uma tela em branco. Metadados para compartilhamento no WhatsApp e LinkedIn.',
   },
 ];

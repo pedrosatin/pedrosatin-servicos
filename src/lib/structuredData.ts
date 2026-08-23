@@ -23,10 +23,10 @@ const PAGE_ID = `${SITE_URL}/#pagina`;
 const PERSON_ID = `${PROFILE.portfolio}/#pedro-satin`;
 const BUSINESS_ID = `${SITE_URL}/#servico`;
 
-const SITE_NAME = 'Pedro Satin — Desenvolvimento Web';
+const SITE_NAME = 'Pedro Satin: Engenharia Web e Deploy para Projetos com IA';
 
 const DESCRIPTION =
-  'Desenvolvimento web sob demanda: publicação de sites, registro e apontamento de domínio, correção de desempenho no celular e de problemas de indexação no Google. Sem mensalidade, com o código e as contas no nome do cliente.';
+  'Engenharia web e deploy sob demanda para projetos criados com IA (Cursor, Lovable, v0, Bolt). Publicação com domínio próprio, correção de bugs, banco de dados, pagamentos e SEO técnico. Sem mensalidade, código 100% seu.';
 
 export const buildStructuredData = (): string =>
   JSON.stringify({
@@ -48,11 +48,16 @@ export const buildStructuredData = (): string =>
         url: PROFILE.portfolio,
         image: `${SITE_URL}${PROFILE.photo}`,
         knowsAbout: [
+          'Engenharia de software',
           'Desenvolvimento web',
+          'Deploy de aplicações de IA',
+          'Cursor, v0, Lovable e Bolt.new',
           'Otimização de desempenho web',
+          'Core Web Vitals',
           'SEO técnico',
-          'Registro de domínio .br',
-          'Configuração de DNS',
+          'Integração de banco de dados e Supabase',
+          'Integração de pagamentos (Stripe, Asaas)',
+          'Configuração de DNS e domínio próprio',
           'Tecnologias Emergentes',
           'Inteligência Artificial',
         ],
@@ -93,7 +98,7 @@ export const buildStructuredData = (): string =>
         '@type': 'WebPage',
         '@id': PAGE_ID,
         url: `${SITE_URL}/`,
-        name: 'Análise de site: velocidade, Google e domínio | Pedro Satin',
+        name: 'Publicação, Deploy e Engenharia para Projetos criados com IA | Pedro Satin',
         description: DESCRIPTION,
         inLanguage: 'pt-BR',
         isPartOf: { '@id': SITE_ID },
