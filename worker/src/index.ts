@@ -111,7 +111,16 @@ const isInternalHost = (hostname: string): boolean => {
   // IPv6 único-local (fc00::/7) e link-local (fe80::/10).
   if (/^f[cd][0-9a-f]{2}:/.test(host) || /^fe[89ab][0-9a-f]:/.test(host)) return true;
 
-  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  let ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+
+  if (!ipv4) {
+    const mapped = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(host);
+    if (mapped) {
+      const p1 = parseInt(mapped[1], 16);
+      const p2 = parseInt(mapped[2], 16);
+      ipv4 = ["", String(p1 >> 8), String(p1 & 0xff), String(p2 >> 8), String(p2 & 0xff)] as unknown as RegExpExecArray;
+    }
+  }
   if (!ipv4) return false;
   const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
   if (a === 0 || a === 127) return true;
