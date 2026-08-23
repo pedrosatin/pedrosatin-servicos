@@ -55,6 +55,10 @@
   line-height: 1.25;
 }
 
+.lp :is(h1, h2, h3, h4, p, li, dt, dd, figcaption, blockquote, label, summary, a, button) {
+  text-wrap: pretty;
+}
+
 .lp p {
   margin: 0;
 }
@@ -1720,9 +1724,10 @@
 }
 
 .lp-need.active {
-  border-color: var(--green);
-  background: var(--green-soft);
-  color: var(--green);
+  border-color: rgba(255, 255, 255, 0.9);
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--green-edge);
 }
 
 /* Ação alinhada à direita, acompanhando a borda dos campos acima. */
@@ -1940,9 +1945,17 @@
 }
 
 .lp-cta-actions {
-  display: flex;
+  display: grid;
   gap: 0.7rem;
-  flex-wrap: wrap;
+  flex: 1 1 21rem;
+  max-width: 21rem;
+}
+
+.lp-cta-actions .lp-btn {
+  width: 100%;
+  min-height: 3.5rem;
+  text-align: center;
+  white-space: normal;
 }
 
 /* ---------- rodapé ---------- */
@@ -2013,6 +2026,23 @@
 
 .lp-signature-handle:hover {
   border-bottom-color: var(--green);
+}
+
+.lp-footer-divider {
+  color: var(--line-strong);
+}
+
+.lp-footer-link {
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.lp-footer-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
 }
 
 /* ---------- telas menores ---------- */
@@ -2091,6 +2121,16 @@
 
   .lp-request-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-prompt-input,
+  .lp-field input,
+  .lp-field textarea {
+    font-size: 16px;
+  }
+
+  .lp-cta-actions {
+    max-width: none;
   }
 }
 
