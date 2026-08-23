@@ -48,9 +48,9 @@ export interface CaseStudy {
 export const CASE_STUDIES: CaseStudy[] = [
   {
     domain: 'servicos.pedrosatin.com',
-    name: 'Pedro Satin — Serviços',
+    name: 'Pedro Satin: Serviços',
     segment: 'Esta própria página',
-    summary: 'Auditoria técnica de ponta a ponta, zero scripts de terceiros bloqueantes e nota máxima de desempenho.',
+    summary: 'Auditoria técnica em tempo real, sem scripts bloqueantes e 100 de performance no Google.',
   },
   {
     domain: 'pedrosatin.com',
@@ -61,40 +61,30 @@ export const CASE_STUDIES: CaseStudy[] = [
   {
     domain: 'silvasatin.adv.br',
     name: 'Silva Satin Advocacia',
-    segment: 'Escritório de advocacia',
-    summary: 'Site institucional com domínio .adv.br próprio, responsivo e presente na busca.',
+    segment: 'Site institucional',
+    summary: 'Site institucional com domínio .adv.br próprio, 100% responsivo e indexado na busca.',
   },
   {
     domain: 'palpitae.com.br',
     name: 'Palpitaê',
     segment: 'Aplicação web',
-    summary: 'Plataforma de bolões de futebol em Vite e Cloudflare, com domínio .com.br próprio.',
+    summary: 'Plataforma de bolões de futebol em Vite e Cloudflare com domínio próprio.',
   },
 ];
 
-/** Extensões .br organizadas pelo perfil a que se destinam. */
+/** Extensões .br mais comuns para aplicações, empresas e profissionais. */
 export interface DomainExtension {
   suffix: string;
   audience: string;
 }
 
 export const DOMAIN_EXTENSIONS: DomainExtension[] = [
-  { suffix: '.com.br', audience: 'Empresas e atividades comerciais em geral' },
+  { suffix: '.com.br', audience: 'Empresas, startups e comércio em geral' },
+  { suffix: '.app.br', audience: 'Aplicativos, MVPs e produtos digitais' },
+  { suffix: '.dev.br', audience: 'Desenvolvedores e projetos de tecnologia' },
   { suffix: '.adv.br', audience: 'Advogados e escritórios de advocacia' },
-  { suffix: '.med.br', audience: 'Médicos e clínicas' },
-  { suffix: '.odo.br', audience: 'Dentistas e consultórios odontológicos' },
-  { suffix: '.psi.br', audience: 'Psicólogos' },
-  { suffix: '.eng.br', audience: 'Engenheiros' },
-  { suffix: '.arq.br', audience: 'Arquitetos e urbanistas' },
-  { suffix: '.vet.br', audience: 'Médicos veterinários' },
-  { suffix: '.nut.br', audience: 'Nutricionistas' },
-  { suffix: '.cnt.br', audience: 'Contadores e escritórios de contabilidade' },
-  { suffix: '.imb.br', audience: 'Imobiliárias e corretores' },
-  { suffix: '.srv.br', audience: 'Prestadores de serviço em geral' },
-  { suffix: '.ind.br', audience: 'Indústrias' },
-  { suffix: '.eco.br', audience: 'Atividades ligadas a sustentabilidade' },
-  { suffix: '.app.br', audience: 'Aplicativos e produtos digitais' },
-  { suffix: '.blog.br', audience: 'Publicações e conteúdo editorial' },
+  { suffix: '.med.br', audience: 'Médicos e clínicas de saúde' },
+  { suffix: '.srv.br', audience: 'Prestadores de serviços em geral' },
 ];
 
 export const REGISTRO_BR_URL = 'https://registro.br/dominio/categorias/';
