@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
+import worker, {
   normalizeTarget,
   isInternalHost,
   fetchWithTimeout,
@@ -185,6 +185,74 @@ describe('worker index helpers', () => {
         urlCount: 1,
         isIndex: false,
       });
+    });
+  });
+});
+
+describe('worker fetch handler', () => {
+  const originalFetch = globalThis.fetch;
+  const mockEnv = { ALLOWED_ORIGINS: 'http://localhost:5173' };
+  const mockOrigin = 'http://localhost:5173';
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('returns AbortError message on timeout', async () => {
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    globalThis.fetch = vi.fn().mockRejectedValue(abortError);
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: mockOrigin },
+    });
+
+    const response = await worker.fetch(request, mockEnv as any);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      ok: false,
+      error: 'O site não respondeu dentro de 12 segundos.',
+      input: 'example.com',
+    });
+  });
+
+  it('returns generic error message on standard Error', async () => {
+    const standardError = new Error('Network failure');
+    globalThis.fetch = vi.fn().mockRejectedValue(standardError);
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: mockOrigin },
+    });
+
+    const response = await worker.fetch(request, mockEnv as any);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      ok: false,
+      error: 'Network failure',
+      input: 'example.com',
+    });
+  });
+
+  it('returns fallback error message for non-Error throws', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue('String error');
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: mockOrigin },
+    });
+
+    const response = await worker.fetch(request, mockEnv as any);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      ok: false,
+      error: 'Falha desconhecida ao auditar o site.',
+      input: 'example.com',
     });
   });
 });
