@@ -127,4 +127,4 @@ export const buildStructuredData = (): string =>
         })),
       },
     ],
-  });
+  }).replace(/</g, '\\u003c');
