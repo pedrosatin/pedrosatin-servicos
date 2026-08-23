@@ -101,7 +101,7 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * varredura. A lista cobre laço local, as três faixas privadas do IPv4,
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
-const isInternalHost = (hostname: string): boolean => {
+export const isInternalHost = (hostname: string): boolean => {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
@@ -111,7 +111,8 @@ const isInternalHost = (hostname: string): boolean => {
   // IPv6 único-local (fc00::/7) e link-local (fe80::/10).
   if (/^f[cd][0-9a-f]{2}:/.test(host) || /^fe[89ab][0-9a-f]:/.test(host)) return true;
 
-  let ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  const cleaned = host.replace(/^::ffff:/, '');
+  let ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(cleaned);
 
   if (!ipv4) {
     const mapped = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(host);
@@ -132,7 +133,7 @@ const isInternalHost = (hostname: string): boolean => {
 };
 
 /** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
-const normalizeTarget = (raw: string): URL | null => {
+export const normalizeTarget = (raw: string): URL | null => {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -147,7 +148,7 @@ const normalizeTarget = (raw: string): URL | null => {
   }
 };
 
-const fetchWithTimeout = async (url: string, init: RequestInit = {}): Promise<Response> => {
+export const fetchWithTimeout = async (url: string, init: RequestInit = {}): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -202,7 +203,7 @@ const followRedirects = async (
 };
 
 /** Verifica se a versão http:// do domínio força HTTPS. */
-const checkHttpsUpgrade = async (hostname: string): Promise<boolean | null> => {
+export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | null> => {
   try {
     const response = await fetchWithTimeout(`http://${hostname}/`, { redirect: 'manual' });
     const location = response.headers.get('location');
@@ -225,7 +226,7 @@ const readBodyLimited = async (response: Response): Promise<{ text: string; byte
   return { text: new TextDecoder('utf-8').decode(slice), bytes };
 };
 
-const auditRobotsAndSitemap = async (
+export const auditRobotsAndSitemap = async (
   origin: string,
 ): Promise<{ robots: RobotsReport | null; sitemap: AuditResponse['sitemap'] }> => {
   let robots: RobotsReport | null = null;
