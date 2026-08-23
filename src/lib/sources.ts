@@ -110,23 +110,30 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
   };
 };
 
-export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<EmailAuthReport> => {
-  let activeDns = dns;
-  let targetDomain = domain;
-  if (!dns.mx.length) {
-    const apex = getApexDomain(domain);
-    if (apex !== domain) {
-      try {
-        const apexDns = await fetchDns(apex);
-        if (apexDns.mx.length > 0) {
-          activeDns = apexDns;
-          targetDomain = apex;
-        }
-      } catch {
-        // mantém dns original
-      }
-    }
+const resolveApexDns = async (domain: string, dns: DnsReport) => {
+  if (dns.mx.length > 0) {
+    return { activeDns: dns, targetDomain: domain };
   }
+
+  const apex = getApexDomain(domain);
+  if (apex === domain) {
+    return { activeDns: dns, targetDomain: domain };
+  }
+
+  try {
+    const apexDns = await fetchDns(apex);
+    if (apexDns.mx.length > 0) {
+      return { activeDns: apexDns, targetDomain: apex };
+    }
+  } catch {
+    // mantém dns original
+  }
+
+  return { activeDns: dns, targetDomain: domain };
+};
+
+export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<EmailAuthReport> => {
+  const { activeDns, targetDomain } = await resolveApexDns(domain, dns);
 
   const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
   const dmarc =
