@@ -5,6 +5,7 @@ import {
   fetchWithTimeout,
   checkHttpsUpgrade,
   auditRobotsAndSitemap,
+  default as worker,
 } from './index';
 
 describe('worker index helpers', () => {
@@ -186,5 +187,51 @@ describe('worker index helpers', () => {
         isIndex: false,
       });
     });
+  });
+});
+
+describe('worker default fetch export', () => {
+  const originalFetch = globalThis.fetch;
+  const env = { ALLOWED_ORIGINS: 'https://pedrosatin.com' };
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  const createMockRequest = () => {
+    return new Request('https://worker.test/audit?url=example.com', {
+      method: 'GET',
+      headers: new Headers({ origin: 'https://pedrosatin.com' }),
+    });
+  };
+
+  it('returns AbortError message on timeout', async () => {
+    const abortError = new Error('Timeout');
+    abortError.name = 'AbortError';
+    globalThis.fetch = vi.fn().mockRejectedValue(abortError);
+
+    const request = createMockRequest();
+    const response = await worker.fetch(request, env);
+    const data = await response.json();
+    expect(data).toEqual({ ok: false, error: 'O site não respondeu dentro de 12 segundos.', input: 'example.com' });
+  });
+
+  it('returns specific Error message on other Error instances', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Alguma falha específica'));
+
+    const request = createMockRequest();
+    const response = await worker.fetch(request, env);
+    const data = await response.json();
+    expect(data).toEqual({ ok: false, error: 'Alguma falha específica', input: 'example.com' });
+  });
+
+  it('returns generic error message on non-Error rejections', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue('Um erro string aleatório');
+
+    const request = createMockRequest();
+    const response = await worker.fetch(request, env);
+    const data = await response.json();
+    expect(data).toEqual({ ok: false, error: 'Falha desconhecida ao auditar o site.', input: 'example.com' });
   });
 });
