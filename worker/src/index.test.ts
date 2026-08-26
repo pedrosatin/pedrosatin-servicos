@@ -188,3 +188,71 @@ describe('worker index helpers', () => {
     });
   });
 });
+
+describe('default fetch handler', () => {
+    const originalFetch = globalThis.fetch;
+    const mockEnv = { ALLOWED_ORIGINS: 'http://localhost:5173' };
+    const mockRequest = (url: string, origin = 'http://localhost:5173') => {
+      return new Request(url, {
+        method: 'GET',
+        headers: new Headers({ origin }),
+      });
+    };
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it('returns 12 seconds error for AbortError', async () => {
+      const error = new Error('aborted');
+      error.name = 'AbortError';
+      globalThis.fetch = vi.fn().mockRejectedValue(error);
+
+      // We need to import the default export, but since it's an ES module, we'll dynamic import
+      const worker = (await import('./index')).default;
+      const req = mockRequest('http://localhost/audit?url=example.com');
+      const res = await worker.fetch(req, mockEnv);
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({
+        ok: false,
+        error: 'O site não respondeu dentro de 12 segundos.',
+        input: 'example.com',
+      });
+    });
+
+    it('returns error message for standard Error', async () => {
+      const error = new Error('O site redireciona para um endereço de rede interna.');
+      globalThis.fetch = vi.fn().mockRejectedValue(error);
+
+      const worker = (await import('./index')).default;
+      const req = mockRequest('http://localhost/audit?url=example.com');
+      const res = await worker.fetch(req, mockEnv);
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({
+        ok: false,
+        error: 'O site redireciona para um endereço de rede interna.',
+        input: 'example.com',
+      });
+    });
+
+    it('returns fallback message for unknown errors', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue('just a string');
+
+      const worker = (await import('./index')).default;
+      const req = mockRequest('http://localhost/audit?url=example.com');
+      const res = await worker.fetch(req, mockEnv);
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({
+        ok: false,
+        error: 'Falha desconhecida ao auditar o site.',
+        input: 'example.com',
+      });
+    });
+  });
