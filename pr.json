@@ -1,0 +1,4 @@
+{
+  "title": "🧪 Add tests for googleIndexUrl and searchConsoleUrl",
+  "body": "🎯 **What:** The testing gap for `googleIndexUrl` and `searchConsoleUrl` in `src/lib/dominio.ts` has been addressed. Unit tests have been added for all domain-related functions in `src/lib/dominio.test.ts`.\n\n📊 **Coverage:** The tests now cover `normalizeDomain` (removing protocols, www, paths, ports, etc.), `isValidDomain` (valid and invalid formats), `getApexDomain` (simple and Brazilian subdomains), `googleIndexUrl`, and `searchConsoleUrl` (correct URL construction and encoding).\n\n✨ **Result:** Increased test coverage for `src/lib/dominio.ts`, making the utility functions fully tested and reliable against regressions."
+}
