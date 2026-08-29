@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { AuditResult, AuditStep } from './types';
 import { useAudit } from './useAudit';
 
 vi.mock('./audit', () => {
@@ -14,7 +15,7 @@ import * as auditModule from './audit';
 describe('useAudit', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (auditModule.createSteps as any).mockReturnValue([]);
+    vi.mocked(auditModule.createSteps).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -22,7 +23,7 @@ describe('useAudit', () => {
   });
 
   it('handles error in runAudit', async () => {
-    (auditModule.runAudit as any).mockRejectedValueOnce(new Error('Test error message'));
+    vi.mocked(auditModule.runAudit).mockRejectedValueOnce(new Error('Test error message'));
 
     const { result } = renderHook(() => useAudit());
 
@@ -37,7 +38,7 @@ describe('useAudit', () => {
   });
 
   it('handles non-Error objects in catch block', async () => {
-    (auditModule.runAudit as any).mockRejectedValueOnce('String error');
+    vi.mocked(auditModule.runAudit).mockRejectedValueOnce('String error');
 
     const { result } = renderHook(() => useAudit());
 
@@ -50,18 +51,18 @@ describe('useAudit', () => {
   });
 
   it('updates steps during audit', async () => {
-    let onStepCallback: any;
+    let onStepCallback: ((step: AuditStep) => void) | undefined;
 
-    (auditModule.runAudit as any).mockImplementationOnce((_input: any, options: any) => {
-      onStepCallback = options.onStep;
-      return new Promise((resolve) => setTimeout(() => resolve({ score: 100 } as any), 50));
+    vi.mocked(auditModule.runAudit).mockImplementationOnce((_input: string, options?: auditModule.AuditOptions) => {
+      onStepCallback = options?.onStep;
+      return new Promise((resolve) => setTimeout(() => resolve({ score: { value: 100, label: "A" } } as unknown as AuditResult), 50));
     });
 
-    (auditModule.createSteps as any).mockReturnValueOnce([{ id: 'step1', status: 'pending' }]);
+    vi.mocked(auditModule.createSteps).mockReturnValueOnce([{ id: 'step1', status: 'pending', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null }]);
 
     const { result } = renderHook(() => useAudit());
 
-    let p: any;
+    let p: Promise<AuditResult | null> | undefined;
     act(() => {
       p = result.current.start('example.com');
     });
@@ -70,35 +71,35 @@ describe('useAudit', () => {
       await new Promise((r) => setTimeout(r, 0));
     });
 
-    expect(result.current.steps).toEqual([{ id: 'step1', status: 'pending' }]);
+    expect(result.current.steps).toEqual([{ id: 'step1', status: 'pending', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null }]);
 
     act(() => {
-      onStepCallback({ id: 'step1', status: 'running' });
+      onStepCallback?.({ id: 'step1', status: 'running', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null });
     });
 
-    expect(result.current.steps).toEqual([{ id: 'step1', status: 'running' }]);
+    expect(result.current.steps).toEqual([{ id: 'step1', status: 'running', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null }]);
 
     act(() => {
-      onStepCallback({ id: 'step2', status: 'pending' });
+      onStepCallback?.({ id: 'step2', status: 'pending', label: 'step2 label', command: 'step2 command', detail: null, durationMs: null });
     });
 
     expect(result.current.steps).toEqual([
-      { id: 'step1', status: 'running' },
-      { id: 'step2', status: 'pending' },
+      { id: 'step1', status: 'running', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null },
+      { id: 'step2', status: 'pending', label: 'step2 label', command: 'step2 command', detail: null, durationMs: null },
     ]);
 
-    let p2: any;
+    let p2: Promise<AuditResult | null> | undefined;
     act(() => {
       p2 = result.current.start('example2.com');
     });
 
     act(() => {
-      onStepCallback({ id: 'step3', status: 'pending' });
+      onStepCallback?.({ id: 'step3', status: 'pending', label: 'step3 label', command: 'step3 command', detail: null, durationMs: null });
     });
 
     expect(result.current.steps).toEqual([
-      { id: 'step1', status: 'running' },
-      { id: 'step2', status: 'pending' },
+      { id: 'step1', status: 'running', label: 'step1 label', command: 'step1 command', detail: null, durationMs: null },
+      { id: 'step2', status: 'pending', label: 'step2 label', command: 'step2 command', detail: null, durationMs: null },
     ]);
 
     await act(async () => {
@@ -110,7 +111,7 @@ describe('useAudit', () => {
   });
 
   it('reset clears state', async () => {
-    (auditModule.runAudit as any).mockResolvedValueOnce({ score: 100 } as any);
+    vi.mocked(auditModule.runAudit).mockResolvedValueOnce({ score: { value: 100, label: "A" } } as unknown as AuditResult);
 
     const { result } = renderHook(() => useAudit());
 
