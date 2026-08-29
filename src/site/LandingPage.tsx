@@ -1,66 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  CASE_STUDIES,
-  CONTACT,
-  DOMAIN_EXTENSIONS,
-  PROFILE,
-  REGISTRO_BR_URL,
-  buildWhatsAppUrl,
-} from '../lib/config';
-import { FAQ_ITEMS } from '../lib/faq';
-import { AREA_LABELS, countBySeverity } from '../lib/achados';
+import { countBySeverity } from '../lib/achados';
 import { formatDate, formatMs } from '../lib/format';
 import { auditWhatsAppUrl, briefingWhatsAppUrl, type Briefing } from '../lib/message';
 import { SERVICES } from '../lib/services';
 import { googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/dominio';
 import { buildStructuredData } from '../lib/structuredData';
-import type { Finding, PageSpeedReport, Severity } from '../lib/types';
+import type { PageSpeedReport } from '../lib/types';
 import { useAudit } from '../lib/useAudit';
 import './LandingPage.css';
 
-const SEVERITY_TAG: Record<Severity, string> = {
-  critical: 'CRÍTICO',
-  warning: 'ATENÇÃO',
-  info: 'OBSERVAÇÃO',
-  good: 'OK',
-};
+import { DeviceStatusBar } from './components/DeviceStatusBar';
+import { StatusGlyph } from './components/StatusGlyph';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
+import { FaqSection } from './components/FaqSection';
+import { CtaSection } from './components/CtaSection';
+import { FindingsSection } from './components/FindingsSection';
+import { CONTACT, DOMAIN_EXTENSIONS, PROFILE, REGISTRO_BR_URL, buildWhatsAppUrl, CASE_STUDIES } from '../lib/config';
 
 const tone = (value: number | null): string =>
   value === null ? 'none' : value >= 90 ? 'good' : value >= 50 ? 'mid' : 'bad';
 
 /** Barra de status do aparelho: hora à esquerda, ilha ao centro, ícones à direita. */
-const DeviceStatusBar: React.FC<{ time: string }> = ({ time }) => (
-  <div className="lp-device-statusbar" aria-hidden="true">
-    <span className="lp-device-time">{time}</span>
-    <span className="lp-device-island" />
-    <span className="lp-device-icons">
-      <svg viewBox="0 0 13 9" width="12" height="8" fill="currentColor">
-        <rect x="0" y="6.2" width="2" height="2.8" rx="0.6" />
-        <rect x="3.4" y="4.2" width="2" height="4.8" rx="0.6" />
-        <rect x="6.8" y="2.1" width="2" height="6.9" rx="0.6" />
-        <rect x="10.2" y="0" width="2" height="9" rx="0.6" />
-      </svg>
-      <svg viewBox="0 0 12 9" width="11" height="8" fill="none" stroke="currentColor">
-        <path d="M0.9 2.6a7.6 7.6 0 0 1 10.2 0" strokeWidth="1.2" strokeLinecap="round" />
-        <path d="M2.9 4.9a4.7 4.7 0 0 1 6.2 0" strokeWidth="1.2" strokeLinecap="round" />
-        <path d="M4.9 7.2a1.8 1.8 0 0 1 2.2 0" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-      <svg viewBox="0 0 17 9" width="16" height="8" fill="currentColor">
-        <rect x="0.5" y="0.5" width="13" height="8" rx="2.4" fill="none" stroke="currentColor" />
-        <rect x="2" y="2" width="9.5" height="5" rx="1.2" />
-        <path d="M15.2 3.1a1.7 1.7 0 0 1 0 2.8V3.1Z" />
-      </svg>
-    </span>
-  </div>
-);
 
-const StatusGlyph: React.FC<{ status: string }> = ({ status }) => {
-  if (status === 'running') return <span className="lp-glyph running">···</span>;
-  if (status === 'done') return <span className="lp-glyph done">ok</span>;
-  if (status === 'failed') return <span className="lp-glyph failed">falhou</span>;
-  if (status === 'skipped') return <span className="lp-glyph skipped">pulado</span>;
-  return <span className="lp-glyph pending">·</span>;
-};
 
 const NEEDS = [
   'Fiz um projeto com IA e não sei como publicar',
@@ -108,16 +70,6 @@ export const LandingPage: React.FC = () => {
     [result],
   );
 
-  const grouped = useMemo(() => {
-    if (!result) return [];
-    const map = new Map<Finding['area'], Finding[]>();
-    for (const finding of result.findings) {
-      const list = map.get(finding.area) ?? [];
-      list.push(finding);
-      map.set(finding.area, list);
-    }
-    return [...map.entries()];
-  }, [result]);
 
   const run = async (target: string): Promise<void> => {
     if (!target.trim() || phase === 'running') return;
@@ -213,34 +165,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </div>
 
-      <header className="lp-header">
-        <div className="lp-wrap lp-header-inner">
-          <a href="#topo" className="lp-brand">
-            <span className="lp-brand-mark">ps</span>
-            <span className="lp-brand-text">
-              <span className="lp-brand-name">Pedro Satin</span>
-              <span className="lp-brand-role">engenharia web</span>
-            </span>
-          </a>
-          <nav className="lp-nav">
-            <a href="#analise">Análise</a>
-            <a href="#resolvo">O que eu resolvo</a>
-            <a href="#google">Google</a>
-            <a href="#dominio">Domínio</a>
-            <a href="#sobre">Sobre mim</a>
-            <a href="#trabalhos">Trabalhos</a>
-            <a href="#faq">Perguntas</a>
-          </nav>
-          <a
-            className="lp-btn lp-btn-solid"
-            href={auditWhatsAppUrl(result, domain)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Falar no WhatsApp
-          </a>
-        </div>
-      </header>
+      <Header result={result} domain={domain} />
 
       {/* O conteúdo fica em <main> para que leitores de tela e o "pular para o
           conteúdo" dos navegadores tenham um destino, e para que o buscador
@@ -564,65 +489,7 @@ export const LandingPage: React.FC = () => {
       {/* ---------- achados ---------- */}
 
       {result && (
-        <section className="lp-findings">
-          <div className="lp-wrap">
-            <h2 className="lp-h2">Achados da análise</h2>
-            <p className="lp-h2-sub">
-              Cada linha traz a medição que a originou. Nada aqui é estimativa.
-            </p>
-
-            {result.contentError && (
-              <p className="lp-notice">
-                A leitura do HTML falhou: {result.contentError}. Os demais dados continuam válidos.
-              </p>
-            )}
-            {result.pagespeedError && (
-              <p className="lp-notice">
-                A medição de velocidade no celular não pôde ser carregada ({result.pagespeedError}). Todos os dados de segurança, domínio e indexação continuam válidos.
-              </p>
-            )}
-
-            <div className="lp-groups">
-              {grouped.map(([area, findings]) => (
-                <div key={area} className="lp-group">
-                  <h3 className="lp-group-title">
-                    {AREA_LABELS[area]}
-                    <span>{findings.length}</span>
-                  </h3>
-                  <ul className="lp-list">
-                    {findings.map((finding) => (
-                      <li key={finding.id} className={`lp-item ${finding.severity}`}>
-                        <div className="lp-item-head">
-                          <span className={`lp-sev ${finding.severity}`}>
-                            {SEVERITY_TAG[finding.severity]}
-                          </span>
-                          <h4>{finding.title}</h4>
-                        </div>
-                        <p className="lp-item-evidence">{finding.evidence}</p>
-                        <p className="lp-item-action">{finding.action}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            <div className="lp-findings-cta">
-              <p>
-                Quer saber o que é crítico e o que pode esperar? Me envie este diagnóstico no WhatsApp.
-                Respondo com a leitura técnica antes de qualquer compromisso.
-              </p>
-              <a
-                className="lp-btn lp-btn-solid"
-                href={auditWhatsAppUrl(result, domain)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Enviar diagnóstico no WhatsApp
-              </a>
-            </div>
-          </div>
-        </section>
+        <FindingsSection findings={result?.findings || []} />
       )}
 
       {/* ---------- o que eu resolvo ---------- */}
@@ -1053,114 +920,15 @@ export const LandingPage: React.FC = () => {
 
       {/* ---------- perguntas ---------- */}
 
-      <section className="lp-faq" id="faq">
-        <div className="lp-wrap">
-          <h2 className="lp-h2">Perguntas frequentes</h2>
-          <p className="lp-h2-sub">
-            Respostas diretas para as dúvidas mais comuns.
-          </p>
-          <div className="lp-faq-list">
-            {/* `<details>` em vez de estado do React por três razões: a resposta
-                fica sempre no HTML, e não só quando aberta, o que a torna
-                indexável e a mantém idêntica ao que os dados estruturados
-                declaram; o teclado e o leitor de tela funcionam sem código; e a
-                abertura funciona com o JavaScript desligado. */}
-            {FAQ_ITEMS.map((item, index) => (
-              <details
-                key={item.q}
-                className="lp-faq-item"
-                name="faq"
-                open={index === 0}
-              >
-                <summary className="lp-faq-button">
-                  <span>{item.q}</span>
-                  <span className="lp-faq-sign" aria-hidden="true" />
-                </summary>
-                <div className="lp-faq-answer">
-                  {item.a.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FaqSection />
 
       {/* ---------- fechamento ---------- */}
 
-      <section className="lp-cta">
-        <div className="lp-wrap lp-cta-inner">
-          <div>
-            <h2>Pronto para colocar seu projeto no ar?</h2>
-            <p>
-              Seja para publicar do zero, corrigir bugs ou integrar banco de dados e pagamentos: fale comigo no WhatsApp.
-            </p>
-          </div>
-          <div className="lp-cta-actions">
-            <a className="lp-btn lp-btn-solid lp-btn-lg" href="#analise">
-              Analisar meu projeto
-            </a>
-            <a
-              className="lp-btn lp-btn-ghost lp-btn-lg"
-              href={auditWhatsAppUrl(result, domain)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Chamar no WhatsApp
-            </a>
-          </div>
-        </div>
-      </section>
+      <CtaSection result={result} domain={domain} />
 
       </main>
 
-      <footer className="lp-footer">
-        <div className="lp-wrap lp-footer-inner">
-          <div className="lp-footer-main">
-            <span className="lp-footer-name">Pedro Satin</span>
-            <span className="lp-footer-role">engenharia de software e desenvolvimento web</span>
-            <span className="lp-footer-remote">atendimento remoto</span>
-          </div>
-          <div className="lp-footer-sources">
-            Fontes da análise: PageSpeed Insights do Google, RDAP do Registro.br, DNS público e
-            leitura direta do HTML do site consultado.
-          </div>
-          <div className="lp-signature">
-            <span className="lp-signature-label">feito por</span>
-            <a
-              className="lp-signature-handle"
-              href={PROFILE.portfolio}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {CONTACT.handle}
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a
-              className="lp-footer-link"
-              href={PROFILE.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LinkedIn
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a
-              className="lp-footer-link"
-              href={PROFILE.github}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a className="lp-footer-link" href="/llms.txt" target="_blank" rel="noopener noreferrer">
-              llms.txt
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Dados estruturados. Ficam no corpo, junto do texto que descrevem, e
           por isso saem no HTML pré-renderizado. `application/ld+json` não é
