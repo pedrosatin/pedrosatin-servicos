@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { runAudit } from './audit';
 import * as sources from './sources';
+import type { DomainRegistration, ContentReport, PageSpeedReport } from './types';
 
 describe('audit', () => {
   afterEach(() => {
@@ -10,7 +11,7 @@ describe('audit', () => {
   const mockResolvedValues = () => {
     vi.spyOn(sources, 'fetchRegistration').mockResolvedValue({
       found: false,
-    } as any);
+    } as unknown as DomainRegistration);
     vi.spyOn(sources, 'fetchContent').mockResolvedValue({
       redirects: [],
       headings: [],
@@ -18,7 +19,7 @@ describe('audit', () => {
       robots: { sitemaps: [] },
       technologies: [],
       sitemap: { found: false },
-    } as any);
+    } as unknown as ContentReport);
     vi.spyOn(sources, 'fetchPageSpeed').mockResolvedValue({
       scores: {
         performance: 90,
@@ -26,7 +27,7 @@ describe('audit', () => {
         bestPractices: 90,
         seo: 90,
       },
-    } as any);
+    } as unknown as PageSpeedReport);
   };
 
   it('should handle Error instances in runStep catch block', async () => {
