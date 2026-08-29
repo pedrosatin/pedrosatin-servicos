@@ -1,3 +1,4 @@
+import worker from './index';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   normalizeTarget,
@@ -184,6 +185,72 @@ describe('worker index helpers', () => {
         url: 'https://example.com/sitemap2.xml',
         urlCount: 1,
         isIndex: false,
+      });
+    });
+  });
+
+  describe('worker fetch handler (error paths)', () => {
+    const originalFetch = globalThis.fetch;
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    const createRequest = (url: string) => {
+      return new Request(url, {
+        method: 'GET',
+        headers: { origin: 'http://localhost:5173' },
+      });
+    };
+
+    const env = { ALLOWED_ORIGINS: 'http://localhost:5173' };
+
+    it('returns AbortError message when fetch timeouts', async () => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      globalThis.fetch = vi.fn().mockRejectedValue(abortError);
+
+      const request = createRequest('https://worker.local/audit?url=example.com');
+      const response = await worker.fetch(request, env);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({
+        ok: false,
+        error: 'O site não respondeu dentro de 12 segundos.',
+        input: 'example.com'
+      });
+    });
+
+    it('returns standard Error message for other errors', async () => {
+      const standardError = new Error('Custom network failure');
+      globalThis.fetch = vi.fn().mockRejectedValue(standardError);
+
+      const request = createRequest('https://worker.local/audit?url=example.com');
+      const response = await worker.fetch(request, env);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({
+        ok: false,
+        error: 'Custom network failure',
+        input: 'example.com'
+      });
+    });
+
+    it('returns unknown error message for non-Error throws', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue('String error');
+
+      const request = createRequest('https://worker.local/audit?url=example.com');
+      const response = await worker.fetch(request, env);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({
+        ok: false,
+        error: 'Falha desconhecida ao auditar o site.',
+        input: 'example.com'
       });
     });
   });
