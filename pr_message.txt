@@ -1,0 +1,6 @@
+🧹 [Code Health] Remove any types in LandingPage.test.tsx
+
+🎯 **What:** The code health issue addressed was the use of `any` types in `src/site/LandingPage.test.tsx` within the `useMockAudit` function for `steps`, `result`, and `error`.
+💡 **Why:** Replacing `any` with proper types (`AuditStep`, `AuditResult`, etc.) improves type safety and test reliability by ensuring the mock hook accurately reflects the shape of the real `useAudit` hook, reducing the risk of runtime errors and making the codebase more maintainable.
+✅ **Verification:** I confirmed the change is safe by running the full test suite (`vitest run`), type checker (`tsc -b`), and linter (`oxlint`). All checks passed, verifying that no functionality was broken.
+✨ **Result:** The codebase is now safer and cleaner, as `useMockAudit` conforms strictly to `useAudit.UseAuditReturn`.

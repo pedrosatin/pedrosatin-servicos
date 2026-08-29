@@ -4,17 +4,18 @@ import { expect, describe, test, vi, beforeEach } from 'vitest';
 import LandingPage from './LandingPage';
 import * as sources from '../lib/sources';
 import * as useAudit from '../lib/useAudit';
+import type { AuditResult, AuditStep } from '../lib/types';
 
 vi.mock('../lib/sources', () => ({
   fetchPageSpeed: vi.fn(),
 }));
 
-const useMockAudit = () => {
+const useMockAudit = (): useAudit.UseAuditReturn => {
   const [state, setState] = useState<{
-    phase: 'idle' | 'running' | 'done' | 'error';
-    steps: any[];
-    result: any;
-    error: any;
+    phase: useAudit.AuditPhase;
+    steps: AuditStep[];
+    result: AuditResult | null;
+    error: string | null;
     domain: string;
   }>({
     phase: 'idle',
@@ -24,13 +25,22 @@ const useMockAudit = () => {
     domain: '',
   });
 
-  const start = async (input: string) => {
+  const start = async (input: string): Promise<AuditResult | null> => {
     setState((prev) => ({ ...prev, phase: 'running', domain: input }));
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const result = {
       domain: input,
+      startedAt: '2025-01-01T00:00:00.000Z',
+      finishedAt: '2025-01-01T00:00:00.000Z',
+      dns: null,
+      email: null,
+      registration: null,
+      content: null,
+      pagespeedError: null,
+      contentError: null,
+      score: null,
       pagespeed: {
         strategy: 'mobile' as const,
         scores: { performance: 50, seo: 50, accessibility: 50, bestPractices: 50 },
@@ -46,14 +56,19 @@ const useMockAudit = () => {
         field: {
           available: false,
           origin: true,
-          lcp: { p75: 100, category: 'FAST' },
-          cls: { p75: 0, category: 'FAST' },
-          inp: { p75: 0, category: 'FAST' },
+          overall: null,
+          lcp: { p75: 100, category: 'FAST' as const },
+          cls: { p75: 0, category: 'FAST' as const },
+          inp: { p75: 0, category: 'FAST' as const },
         },
+        screenshot: null,
+        screenshotSize: null,
+        opportunities: [],
+        fetchedAt: '2025-01-01T00:00:00.000Z',
       },
-      coverage: { complete: true, scanned: 1, maxReached: false },
+      coverage: { complete: true, missing: [] },
       findings: [],
-    };
+    } as AuditResult;
 
     setState({
       phase: 'done',
@@ -81,7 +96,7 @@ describe('LandingPage', () => {
   test('handles fetchPageSpeed failure for desktop gracefully', async () => {
     const error = new Error('PageSpeed Failed');
     vi.mocked(sources.fetchPageSpeed).mockRejectedValue(error);
-    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit as any);
+    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
 
     render(<LandingPage />);
 
