@@ -5,6 +5,7 @@ import {
   fetchWithTimeout,
   checkHttpsUpgrade,
   auditRobotsAndSitemap,
+  allowedOrigins,
 } from './index';
 
 describe('worker index helpers', () => {
@@ -185,6 +186,49 @@ describe('worker index helpers', () => {
         urlCount: 1,
         isIndex: false,
       });
+    });
+  });
+
+  describe('allowedOrigins', () => {
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is not set', () => {
+      expect(allowedOrigins({})).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is empty or whitespace', () => {
+      const expected = [
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ];
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '' })).toEqual(expected);
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '   ' })).toEqual(expected);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains only a wildcard', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '*' })).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains a wildcard among origins', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, *' })).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns parsed origins if env.ALLOWED_ORIGINS is valid', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, https://example.org ' })).toEqual([
+        'http://example.com',
+        'https://example.org',
+      ]);
     });
   });
 });
