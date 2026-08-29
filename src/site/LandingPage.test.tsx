@@ -4,17 +4,19 @@ import { expect, describe, test, vi, beforeEach } from 'vitest';
 import LandingPage from './LandingPage';
 import * as sources from '../lib/sources';
 import * as useAudit from '../lib/useAudit';
+import type { UseAuditReturn, AuditPhase } from '../lib/useAudit';
+import type { AuditStep, AuditResult } from '../lib/types';
 
 vi.mock('../lib/sources', () => ({
   fetchPageSpeed: vi.fn(),
 }));
 
-const useMockAudit = () => {
+const useMockAudit = (): UseAuditReturn => {
   const [state, setState] = useState<{
-    phase: 'idle' | 'running' | 'done' | 'error';
-    steps: any[];
-    result: any;
-    error: any;
+    phase: AuditPhase;
+    steps: AuditStep[];
+    result: AuditResult | null;
+    error: string | null;
     domain: string;
   }>({
     phase: 'idle',
@@ -53,7 +55,7 @@ const useMockAudit = () => {
       },
       coverage: { complete: true, scanned: 1, maxReached: false },
       findings: [],
-    };
+    } as unknown as AuditResult;
 
     setState({
       phase: 'done',
@@ -81,7 +83,7 @@ describe('LandingPage', () => {
   test('handles fetchPageSpeed failure for desktop gracefully', async () => {
     const error = new Error('PageSpeed Failed');
     vi.mocked(sources.fetchPageSpeed).mockRejectedValue(error);
-    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit as any);
+    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
 
     render(<LandingPage />);
 
