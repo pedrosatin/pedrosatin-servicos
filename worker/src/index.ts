@@ -242,24 +242,26 @@ export const auditRobotsAndSitemap = async (
   }
 
   const candidates = [...(robots?.sitemaps ?? []), `${origin}/sitemap.xml`];
-  for (const candidate of candidates.slice(0, 3)) {
-    try {
-      const response = await fetchWithTimeout(candidate);
-      if (!response.ok) continue;
-      const xml = await response.text();
-      if (!/<(urlset|sitemapindex)/i.test(xml)) continue;
-      return {
-        robots,
-        sitemap: {
-          found: true,
-          url: candidate,
-          urlCount: countSitemapUrls(xml),
-          isIndex: isSitemapIndex(xml),
-        },
-      };
-    } catch {
-      // tenta o próximo candidato
+  const candidatePromises = candidates.slice(0, 3).map(async (candidate) => {
+    const response = await fetchWithTimeout(candidate);
+    if (!response.ok) throw new Error('Not ok');
+    const xml = await response.text();
+    if (!/<(urlset|sitemapindex)/i.test(xml)) throw new Error('Invalid xml');
+    return {
+      found: true as const,
+      url: candidate,
+      urlCount: countSitemapUrls(xml),
+      isIndex: isSitemapIndex(xml),
+    };
+  });
+
+  try {
+    if (candidatePromises.length > 0) {
+      const validSitemap = await Promise.any(candidatePromises);
+      return { robots, sitemap: validSitemap };
     }
+  } catch {
+    // Todos falharam
   }
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
