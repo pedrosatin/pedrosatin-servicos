@@ -10,55 +10,72 @@ import worker, {
 
 describe('worker index helpers', () => {
   describe('isInternalHost', () => {
-    it('identifies localhost and local domain names', () => {
-      expect(isInternalHost('localhost')).toBe(true);
-      expect(isInternalHost('test.localhost')).toBe(true);
-      expect(isInternalHost('server.local')).toBe(true);
-      expect(isInternalHost('service.internal')).toBe(true);
-      expect(isInternalHost('router.home.arpa')).toBe(true);
+    const originalFetch = globalThis.fetch;
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
     });
 
-    it('identifies private IPv4 addresses', () => {
-      expect(isInternalHost('127.0.0.1')).toBe(true);
-      expect(isInternalHost('10.0.0.1')).toBe(true);
-      expect(isInternalHost('192.168.1.1')).toBe(true);
-      expect(isInternalHost('172.16.0.1')).toBe(true);
-      expect(isInternalHost('169.254.1.1')).toBe(true);
+    it('identifies localhost and local domain names', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await isInternalHost('localhost')).toBe(true);
+      expect(await isInternalHost('test.localhost')).toBe(true);
+      expect(await isInternalHost('server.local')).toBe(true);
+      expect(await isInternalHost('service.internal')).toBe(true);
+      expect(await isInternalHost('router.home.arpa')).toBe(true);
     });
 
-    it('identifies IPv4-mapped IPv6 addresses', () => {
-      expect(isInternalHost('::ffff:127.0.0.1')).toBe(true);
-      expect(isInternalHost('::ffff:7f00:1')).toBe(true);
-      expect(isInternalHost('::ffff:c0a8:101')).toBe(true);
-      expect(isInternalHost('::1')).toBe(true);
+    it('identifies private IPv4 addresses', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await isInternalHost('127.0.0.1')).toBe(true);
+      expect(await isInternalHost('10.0.0.1')).toBe(true);
+      expect(await isInternalHost('192.168.1.1')).toBe(true);
+      expect(await isInternalHost('172.16.0.1')).toBe(true);
+      expect(await isInternalHost('169.254.1.1')).toBe(true);
     });
 
-    it('allows public hosts', () => {
-      expect(isInternalHost('example.com')).toBe(false);
-      expect(isInternalHost('google.com')).toBe(false);
-      expect(isInternalHost('8.8.8.8')).toBe(false);
+    it('identifies IPv4-mapped IPv6 addresses', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await isInternalHost('::ffff:127.0.0.1')).toBe(true);
+      expect(await isInternalHost('::ffff:7f00:1')).toBe(true);
+      expect(await isInternalHost('::ffff:c0a8:101')).toBe(true);
+      expect(await isInternalHost('::1')).toBe(true);
+    });
+
+    it('allows public hosts', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await isInternalHost('example.com')).toBe(false);
+      expect(await isInternalHost('google.com')).toBe(false);
+      expect(await isInternalHost('8.8.8.8')).toBe(false);
     });
   });
 
   describe('normalizeTarget', () => {
-    it('returns valid URLs unchanged if they have a supported protocol', () => {
-      expect(normalizeTarget('https://example.com')?.href).toBe('https://example.com/');
-      expect(normalizeTarget('http://example.com')?.href).toBe('http://example.com/');
-      expect(normalizeTarget('https://example.com/path')?.href).toBe('https://example.com/path');
+    const originalFetch = globalThis.fetch;
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
     });
 
-    it('adds https:// if no protocol is provided', () => {
-      expect(normalizeTarget('example.com')?.href).toBe('https://example.com/');
-      expect(normalizeTarget('www.example.com/path')?.href).toBe('https://www.example.com/path');
+    it('returns valid URLs unchanged if they have a supported protocol', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect((await normalizeTarget('https://example.com'))?.href).toBe('https://example.com/');
+      expect((await normalizeTarget('http://example.com'))?.href).toBe('http://example.com/');
+      expect((await normalizeTarget('https://example.com/path'))?.href).toBe('https://example.com/path');
     });
 
-    it('returns null for empty strings or invalid inputs', () => {
-      expect(normalizeTarget('')).toBeNull();
-      expect(normalizeTarget('   ')).toBeNull();
-      expect(normalizeTarget('ftp://example.com')).toBeNull();
-      expect(normalizeTarget('localhost')).toBeNull();
-      expect(normalizeTarget('https://127.0.0.1')).toBeNull();
-      expect(normalizeTarget('https://%%%')).toBeNull();
+    it('adds https:// if no protocol is provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect((await normalizeTarget('example.com'))?.href).toBe('https://example.com/');
+      expect((await normalizeTarget('www.example.com/path'))?.href).toBe('https://www.example.com/path');
+    });
+
+    it('returns null for empty strings or invalid inputs', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await normalizeTarget('')).toBeNull();
+      expect(await normalizeTarget('   ')).toBeNull();
+      expect(await normalizeTarget('ftp://example.com')).toBeNull();
+      expect(await normalizeTarget('localhost')).toBeNull();
+      expect(await normalizeTarget('https://127.0.0.1')).toBeNull();
+      expect(await normalizeTarget('https://%%%')).toBeNull();
     });
   });
 
