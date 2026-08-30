@@ -112,9 +112,12 @@ export const LandingPage: React.FC = () => {
     if (!result) return [];
     const map = new Map<Finding['area'], Finding[]>();
     for (const finding of result.findings) {
-      const list = map.get(finding.area) ?? [];
+      let list = map.get(finding.area);
+      if (!list) {
+        list = [];
+        map.set(finding.area, list);
+      }
       list.push(finding);
-      map.set(finding.area, list);
     }
     return [...map.entries()];
   }, [result]);
