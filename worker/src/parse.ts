@@ -61,22 +61,54 @@ const clean = (value: string | null | undefined): string | null => {
   return text.length > 0 ? text : null;
 };
 
+// Os padrões dependem só do nome do atributo ou da tag, um conjunto pequeno e
+// fechado. Recompilar a mesma RegExp a cada tag do documento era o custo
+// dominante do parsing; o cache elimina isso sem mudar resultado nenhum.
+const attrRegexCache = new Map<string, { double: RegExp; single: RegExp; bare: RegExp }>();
+
 /** Lê o valor de um atributo dentro de uma tag isolada. */
 const attr = (tag: string, name: string): string | null => {
-  const doubleQuoted = new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i').exec(tag);
+  let regexes = attrRegexCache.get(name);
+  if (!regexes) {
+    regexes = {
+      double: new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i'),
+      single: new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i'),
+      bare: new RegExp(`\\b${name}\\s*=\\s*([^\\s">]+)`, 'i'),
+    };
+    attrRegexCache.set(name, regexes);
+  }
+  const doubleQuoted = regexes.double.exec(tag);
   if (doubleQuoted) return doubleQuoted[1];
-  const singleQuoted = new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i').exec(tag);
+  const singleQuoted = regexes.single.exec(tag);
   if (singleQuoted) return singleQuoted[1];
-  const bare = new RegExp(`\\b${name}\\s*=\\s*([^\\s">]+)`, 'i').exec(tag);
+  const bare = regexes.bare.exec(tag);
   return bare ? bare[1] : null;
 };
 
-const hasAttr = (tag: string, name: string): boolean =>
-  new RegExp(`\\b${name}\\b`, 'i').test(tag);
+const hasAttrRegexCache = new Map<string, RegExp>();
+
+const hasAttr = (tag: string, name: string): boolean => {
+  let regex = hasAttrRegexCache.get(name);
+  if (!regex) {
+    regex = new RegExp(`\\b${name}\\b`, 'i');
+    hasAttrRegexCache.set(name, regex);
+  }
+  return regex.test(tag);
+};
+
+// A flag 'g' aqui é segura de cachear: String.prototype.match com regex global
+// zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
+const collectTagsRegexCache = new Map<string, RegExp>();
 
 /** Todas as tags de um tipo, com o conteúdo interno quando houver. */
-const collectTags = (html: string, tagName: string): string[] =>
-  html.match(new RegExp(`<${tagName}\\b[^>]*>`, 'gi')) ?? [];
+const collectTags = (html: string, tagName: string): string[] => {
+  let regex = collectTagsRegexCache.get(tagName);
+  if (!regex) {
+    regex = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    collectTagsRegexCache.set(tagName, regex);
+  }
+  return html.match(regex) ?? [];
+};
 
 const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string): string | null => {
   for (const tag of tags) {
