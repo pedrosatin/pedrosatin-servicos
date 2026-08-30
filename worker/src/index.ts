@@ -105,7 +105,7 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * varredura. A lista cobre laço local, as três faixas privadas do IPv4,
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
-export const isInternalHost = (hostname: string): boolean => {
+const isInternalIp = (hostname: string): boolean => {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
@@ -136,8 +136,39 @@ export const isInternalHost = (hostname: string): boolean => {
   return false;
 };
 
+const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
+  try {
+    const url = new URL('https://cloudflare-dns.com/dns-query');
+    url.searchParams.set('name', name);
+    url.searchParams.set('type', type);
+    const res = await fetch(url.toString(), {
+      headers: { accept: 'application/dns-json' },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as any;
+    return (data.Answer || []).map((a: any) => a.data);
+  } catch {
+    return [];
+  }
+};
+
+export const isInternalHost = async (hostname: string): Promise<boolean> => {
+  // Ignora se for IP (já avaliado) e resolve domínio
+  if (isInternalIp(hostname)) return true;
+
+  const [ipv4s, ipv6s] = await Promise.all([
+    resolveDoh(hostname, 'A'),
+    resolveDoh(hostname, 'AAAA'),
+  ]);
+
+  for (const ip of [...ipv4s, ...ipv6s]) {
+    if (isInternalIp(ip)) return true;
+  }
+  return false;
+};
+
 /** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
-export const normalizeTarget = (raw: string): URL | null => {
+export const normalizeTarget = async (raw: string): Promise<URL | null> => {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -145,7 +176,7 @@ export const normalizeTarget = (raw: string): URL | null => {
     const url = new URL(withScheme);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
     if (!url.hostname.includes('.')) return null;
-    if (isInternalHost(url.hostname)) return null;
+    if (await isInternalHost(url.hostname)) return null;
     return url;
   } catch {
     return null;
@@ -192,7 +223,7 @@ const followRedirects = async (
       if (next.protocol !== 'https:' && next.protocol !== 'http:') {
         throw new Error(`Redirecionamento para um esquema não suportado: ${next.protocol}`);
       }
-      if (isInternalHost(next.hostname)) {
+      if (await isInternalHost(next.hostname)) {
         throw new Error('O site redireciona para um endereço de rede interna.');
       }
       hops.push({ url: current, status: response.status, location });
@@ -270,7 +301,7 @@ export const auditRobotsAndSitemap = async (
 };
 
 const runAudit = async (input: string): Promise<AuditResponse> => {
-  const target = normalizeTarget(input);
+  const target = await normalizeTarget(input);
   const checkedAt = new Date().toISOString();
 
   if (!target) {
