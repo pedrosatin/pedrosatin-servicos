@@ -74,8 +74,12 @@ interface AuditResponse {
   checkedAt: string;
 }
 
-const allowedOrigins = (env: Env): string[] =>
-  (env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? DEFAULT_ORIGINS).filter(Boolean);
+export const allowedOrigins = (env: Env): string[] => {
+  if (!env.ALLOWED_ORIGINS || env.ALLOWED_ORIGINS.trim() === '') return DEFAULT_ORIGINS;
+  const origins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  if (origins.length === 0 || origins.includes('*')) return DEFAULT_ORIGINS;
+  return origins;
+};
 
 const corsHeaders = (origin: string | null, env: Env): Record<string, string> => {
   const allowed = allowedOrigins(env);

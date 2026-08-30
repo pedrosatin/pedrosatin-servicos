@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
+import worker, {
   normalizeTarget,
   isInternalHost,
   fetchWithTimeout,
   checkHttpsUpgrade,
   auditRobotsAndSitemap,
+  allowedOrigins,
 } from './index';
 
 describe('worker index helpers', () => {
@@ -185,6 +186,114 @@ describe('worker index helpers', () => {
         urlCount: 1,
         isIndex: false,
       });
+    });
+  });
+
+  describe('allowedOrigins', () => {
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is not set', () => {
+      expect(allowedOrigins({})).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is empty or whitespace', () => {
+      const expected = [
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ];
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '' })).toEqual(expected);
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '   ' })).toEqual(expected);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains only a wildcard', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: '*' })).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains a wildcard among origins', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, *' })).toEqual([
+        'https://servicos.pedrosatin.com',
+        'https://pedrosatin.com',
+        'http://localhost:5173',
+        'http://localhost:4173',
+      ]);
+    });
+    it('returns parsed origins if env.ALLOWED_ORIGINS is valid', () => {
+      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, https://example.org ' })).toEqual([
+        'http://example.com',
+        'https://example.org',
+      ]);
+    });
+  });
+});
+
+describe('worker default handler', () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('handles standard Error in runAudit (e.g. Network failure)', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: 'http://localhost:5173' }
+    });
+
+    const response = await worker.fetch(request, {});
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: false,
+      error: 'Network failure',
+      input: 'example.com'
+    });
+  });
+
+  it('handles AbortError in runAudit', async () => {
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    globalThis.fetch = vi.fn().mockRejectedValue(abortError);
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: 'http://localhost:5173' }
+    });
+
+    const response = await worker.fetch(request, {});
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: false,
+      error: 'O site não respondeu dentro de 12 segundos.',
+      input: 'example.com'
+    });
+  });
+
+  it('handles unknown errors (non-Error types) in runAudit', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue('Some weird string error');
+
+    const request = new Request('http://localhost/audit?url=example.com', {
+      headers: { origin: 'http://localhost:5173' }
+    });
+
+    const response = await worker.fetch(request, {});
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: false,
+      error: 'Falha desconhecida ao auditar o site.',
+      input: 'example.com'
     });
   });
 });
