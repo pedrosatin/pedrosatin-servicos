@@ -32,11 +32,7 @@ export interface HtmlReport {
   h1: string[];
   h2Count: number;
   images: ImageStats;
-  openGraph: {
-    title: string | null;
-    description: string | null;
-    image: string | null;
-  };
+  openGraph: { title: string | null; description: string | null; image: string | null };
   twitterCard: string | null;
   jsonLdTypes: string[];
   favicon: boolean;
@@ -51,74 +47,42 @@ export interface HtmlReport {
 
 const decodeEntities = (value: string): string =>
   value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
     .replace(/&#x27;/gi, "'");
 
 const clean = (value: string | null | undefined): string | null => {
   if (!value) return null;
-  const text = decodeEntities(value).replace(/\s+/g, " ").trim();
+  const text = decodeEntities(value).replace(/\s+/g, ' ').trim();
   return text.length > 0 ? text : null;
 };
 
-const attrRegexCache = new Map<
-  string,
-  { double: RegExp; single: RegExp; bare: RegExp }
->();
-
 /** Lê o valor de um atributo dentro de uma tag isolada. */
 const attr = (tag: string, name: string): string | null => {
-  let regexes = attrRegexCache.get(name);
-  if (!regexes) {
-    regexes = {
-      double: new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, "i"),
-      single: new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, "i"),
-      bare: new RegExp(`\\b${name}\\s*=\\s*([^\\s">]+)`, "i"),
-    };
-    attrRegexCache.set(name, regexes);
-  }
-  const doubleQuoted = regexes.double.exec(tag);
+  const doubleQuoted = new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i').exec(tag);
   if (doubleQuoted) return doubleQuoted[1];
-  const singleQuoted = regexes.single.exec(tag);
+  const singleQuoted = new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i').exec(tag);
   if (singleQuoted) return singleQuoted[1];
-  const bare = regexes.bare.exec(tag);
+  const bare = new RegExp(`\\b${name}\\s*=\\s*([^\\s">]+)`, 'i').exec(tag);
   return bare ? bare[1] : null;
 };
 
-const hasAttrRegexCache = new Map<string, RegExp>();
-const hasAttr = (tag: string, name: string): boolean => {
-  let regex = hasAttrRegexCache.get(name);
-  if (!regex) {
-    regex = new RegExp(`\\b${name}\\b`, "i");
-    hasAttrRegexCache.set(name, regex);
-  }
-  return regex.test(tag);
-};
+const hasAttr = (tag: string, name: string): boolean =>
+  new RegExp(`\\b${name}\\b`, 'i').test(tag);
 
-const collectTagsRegexCache = new Map<string, RegExp>();
 /** Todas as tags de um tipo, com o conteúdo interno quando houver. */
-const collectTags = (html: string, tagName: string): string[] => {
-  let regex = collectTagsRegexCache.get(tagName);
-  if (!regex) {
-    regex = new RegExp(`<${tagName}\\b[^>]*>`, "gi");
-    collectTagsRegexCache.set(tagName, regex);
-  }
-  return html.match(regex) ?? [];
-};
+const collectTags = (html: string, tagName: string): string[] =>
+  html.match(new RegExp(`<${tagName}\\b[^>]*>`, 'gi')) ?? [];
 
-const metaContent = (
-  tags: string[],
-  keyAttr: "name" | "property",
-  key: string,
-): string | null => {
+const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string): string | null => {
   for (const tag of tags) {
     const found = attr(tag, keyAttr);
     if (found && found.toLowerCase() === key.toLowerCase()) {
-      return clean(attr(tag, "content"));
+      return clean(attr(tag, 'content'));
     }
   }
   return null;
@@ -133,8 +97,7 @@ const metaContent = (
  * chegar no `<script`, a primeira alternativa consome o bloco inteiro antes de
  * a segunda ter chance de olhar para dentro dele.
  */
-const COMMENT_OR_RAW_TEXT =
-  /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
+const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
 
 /**
  * Remove apenas comentários HTML, preservando todo o resto do documento.
@@ -149,16 +112,14 @@ const COMMENT_OR_RAW_TEXT =
  * também se comporta: nada depois dele chega a virar elemento.
  */
 const stripComments = (html: string): string =>
-  html.replace(COMMENT_OR_RAW_TEXT, (match) =>
-    match.startsWith("<!--") ? " " : match,
-  );
+  html.replace(COMMENT_OR_RAW_TEXT, (match) => (match.startsWith('<!--') ? ' ' : match));
 
 const stripNonContent = (html: string): string =>
   html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ");
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
 
 /**
  * Única leitura que continua usando o HTML cru, comentários inclusive.
@@ -168,32 +129,27 @@ const stripNonContent = (html: string): string =>
  * ou blocos de cache citando `/wp-content/`. Filtrar comentários aqui não
  * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
  */
-const detectPlatform = (
-  html: string,
-  generator: string | null,
-): string | null => {
+const detectPlatform = (html: string, generator: string | null): string | null => {
   const lowered = html.toLowerCase();
   if (generator) {
     const g = generator.toLowerCase();
-    if (g.includes("wordpress")) return "WordPress";
-    if (g.includes("wix")) return "Wix";
-    if (g.includes("joomla")) return "Joomla";
-    if (g.includes("drupal")) return "Drupal";
-    if (g.includes("astro")) return "Astro";
-    if (g.includes("hugo")) return "Hugo";
-    if (g.includes("gatsby")) return "Gatsby";
+    if (g.includes('wordpress')) return 'WordPress';
+    if (g.includes('wix')) return 'Wix';
+    if (g.includes('joomla')) return 'Joomla';
+    if (g.includes('drupal')) return 'Drupal';
+    if (g.includes('astro')) return 'Astro';
+    if (g.includes('hugo')) return 'Hugo';
+    if (g.includes('gatsby')) return 'Gatsby';
   }
-  if (lowered.includes("/wp-content/") || lowered.includes("/wp-includes/"))
-    return "WordPress";
-  if (lowered.includes("static.parastorage.com") || lowered.includes("wix.com"))
-    return "Wix";
-  if (lowered.includes("cdn.shopify.com")) return "Shopify";
-  if (lowered.includes("squarespace.com")) return "Squarespace";
-  if (lowered.includes("webflow.com")) return "Webflow";
-  if (lowered.includes("_next/static")) return "Next.js";
-  if (lowered.includes("/_astro/")) return "Astro";
-  if (lowered.includes("lojaintegrada")) return "Loja Integrada";
-  if (lowered.includes("rdstation")) return "RD Station";
+  if (lowered.includes('/wp-content/') || lowered.includes('/wp-includes/')) return 'WordPress';
+  if (lowered.includes('static.parastorage.com') || lowered.includes('wix.com')) return 'Wix';
+  if (lowered.includes('cdn.shopify.com')) return 'Shopify';
+  if (lowered.includes('squarespace.com')) return 'Squarespace';
+  if (lowered.includes('webflow.com')) return 'Webflow';
+  if (lowered.includes('_next/static')) return 'Next.js';
+  if (lowered.includes('/_astro/')) return 'Astro';
+  if (lowered.includes('lojaintegrada')) return 'Loja Integrada';
+  if (lowered.includes('rdstation')) return 'RD Station';
   return null;
 };
 
@@ -205,9 +161,7 @@ const collectJsonLdTypes = (html: string): string[] => {
   if (!blocks) return [];
 
   for (const block of blocks) {
-    const body = block
-      .replace(/^<script\b[^>]*>/i, "")
-      .replace(/<\/script>$/i, "");
+    const body = block.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '');
     try {
       const parsed: unknown = JSON.parse(body);
       const walk = (node: unknown): void => {
@@ -215,14 +169,12 @@ const collectJsonLdTypes = (html: string): string[] => {
           node.forEach(walk);
           return;
         }
-        if (node && typeof node === "object") {
+        if (node && typeof node === 'object') {
           const record = node as Record<string, unknown>;
-          const type = record["@type"];
-          if (typeof type === "string") types.add(type);
-          if (Array.isArray(type))
-            type.forEach((t) => typeof t === "string" && types.add(t));
-          if (Array.isArray(record["@graph"]))
-            (record["@graph"] as unknown[]).forEach(walk);
+          const type = record['@type'];
+          if (typeof type === 'string') types.add(type);
+          if (Array.isArray(type)) type.forEach((t) => typeof t === 'string' && types.add(t));
+          if (Array.isArray(record['@graph'])) (record['@graph'] as unknown[]).forEach(walk);
         }
       };
       walk(parsed);
@@ -244,20 +196,18 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // documentados nela.
   const markup = stripComments(html);
 
-  const metaTags = collectTags(markup, "meta");
+  const metaTags = collectTags(markup, 'meta');
 
-  const htmlTag = /<html\b[^>]*>/i.exec(markup)?.[0] ?? "";
+  const htmlTag = /<html\b[^>]*>/i.exec(markup)?.[0] ?? '';
 
-  const title = clean(
-    /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null,
-  );
-  const metaDescription = metaContent(metaTags, "name", "description");
+  const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null);
+  const metaDescription = metaContent(metaTags, 'name', 'description');
 
   const h1 = [...markup.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
-    .map((m) => clean(m[1].replace(/<[^>]+>/g, " ")))
+    .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
     .filter((value): value is string => value !== null);
 
-  const imageTags = collectTags(markup, "img");
+  const imageTags = collectTags(markup, 'img');
   const images: ImageStats = {
     total: imageTags.length,
     withoutAlt: 0,
@@ -265,83 +215,72 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     lazy: 0,
   };
   for (const tag of imageTags) {
-    if (attr(tag, "alt") === null) images.withoutAlt++;
-    if (attr(tag, "width") === null || attr(tag, "height") === null)
-      images.withoutDimensions++;
-    if ((attr(tag, "loading") ?? "").toLowerCase() === "lazy") images.lazy++;
+    if (attr(tag, 'alt') === null) images.withoutAlt++;
+    if (attr(tag, 'width') === null || attr(tag, 'height') === null) images.withoutDimensions++;
+    if ((attr(tag, 'loading') ?? '').toLowerCase() === 'lazy') images.lazy++;
   }
 
-  const scriptTags = collectTags(markup, "script");
+  const scriptTags = collectTags(markup, 'script');
   const scripts: ScriptStats = {
     total: scriptTags.length,
     external: 0,
     blocking: 0,
   };
   for (const tag of scriptTags) {
-    if (attr(tag, "src") !== null) {
+    if (attr(tag, 'src') !== null) {
       scripts.external++;
-      if (
-        !hasAttr(tag, "async") &&
-        !hasAttr(tag, "defer") &&
-        (attr(tag, "type") ?? "") !== "module"
-      ) {
+      if (!hasAttr(tag, 'async') && !hasAttr(tag, 'defer') && (attr(tag, 'type') ?? '') !== 'module') {
         scripts.blocking++;
       }
     }
   }
 
-  const linkTags = collectTags(markup, "link");
-  const relOf = (tag: string): string => (attr(tag, "rel") ?? "").toLowerCase();
+  const linkTags = collectTags(markup, 'link');
+  const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
 
-  const inlineStyleBytes = [
-    ...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi),
-  ].reduce((total, match) => total + match[1].length, 0);
+  const inlineStyleBytes = [...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
+    (total, match) => total + match[1].length,
+    0,
+  );
 
-  const generator = metaContent(metaTags, "name", "generator");
-  const textContent = stripNonContent(markup).replace(/<[^>]+>/g, " ");
+  const generator = metaContent(metaTags, 'name', 'generator');
+  const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
   const wordCount = decodeEntities(textContent)
     .split(/\s+/)
     .filter((word) => word.length > 1).length;
 
   return {
     bytes,
-    lang: clean(attr(htmlTag, "lang")),
+    lang: clean(attr(htmlTag, 'lang')),
     charset:
-      clean(
-        /<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(markup)?.[1] ?? null,
-      ) ?? null,
+      clean(/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(markup)?.[1] ?? null) ?? null,
     title,
     titleLength: title?.length ?? 0,
     metaDescription,
     metaDescriptionLength: metaDescription?.length ?? 0,
     canonical: clean(
-      linkTags
-        .filter((tag) => relOf(tag) === "canonical")
-        .map((tag) => attr(tag, "href"))[0] ?? null,
+      linkTags.filter((tag) => relOf(tag) === 'canonical').map((tag) => attr(tag, 'href'))[0] ?? null,
     ),
-    robotsMeta: metaContent(metaTags, "name", "robots"),
-    viewport: metaContent(metaTags, "name", "viewport"),
+    robotsMeta: metaContent(metaTags, 'name', 'robots'),
+    viewport: metaContent(metaTags, 'name', 'viewport'),
     h1,
     h2Count: (markup.match(/<h2\b/gi) ?? []).length,
     images,
     openGraph: {
-      title: metaContent(metaTags, "property", "og:title"),
-      description: metaContent(metaTags, "property", "og:description"),
-      image: metaContent(metaTags, "property", "og:image"),
+      title: metaContent(metaTags, 'property', 'og:title'),
+      description: metaContent(metaTags, 'property', 'og:description'),
+      image: metaContent(metaTags, 'property', 'og:image'),
     },
-    twitterCard: metaContent(metaTags, "name", "twitter:card"),
+    twitterCard: metaContent(metaTags, 'name', 'twitter:card'),
     jsonLdTypes: collectJsonLdTypes(markup),
-    favicon: linkTags.some((tag) => relOf(tag).includes("icon")),
+    favicon: linkTags.some((tag) => relOf(tag).includes('icon')),
     scripts,
-    stylesheets: linkTags.filter((tag) => relOf(tag).includes("stylesheet"))
-      .length,
+    stylesheets: linkTags.filter((tag) => relOf(tag).includes('stylesheet')).length,
     inlineStyleBytes,
     generator,
     hreflang: linkTags
-      .filter(
-        (tag) => relOf(tag) === "alternate" && attr(tag, "hreflang") !== null,
-      )
-      .map((tag) => attr(tag, "hreflang") as string),
+      .filter((tag) => relOf(tag) === 'alternate' && attr(tag, 'hreflang') !== null)
+      .map((tag) => attr(tag, 'hreflang') as string),
     wordCount,
     platform: detectPlatform(html, generator),
   };
@@ -357,7 +296,7 @@ export const parseRobots = (body: string): RobotsReport => {
   const lines = body.split(/\r?\n/).map((line) => line.trim());
   const sitemaps = lines
     .filter((line) => /^sitemap\s*:/i.test(line))
-    .map((line) => line.replace(/^sitemap\s*:\s*/i, "").trim())
+    .map((line) => line.replace(/^sitemap\s*:\s*/i, '').trim())
     .filter(Boolean);
 
   // "Disallow: /" dentro de um bloco User-agent: * bloqueia o site inteiro.
@@ -365,11 +304,10 @@ export const parseRobots = (body: string): RobotsReport => {
   let blocksAll = false;
   for (const line of lines) {
     if (/^user-agent\s*:/i.test(line)) {
-      inWildcardBlock = line.split(":")[1]?.trim() === "*";
+      inWildcardBlock = line.split(':')[1]?.trim() === '*';
       continue;
     }
-    if (inWildcardBlock && /^disallow\s*:\s*\/\s*$/i.test(line))
-      blocksAll = true;
+    if (inWildcardBlock && /^disallow\s*:\s*\/\s*$/i.test(line)) blocksAll = true;
   }
 
   return { found: true, blocksAll, sitemaps };
@@ -380,5 +318,4 @@ export const countSitemapUrls = (xml: string): number => {
   return urls;
 };
 
-export const isSitemapIndex = (xml: string): boolean =>
-  /<sitemapindex/i.test(xml);
+export const isSitemapIndex = (xml: string): boolean => /<sitemapindex/i.test(xml);
