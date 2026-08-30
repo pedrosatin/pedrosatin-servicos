@@ -246,27 +246,31 @@ export const auditRobotsAndSitemap = async (
   }
 
   const candidates = [...(robots?.sitemaps ?? []), `${origin}/sitemap.xml`];
-  const candidatePromises = candidates.slice(0, 3).map(async (candidate) => {
-    const response = await fetchWithTimeout(candidate);
-    if (!response.ok) throw new Error('Not ok');
-    const xml = await response.text();
-    if (!/<(urlset|sitemapindex)/i.test(xml)) throw new Error('Invalid xml');
-    return {
-      found: true as const,
-      url: candidate,
-      urlCount: countSitemapUrls(xml),
-      isIndex: isSitemapIndex(xml),
-    };
-  });
+  // Os candidatos são buscados em paralelo porque cada tentativa custa um
+  // round-trip inteiro, mas a escolha continua respeitando a ordem original:
+  // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
+  // presumido, mesmo que o presumido responda primeiro.
+  const results = await Promise.all(
+    candidates.slice(0, 3).map(async (candidate) => {
+      try {
+        const response = await fetchWithTimeout(candidate);
+        if (!response.ok) return null;
+        const xml = await response.text();
+        if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
+        return {
+          found: true as const,
+          url: candidate,
+          urlCount: countSitemapUrls(xml),
+          isIndex: isSitemapIndex(xml),
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
 
-  try {
-    if (candidatePromises.length > 0) {
-      const validSitemap = await Promise.any(candidatePromises);
-      return { robots, sitemap: validSitemap };
-    }
-  } catch {
-    // Todos falharam
-  }
+  const firstValid = results.find((entry) => entry !== null);
+  if (firstValid) return { robots, sitemap: firstValid };
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
 };
