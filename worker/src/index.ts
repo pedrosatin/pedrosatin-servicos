@@ -161,7 +161,10 @@ export const isInternalHost = async (hostname: string): Promise<boolean> => {
     resolveDoh(hostname, 'AAAA'),
   ]);
 
-  for (const ip of [...ipv4s, ...ipv6s]) {
+  for (const ip of ipv4s) {
+    if (isInternalIp(ip)) return true;
+  }
+  for (const ip of ipv6s) {
     if (isInternalIp(ip)) return true;
   }
   return false;
