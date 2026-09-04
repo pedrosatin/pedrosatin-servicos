@@ -51,7 +51,7 @@ jobs:
         run: npm run build
         env:
           VITE_AUDIT_ENDPOINT: ${{ secrets.VITE_AUDIT_ENDPOINT || vars.VITE_AUDIT_ENDPOINT || 'https://servicos-api.pedrosatin.com' }}
-          VITE_PSI_KEY: ${{ secrets.VITE_PSI_KEY || vars.VITE_PSI_KEY }}
+          PSI_KEY: ${{ secrets.VITE_PSI_KEY || vars.VITE_PSI_KEY }}
 
   deploy:
     name: Deploy to Cloudflare Pages & Worker
@@ -81,7 +81,7 @@ jobs:
         run: npm run build
         env:
           VITE_AUDIT_ENDPOINT: ${{ secrets.VITE_AUDIT_ENDPOINT || vars.VITE_AUDIT_ENDPOINT || 'https://servicos-api.pedrosatin.com' }}
-          VITE_PSI_KEY: ${{ secrets.VITE_PSI_KEY || vars.VITE_PSI_KEY }}
+          PSI_KEY: ${{ secrets.VITE_PSI_KEY || vars.VITE_PSI_KEY }}
 
       - name: Deploy Pages
         run: npm --prefix worker exec wrangler -- pages deploy dist --project-name=pedrosatin-servicos --branch=master

@@ -21,6 +21,7 @@ import {
 
 interface Env {
   ALLOWED_ORIGINS?: string;
+  PSI_KEY?: string;
 }
 
 const DEFAULT_ORIGINS = [
@@ -404,6 +405,37 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    if (url.pathname === '/pagespeed') {
+      const targetUrl = new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed');
+      url.searchParams.forEach((value, key) => {
+        targetUrl.searchParams.append(key, value);
+      });
+      if (env.PSI_KEY) {
+        targetUrl.searchParams.set('key', env.PSI_KEY);
+      }
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 60_000);
+        const psiResponse = await fetch(targetUrl.toString(), {
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+
+        return new Response(psiResponse.body, {
+          status: psiResponse.status,
+          headers: {
+            ...headers,
+            'content-type': psiResponse.headers.get('content-type') || 'application/json',
+            'cache-control': 'public, max-age=120'
+          }
+        });
+      } catch {
+        return json({ error: 'Falha ao comunicar com o Google PageSpeed Insights.' }, 502, headers);
+      }
+    }
+
     if (url.pathname !== '/audit') {
       return json({ error: 'Rota não encontrada. Use /audit?url=exemplo.com.br' }, 404, headers);
     }

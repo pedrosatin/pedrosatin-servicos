@@ -32,7 +32,18 @@ if (!allowed) {
   throw new Error('ALLOWED_ORIGINS não encontrado em worker/wrangler.toml.');
 }
 
-const env = { ALLOWED_ORIGINS: allowed };
+
+let psiKey = process.env.PSI_KEY;
+if (!psiKey) {
+  try {
+    const dotenv = readFileSync(new URL('../.env', import.meta.url), 'utf8');
+    const match = /^\s*(?:VITE_)?PSI_KEY\s*=\s*(.*)$/m.exec(dotenv);
+    if (match) psiKey = match[1].trim();
+  } catch {}
+}
+
+const env = { ALLOWED_ORIGINS: allowed, PSI_KEY: psiKey };
+
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);

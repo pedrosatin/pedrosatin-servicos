@@ -6,7 +6,7 @@ impede o navegador de ler.
 
 ```bash
 npm install
-cp .env.example .env   # preencha VITE_PSI_KEY
+cp .env.example .env   # preencha PSI_KEY
 
 npm run worker:dev     # auditoria em http://localhost:8787
 npm run dev            # site em http://localhost:5173
@@ -93,9 +93,8 @@ da página — não existiam para quem indexa.
 2. **Chave do PageSpeed.** No console do Google, deixe na restrição de
    referenciador apenas `servicos.pedrosatin.com/*` e o `localhost:5173` que
    você usa para desenvolver.
-3. **Variáveis do site.** No Cloudflare Pages, defina `VITE_AUDIT_ENDPOINT` com
-   a URL do Worker e `VITE_PSI_KEY` com a chave. Elas entram no pacote do
-   navegador, o que é aceitável porque a chave é restrita por referenciador.
+3. **Variáveis.** No Cloudflare Pages, defina `VITE_AUDIT_ENDPOINT` com
+   a URL do Worker. No Cloudflare Workers, adicione `PSI_KEY` nos Secrets.
 4. **Build e publicação.** Comando `npm run build`, diretório de saída `dist`.
 5. **Cabeçalhos.** `public/_headers` já vai junto e traz HSTS, CSP e cache. Ao
    publicar o Worker em domínio próprio, troque `https://*.workers.dev` pelo

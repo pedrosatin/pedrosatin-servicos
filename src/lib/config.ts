@@ -36,7 +36,6 @@ export const PROFILE = {
 export const AUDIT_ENDPOINT: string =
   import.meta.env.VITE_AUDIT_ENDPOINT ?? 'http://localhost:8787';
 
-export const PAGESPEED_KEY: string | undefined = import.meta.env.VITE_PSI_KEY;
 
 export interface CaseStudy {
   domain: string;
