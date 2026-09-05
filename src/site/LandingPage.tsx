@@ -10,7 +10,7 @@ import {
 import { FAQ_ITEMS } from '../lib/faq';
 import { AREA_LABELS, countBySeverity } from '../lib/achados';
 import { formatDate, formatMs } from '../lib/format';
-import { auditWhatsAppUrl, briefingWhatsAppUrl, type Briefing } from '../lib/message';
+import { auditWhatsAppUrl, briefingWhatsAppUrl } from '../lib/message';
 import { SERVICES } from '../lib/services';
 import { googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/dominio';
 import { buildStructuredData } from '../lib/structuredData';
@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
   const [desktop, setDesktop] = useState<PageSpeedReport | null>(null);
   const [desktopState, setDesktopState] = useState<'idle' | 'loading' | 'failed'>('idle');
   const [openedAt, setOpenedAt] = useState<Date | null>(null);
-  const [briefing, setBriefing] = useState<Briefing>({
+  const [briefing, setBriefing] = useState({
     name: '',
     activity: '',
     need: '',
