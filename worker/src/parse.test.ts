@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseHtml, parseRobots, countSitemapUrls } from './parse';
+import { parseHtml, parseRobots, countSitemapUrls, isSitemapIndex } from './parse';
 
 describe('worker parse', () => {
   it('extracts metadata and handles malformed JSON-LD gracefully', () => {
@@ -48,6 +48,23 @@ describe('worker parse', () => {
     expect(report.jsonLdTypes).toEqual(['Organization']);
   });
 
+
+  it('recovers @type from completely invalid JSON-LD using fallback regex', () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "Broken JSON
+          "description": "This is missing a quote
+          "@type": "Offer"
+        }
+      </script>
+    `;
+    const report = parseHtml(html, 100);
+    expect(report.jsonLdTypes).toEqual(['Product', 'Offer']);
+  });
+
   it('parses robots.txt directives correctly', () => {
     const robots = `
       User-agent: *
@@ -70,5 +87,23 @@ describe('worker parse', () => {
       </urlset>
     `;
     expect(countSitemapUrls(xml)).toBe(3);
+  });
+
+  it('detects sitemap index correctly', () => {
+    const sitemapIndexXml = `
+      <?xml version="1.0" encoding="UTF-8"?>
+      <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <sitemap><loc>https://example.com/sitemap1.xml</loc></sitemap>
+      </sitemapindex>
+    `;
+    const urlsetXml = `
+      <?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url><loc>https://example.com/</loc></url>
+      </urlset>
+    `;
+
+    expect(isSitemapIndex(sitemapIndexXml)).toBe(true);
+    expect(isSitemapIndex(urlsetXml)).toBe(false);
   });
 });

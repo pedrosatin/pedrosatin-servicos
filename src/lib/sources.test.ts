@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchRegistration, fetchEmailAuth, fetchPageSpeed } from './sources';
+import { fetchRegistration, fetchEmailAuth, fetchPageSpeed, fetchContent } from './sources';
 import type { DnsReport } from './types';
 
 describe('sources', () => {
@@ -149,6 +149,40 @@ describe('sources', () => {
       expect(result.spf).toBe('v=spf1 include:_spf.google.com ~all');
       expect(result.dmarc).toBe('v=DMARC1; p=quarantine;');
       expect(result.dmarcPolicy).toBe('quarantine');
+    });
+  });
+
+  describe('fetchContent', () => {
+    it('should throw an error when response is not ok', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'O serviço de auditoria respondeu 500.'
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
+    });
+
+    it('should throw a custom error when report contains an error and is not ok', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ ok: false, error: 'Custom API error' }),
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow('Custom API error');
+    });
+
+    it('should return the report on a successful response', async () => {
+      const mockReport = { ok: true, status: 200, resources: [] };
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockReport,
+      } as unknown as Response);
+
+      const result = await fetchContent('example.com');
+      expect(result).toEqual(mockReport);
     });
   });
 
