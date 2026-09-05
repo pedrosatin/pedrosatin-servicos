@@ -48,6 +48,23 @@ describe('worker parse', () => {
     expect(report.jsonLdTypes).toEqual(['Organization']);
   });
 
+
+  it('recovers @type from completely invalid JSON-LD using fallback regex', () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "Broken JSON
+          "description": "This is missing a quote
+          "@type": "Offer"
+        }
+      </script>
+    `;
+    const report = parseHtml(html, 100);
+    expect(report.jsonLdTypes).toEqual(['Product', 'Offer']);
+  });
+
   it('parses robots.txt directives correctly', () => {
     const robots = `
       User-agent: *
