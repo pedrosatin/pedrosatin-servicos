@@ -157,7 +157,6 @@ const stripNonContent = (html: string): string =>
  * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
  */
 const detectPlatform = (html: string, generator: string | null): string | null => {
-  const lowered = html.toLowerCase();
   if (generator) {
     const g = generator.toLowerCase();
     if (g.includes('wordpress')) return 'WordPress';
@@ -168,15 +167,15 @@ const detectPlatform = (html: string, generator: string | null): string | null =
     if (g.includes('hugo')) return 'Hugo';
     if (g.includes('gatsby')) return 'Gatsby';
   }
-  if (lowered.includes('/wp-content/') || lowered.includes('/wp-includes/')) return 'WordPress';
-  if (lowered.includes('static.parastorage.com') || lowered.includes('wix.com')) return 'Wix';
-  if (lowered.includes('cdn.shopify.com')) return 'Shopify';
-  if (lowered.includes('squarespace.com')) return 'Squarespace';
-  if (lowered.includes('webflow.com')) return 'Webflow';
-  if (lowered.includes('_next/static')) return 'Next.js';
-  if (lowered.includes('/_astro/')) return 'Astro';
-  if (lowered.includes('lojaintegrada')) return 'Loja Integrada';
-  if (lowered.includes('rdstation')) return 'RD Station';
+  if (/\/wp-content\/|\/wp-includes\//i.test(html)) return 'WordPress';
+  if (/static\.parastorage\.com|wix\.com/i.test(html)) return 'Wix';
+  if (/cdn\.shopify\.com/i.test(html)) return 'Shopify';
+  if (/squarespace\.com/i.test(html)) return 'Squarespace';
+  if (/webflow\.com/i.test(html)) return 'Webflow';
+  if (/_next\/static/i.test(html)) return 'Next.js';
+  if (/\/_astro\//i.test(html)) return 'Astro';
+  if (/lojaintegrada/i.test(html)) return 'Loja Integrada';
+  if (/rdstation/i.test(html)) return 'RD Station';
   return null;
 };
 
