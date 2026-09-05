@@ -136,6 +136,10 @@ const isInternalIp = (hostname: string): boolean => {
   return false;
 };
 
+interface DohResponse {
+  Answer?: { data: string }[];
+}
+
 const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
   try {
     const url = new URL('https://cloudflare-dns.com/dns-query');
@@ -145,8 +149,8 @@ const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> =
       headers: { accept: 'application/dns-json' },
     });
     if (!res.ok) return [];
-    const data = (await res.json()) as any;
-    return (data.Answer || []).map((a: any) => a.data);
+    const data = (await res.json()) as DohResponse;
+    return (data.Answer || []).map((a) => a.data);
   } catch {
     return [];
   }
@@ -161,7 +165,10 @@ export const isInternalHost = async (hostname: string): Promise<boolean> => {
     resolveDoh(hostname, 'AAAA'),
   ]);
 
-  for (const ip of [...ipv4s, ...ipv6s]) {
+  for (const ip of ipv4s) {
+    if (isInternalIp(ip)) return true;
+  }
+  for (const ip of ipv6s) {
     if (isInternalIp(ip)) return true;
   }
   return false;
