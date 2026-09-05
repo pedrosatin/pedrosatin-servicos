@@ -7,16 +7,19 @@ import {
   REGISTRO_BR_URL,
   buildWhatsAppUrl,
 } from '../lib/config';
-import { FAQ_ITEMS } from '../lib/faq';
 import { AREA_LABELS, countBySeverity } from '../lib/achados';
 import { formatDate, formatMs } from '../lib/format';
 import { auditWhatsAppUrl, briefingWhatsAppUrl } from '../lib/message';
-import { SERVICES } from '../lib/services';
 import { googleIndexUrl, isValidDomain, normalizeDomain } from '../lib/dominio';
 import { buildStructuredData } from '../lib/structuredData';
 import type { Finding, PageSpeedReport, Severity } from '../lib/types';
 import { useAudit } from '../lib/useAudit';
 import './LandingPage.css';
+import { ServicesSection } from './components/ServicesSection';
+import { GoogleSection } from './components/GoogleSection';
+import { FaqSection } from './components/FaqSection';
+import { Footer } from './components/Footer';
+
 
 const SEVERITY_TAG: Record<Severity, string> = {
   critical: 'CRÍTICO',
@@ -630,82 +633,11 @@ export const LandingPage: React.FC = () => {
 
       {/* ---------- o que eu resolvo ---------- */}
 
-      <section className="lp-services" id="resolvo">
-        <div className="lp-wrap">
-          <h2 className="lp-h2">O que eu resolvo</h2>
-          <p className="lp-h2-sub">
-            Problemas reais que destravam o lançamento do seu projeto. A auditoria no topo mede o impacto de cada um.
-          </p>
-          <div className="lp-service-grid">
-            {SERVICES.map((service, index) => (
-              <article key={service.title} className="lp-service">
-                <span className="lp-service-index">{String(index + 1).padStart(2, '0')}</span>
-                <h3>{service.title}</h3>
-                <p>{service.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <ServicesSection />
 
       {/* ---------- google ---------- */}
 
-      <section className="lp-google" id="google">
-        <div className="lp-wrap">
-          <h2 className="lp-h2">Por que seu projeto de IA não aparece no Google?</h2>
-          <p className="lp-h2-sub">
-            Aparecer na busca não é uma chave que se liga. Aplicações geradas por IA costumam entregar um HTML vazio: o usuário vê a tela, mas o robô lê uma página em branco.
-          </p>
-
-          <ol className="lp-steps-flow">
-            <li>
-              <span className="lp-flow-num">1</span>
-              <h3>Descoberta</h3>
-              <p>
-                O robô precisa encontrar seu endereço através de sitemap e links indexados.
-              </p>
-            </li>
-            <li>
-              <span className="lp-flow-num">2</span>
-              <h3>Rastreamento</h3>
-              <p>
-                O robô precisa acessar seu servidor sem bloqueios de robots.txt ou lentidão de resposta.
-              </p>
-            </li>
-            <li>
-              <span className="lp-flow-num">3</span>
-              <h3>Indexação</h3>
-              <p>
-                O conteúdo precisa estar no HTML inicial para ser arquivado, e não apenas no JavaScript.
-              </p>
-            </li>
-            <li>
-              <span className="lp-flow-num">4</span>
-              <h3>Posicionamento</h3>
-              <p>
-                Velocidade no celular e estabilidade de layout definem a ordem nas buscas.
-              </p>
-            </li>
-          </ol>
-
-          <div className="lp-google-check">
-            <div>
-              <h3>Consulte o que o Google guardou do seu site</h3>
-              <p>
-                O comando <code>site:seusite.com.br</code> mostra exatamente as páginas arquivadas pelo Google. Veja o resultado real da busca.
-              </p>
-            </div>
-            <a
-              className="lp-btn lp-btn-ghost"
-              href={googleIndexUrl(result?.domain ?? domain ?? 'pedrosatin.com')}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Consultar no Google
-            </a>
-          </div>
-        </div>
-      </section>
+      <GoogleSection domainToConsult={result?.domain ?? domain ?? 'pedrosatin.com'} />
 
       {/* ---------- domínio ---------- */}
 
@@ -1056,39 +988,7 @@ export const LandingPage: React.FC = () => {
 
       {/* ---------- perguntas ---------- */}
 
-      <section className="lp-faq" id="faq">
-        <div className="lp-wrap">
-          <h2 className="lp-h2">Perguntas frequentes</h2>
-          <p className="lp-h2-sub">
-            Respostas diretas para as dúvidas mais comuns.
-          </p>
-          <div className="lp-faq-list">
-            {/* `<details>` em vez de estado do React por três razões: a resposta
-                fica sempre no HTML, e não só quando aberta, o que a torna
-                indexável e a mantém idêntica ao que os dados estruturados
-                declaram; o teclado e o leitor de tela funcionam sem código; e a
-                abertura funciona com o JavaScript desligado. */}
-            {FAQ_ITEMS.map((item, index) => (
-              <details
-                key={item.q}
-                className="lp-faq-item"
-                name="faq"
-                open={index === 0}
-              >
-                <summary className="lp-faq-button">
-                  <span>{item.q}</span>
-                  <span className="lp-faq-sign" aria-hidden="true" />
-                </summary>
-                <div className="lp-faq-answer">
-                  {item.a.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FaqSection />
 
       {/* ---------- fechamento ---------- */}
 
@@ -1118,52 +1018,7 @@ export const LandingPage: React.FC = () => {
 
       </main>
 
-      <footer className="lp-footer">
-        <div className="lp-wrap lp-footer-inner">
-          <div className="lp-footer-main">
-            <span className="lp-footer-name">Pedro Satin</span>
-            <span className="lp-footer-role">engenharia de software e desenvolvimento web</span>
-            <span className="lp-footer-remote">atendimento remoto</span>
-          </div>
-          <div className="lp-footer-sources">
-            Fontes da análise: PageSpeed Insights do Google, RDAP do Registro.br, DNS público e
-            leitura direta do HTML do site consultado.
-          </div>
-          <div className="lp-signature">
-            <span className="lp-signature-label">feito por</span>
-            <a
-              className="lp-signature-handle"
-              href={PROFILE.portfolio}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {CONTACT.handle}
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a
-              className="lp-footer-link"
-              href={PROFILE.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LinkedIn
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a
-              className="lp-footer-link"
-              href={PROFILE.github}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </a>
-            <span className="lp-footer-divider" aria-hidden="true">·</span>
-            <a className="lp-footer-link" href="/llms.txt" target="_blank" rel="noopener noreferrer">
-              llms.txt
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Dados estruturados. Ficam no corpo, junto do texto que descrevem, e
           por isso saem no HTML pré-renderizado. `application/ld+json` não é
