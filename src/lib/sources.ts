@@ -93,17 +93,35 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
     resolveRecord(`www.${domain}`, 'CNAME'),
   ]);
 
-  const nsNames = ns.filter((r) => r.type === 2).map((r) => r.data.replace(/\.$/, ''));
-  const cnameTargets = cname.filter((r) => r.type === 5).map((r) => r.data.replace(/\.$/, ''));
+  const nsNames = ns.reduce<string[]>((acc, r) => {
+    if (r.type === 2) acc.push(r.data.replace(/\.$/, ''));
+    return acc;
+  }, []);
+  const cnameTargets = cname.reduce<string[]>((acc, r) => {
+    if (r.type === 5) acc.push(r.data.replace(/\.$/, ''));
+    return acc;
+  }, []);
 
   return {
     domain,
     resolves: a.length > 0 || aaaa.length > 0,
-    a: a.filter((r) => r.type === 1).map((r) => r.data),
-    aaaa: aaaa.filter((r) => r.type === 28).map((r) => r.data),
+    a: a.reduce<string[]>((acc, r) => {
+      if (r.type === 1) acc.push(r.data);
+      return acc;
+    }, []),
+    aaaa: aaaa.reduce<string[]>((acc, r) => {
+      if (r.type === 28) acc.push(r.data);
+      return acc;
+    }, []),
     ns: nsNames,
-    mx: mx.filter((r) => r.type === 15).map((r) => r.data),
-    txt: txt.filter((r) => r.type === 16).map((r) => stripQuotes(r.data)),
+    mx: mx.reduce<string[]>((acc, r) => {
+      if (r.type === 15) acc.push(r.data);
+      return acc;
+    }, []),
+    txt: txt.reduce<string[]>((acc, r) => {
+      if (r.type === 16) acc.push(stripQuotes(r.data));
+      return acc;
+    }, []),
     cname: cnameTargets,
     hosting: identifyProvider([...cnameTargets, ...nsNames]),
     dnsProvider: identifyProvider(nsNames),

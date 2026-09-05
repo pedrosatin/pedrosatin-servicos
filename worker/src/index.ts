@@ -136,6 +136,10 @@ const isInternalIp = (hostname: string): boolean => {
   return false;
 };
 
+interface DohResponse {
+  Answer?: { data: string }[];
+}
+
 const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
   try {
     const url = new URL('https://cloudflare-dns.com/dns-query');
@@ -145,8 +149,8 @@ const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> =
       headers: { accept: 'application/dns-json' },
     });
     if (!res.ok) return [];
-    const data = (await res.json()) as any;
-    return (data.Answer || []).map((a: any) => a.data);
+    const data = (await res.json()) as DohResponse;
+    return (data.Answer || []).map((a) => a.data);
   } catch {
     return [];
   }
@@ -161,7 +165,10 @@ export const isInternalHost = async (hostname: string): Promise<boolean> => {
     resolveDoh(hostname, 'AAAA'),
   ]);
 
-  for (const ip of [...ipv4s, ...ipv6s]) {
+  for (const ip of ipv4s) {
+    if (isInternalIp(ip)) return true;
+  }
+  for (const ip of ipv6s) {
     if (isInternalIp(ip)) return true;
   }
   return false;
@@ -421,6 +428,11 @@ const runAudit = async (input: string): Promise<AuditResponse> => {
   );
 };
 
+// Rate limiting cache: IP -> { count, expiresAt }
+export const rateLimitCache = new Map<string, { count: number; expiresAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('origin');
@@ -428,6 +440,35 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (request.method !== 'GET') return json({ error: 'Método não permitido' }, 405, headers);
+
+    const clientIp = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+
+    // Probabilistic cleanup (10% chance)
+    if (Math.random() < 0.1) {
+      const now = Date.now();
+      for (const [key, value] of rateLimitCache.entries()) {
+        if (value.expiresAt < now) {
+          rateLimitCache.delete(key);
+        }
+      }
+    }
+
+    if (clientIp !== 'unknown') {
+      const now = Date.now();
+      const record = rateLimitCache.get(clientIp);
+
+      if (record && record.expiresAt > now) {
+        if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+          return json({ error: 'Muitas requisições. Tente novamente mais tarde.' }, 429, {
+            ...headers,
+            'retry-after': Math.ceil((record.expiresAt - now) / 1000).toString(),
+          });
+        }
+        record.count += 1;
+      } else {
+        rateLimitCache.set(clientIp, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
+      }
+    }
 
     // O cabeçalho CORS só é obedecido pelo navegador: sozinho, ele não impede
     // que outra página use este endpoint como back-end próprio. Recusar aqui

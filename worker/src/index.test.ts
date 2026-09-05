@@ -6,6 +6,7 @@ import worker, {
   checkHttpsUpgrade,
   auditRobotsAndSitemap,
   allowedOrigins,
+  rateLimitCache,
 } from './index';
 
 describe('worker index helpers', () => {
@@ -312,5 +313,94 @@ describe('worker default handler', () => {
       error: 'Falha desconhecida ao auditar o site.',
       input: 'example.com'
     });
+  });
+});
+
+
+describe('Rate Limiting', () => {
+  let env: Record<string, string>;
+
+  beforeEach(() => {
+    env = { ALLOWED_ORIGINS: 'https://servicos.pedrosatin.com' };
+    rateLimitCache.clear();
+  });
+
+  const makeRequest = (ip: string) => {
+    return new Request('https://servicos-api.pedrosatin.com/audit?url=exemplo.com.br', {
+      headers: new Headers({
+        origin: 'https://servicos.pedrosatin.com',
+        'cf-connecting-ip': ip,
+      }),
+    });
+  };
+
+  it('allows requests within the limit', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: async () => '<html></html>',
+      arrayBuffer: async () => new ArrayBuffer(0),
+      clone: function() { return this; }
+    });
+
+    for (let i = 0; i < 10; i++) {
+      const response = await worker.fetch(makeRequest('203.0.113.1'), env);
+      // It might fail for other reasons if mocks aren't perfect, but we just check it doesn't return 429
+      expect(response.status).not.toBe(429);
+    }
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it('blocks requests exceeding the limit', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: async () => '<html></html>',
+      arrayBuffer: async () => new ArrayBuffer(0),
+      clone: function() { return this; }
+    });
+
+    // Make 10 requests that should pass the rate limit check
+    for (let i = 0; i < 10; i++) {
+      await worker.fetch(makeRequest('203.0.113.2'), env);
+    }
+
+    // The 11th request should be blocked
+    const response = await worker.fetch(makeRequest('203.0.113.2'), env);
+    expect(response.status).toBe(429);
+
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toBe('Muitas requisições. Tente novamente mais tarde.');
+    expect(response.headers.get('retry-after')).toBeDefined();
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it('allows requests from a different IP', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: async () => '<html></html>',
+      arrayBuffer: async () => new ArrayBuffer(0),
+      clone: function() { return this; }
+    });
+
+    // Make 10 requests from IP 1
+    for (let i = 0; i < 10; i++) {
+      await worker.fetch(makeRequest('203.0.113.3'), env);
+    }
+
+    // Request from IP 2 should still pass
+    const response = await worker.fetch(makeRequest('203.0.113.4'), env);
+    expect(response.status).not.toBe(429);
+
+    globalThis.fetch = originalFetch;
   });
 });
