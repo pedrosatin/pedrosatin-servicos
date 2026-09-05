@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { buildDomainFindings } from './domain';
-import type { AuditResult } from '../types';
+import type { AuditResult, Finding } from '../types';
 
 describe('buildDomainFindings', () => {
-  let pushMock: any;
+  let pushMock: Mock<(finding: Finding) => void>;
 
   beforeEach(() => {
     pushMock = vi.fn();
