@@ -24,7 +24,7 @@ describe('buildStructuredData', () => {
     expect(data['@context']).toBe('https://schema.org');
     expect(data['@graph']).toBeInstanceOf(Array);
 
-    const types = data['@graph'].map((node: any) => node['@type']);
+    const types = data['@graph'].map((node: { '@type': string }) => node['@type']);
 
     expect(types).toContain('WebSite');
     expect(types).toContain('Person');
