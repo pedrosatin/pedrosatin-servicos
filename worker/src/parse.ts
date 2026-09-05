@@ -64,25 +64,20 @@ const clean = (value: string | null | undefined): string | null => {
 // Os padrões dependem só do nome do atributo ou da tag, um conjunto pequeno e
 // fechado. Recompilar a mesma RegExp a cada tag do documento era o custo
 // dominante do parsing; o cache elimina isso sem mudar resultado nenhum.
-const attrRegexCache = new Map<string, { double: RegExp; single: RegExp; bare: RegExp }>();
+const attrRegexCache = new Map<string, RegExp>();
 
 /** Lê o valor de um atributo dentro de uma tag isolada. */
 const attr = (tag: string, name: string): string | null => {
-  let regexes = attrRegexCache.get(name);
-  if (!regexes) {
-    regexes = {
-      double: new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i'),
-      single: new RegExp(`\\b${name}\\s*=\\s*'([^']*)'`, 'i'),
-      bare: new RegExp(`\\b${name}\\s*=\\s*([^\\s">]+)`, 'i'),
-    };
-    attrRegexCache.set(name, regexes);
+  let regex = attrRegexCache.get(name);
+  if (!regex) {
+    regex = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
+    attrRegexCache.set(name, regex);
   }
-  const doubleQuoted = regexes.double.exec(tag);
-  if (doubleQuoted) return doubleQuoted[1];
-  const singleQuoted = regexes.single.exec(tag);
-  if (singleQuoted) return singleQuoted[1];
-  const bare = regexes.bare.exec(tag);
-  return bare ? bare[1] : null;
+  const match = regex.exec(tag);
+  if (match) {
+    return match[1] ?? match[2] ?? match[3] ?? null;
+  }
+  return null;
 };
 
 const hasAttrRegexCache = new Map<string, RegExp>();
