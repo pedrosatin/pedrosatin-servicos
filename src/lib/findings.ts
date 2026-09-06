@@ -12,8 +12,6 @@ import { buildContentFindings } from './findings/content';
 import { buildPerformanceFindings } from './findings/performance';
 import { buildDomainFindings } from './findings/domain';
 
-export { AREA_LABELS, countBySeverity } from './achados';
-
 export const buildFindings = (result: AuditResult): Finding[] => {
   const out: Finding[] = [];
   const push = (finding: Finding): void => {

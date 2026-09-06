@@ -2,13 +2,6 @@
 
 import type { AuditResponse as ContentReport } from '../../shared/report-types';
 
-export interface DnsRecord {
-  name: string;
-  type: number;
-  data: string;
-  ttl: number;
-}
-
 export interface DnsReport {
   domain: string;
   resolves: boolean;
@@ -122,7 +115,7 @@ export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 export interface AuditStep {
   id: string;
   label: string;
-  /** Comando equivalente, exibido nos protótipos com estética de terminal. */
+  /** Comando equivalente, exibido na página com estética de terminal. */
   command: string;
   status: StepStatus;
   detail: string | null;

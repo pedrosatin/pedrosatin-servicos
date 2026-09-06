@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { auditWhatsAppUrl, findingWhatsAppUrl, briefingWhatsAppUrl } from './message';
+import { auditWhatsAppUrl, briefingWhatsAppUrl } from './message';
 import { buildWhatsAppUrl } from './config';
 import { normalizeDomain } from './dominio';
 import type { AuditResult, Finding } from './types';
@@ -74,17 +74,6 @@ describe('message', () => {
       expect(buildWhatsAppUrl).toHaveBeenCalledWith(
         'Olá Pedro, analisei o projeto semscore.com na sua página.\n' +
         'Gostaria de entender como podemos resolver e colocar em produção.'
-      );
-    });
-  });
-
-  describe('findingWhatsAppUrl', () => {
-    it('should build URL for a specific finding', () => {
-      const mockFinding = { title: 'Imagens sem alt' } as Finding;
-      findingWhatsAppUrl('site.com', mockFinding);
-
-      expect(buildWhatsAppUrl).toHaveBeenCalledWith(
-        'Olá Pedro, na análise de site.com apareceu este ponto: "Imagens sem alt". Como funciona a correção?'
       );
     });
   });
