@@ -10,14 +10,8 @@
  * Rota: GET /audit?url=<domínio ou URL>
  */
 
-import {
-  countSitemapUrls,
-  isSitemapIndex,
-  parseHtml,
-  parseRobots,
-  type HtmlReport,
-  type RobotsReport,
-} from './parse.ts';
+import { countSitemapUrls, isSitemapIndex, parseHtml, parseRobots } from './parse.ts';
+import type { AuditResponse, RedirectHop, RobotsReport } from '../../shared/report-types.ts';
 
 interface Env {
   ALLOWED_ORIGINS?: string;
@@ -35,44 +29,6 @@ const USER_AGENT =
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 3_000_000;
-
-interface RedirectHop {
-  url: string;
-  status: number;
-  location: string | null;
-}
-
-interface SecurityHeaders {
-  hsts: string | null;
-  contentTypeOptions: string | null;
-  frameOptions: string | null;
-  csp: string | null;
-  referrerPolicy: string | null;
-  permissionsPolicy: string | null;
-}
-
-interface AuditResponse {
-  ok: boolean;
-  error?: string;
-  input: string;
-  requestedUrl: string;
-  finalUrl: string;
-  status: number;
-  redirects: RedirectHop[];
-  servedOverHttps: boolean;
-  httpRedirectsToHttps: boolean | null;
-  edgeResponseMs: number;
-  server: string | null;
-  poweredBy: string | null;
-  cacheControl: string | null;
-  contentEncoding: string | null;
-  compressed: boolean;
-  securityHeaders: SecurityHeaders;
-  html: HtmlReport | null;
-  robots: RobotsReport | null;
-  sitemap: { found: boolean; url: string | null; urlCount: number | null; isIndex: boolean };
-  checkedAt: string;
-}
 
 export const allowedOrigins = (env: Env): string[] => {
   if (!env.ALLOWED_ORIGINS || env.ALLOWED_ORIGINS.trim() === '') return DEFAULT_ORIGINS;
