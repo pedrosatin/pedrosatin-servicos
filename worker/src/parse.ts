@@ -5,45 +5,18 @@
  * executado em Node durante os testes, sem precisar subir o wrangler.
  */
 
-export interface ImageStats {
-  total: number;
-  withoutAlt: number;
-  withoutDimensions: number;
-  lazy: number;
-}
+/**
+ * Os tipos do payload vêm de `shared/report-types.ts`, a mesma fonte que o
+ * front consome. Reexportados aqui para não quebrar quem importa de `./parse`.
+ */
+import type { HtmlReport, ImageStats, ScriptStats, RobotsReport } from '../../shared/report-types.ts';
 
-export interface ScriptStats {
-  total: number;
-  blocking: number;
-  external: number;
-}
-
-export interface HtmlReport {
-  bytes: number;
-  lang: string | null;
-  charset: string | null;
-  title: string | null;
-  titleLength: number;
-  metaDescription: string | null;
-  metaDescriptionLength: number;
-  canonical: string | null;
-  robotsMeta: string | null;
-  viewport: string | null;
-  h1: string[];
-  h2Count: number;
-  images: ImageStats;
-  openGraph: { title: string | null; description: string | null; image: string | null };
-  twitterCard: string | null;
-  jsonLdTypes: string[];
-  favicon: boolean;
-  scripts: ScriptStats;
-  stylesheets: number;
-  inlineStyleBytes: number;
-  generator: string | null;
-  hreflang: string[];
-  wordCount: number;
-  platform: string | null;
-}
+export type {
+  HtmlReport,
+  ImageStats,
+  ScriptStats,
+  RobotsReport,
+} from '../../shared/report-types.ts';
 
 const decodeEntities = (value: string): string =>
   value
@@ -311,12 +284,6 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     platform: detectPlatform(html, generator),
   };
 };
-
-export interface RobotsReport {
-  found: boolean;
-  blocksAll: boolean;
-  sitemaps: string[];
-}
 
 export const parseRobots = (body: string): RobotsReport => {
   const lines = body.split(/\r?\n/).map((line) => line.trim());
