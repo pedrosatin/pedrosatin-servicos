@@ -361,20 +361,6 @@ const pickScreenshot = (
   };
 };
 
-/**
- * O PageSpeed roda um Lighthouse de verdade no servidor do Google, e essa
- * máquina falha com alguma frequência: numa bateria de 24 chamadas seguidas,
- * 7 voltaram com erro — e todas as repetidas passaram na tentativa seguinte,
- * sem nenhuma mudança no alvo. É falha passageira, não problema do site.
- *
- * Daí a distinção abaixo. Repetir só ajuda quando o erro é do lado de lá:
- *
- *  - 500/502/503 e falha de rede: o caso comum, repetir resolve;
- *  - 429: é limite de uso. Repetir rápido piora, então a espera é maior;
- *  - 400/403/404: a resposta não muda na segunda tentativa (endereço inválido,
- *    chave bloqueada). Repetir só faria o visitante esperar o dobro para
- *    receber o mesmo erro.
- */
 const PAGESPEED_TENTATIVAS = 3;
 const PAGESPEED_TIMEOUT_MS = 60_000;
 
@@ -410,16 +396,23 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
   }
 };
 
-export const fetchPageSpeed = async (
-  domain: string,
-  strategy: 'mobile' | 'desktop' = 'mobile',
-): Promise<PageSpeedReport> => {
-  const params = new URLSearchParams({ url: `https://${domain}`, strategy });
-  for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) {
-    params.append('category', category);
-  }
-  if (PAGESPEED_KEY) params.set('key', PAGESPEED_KEY);
-
+/**
+ * O PageSpeed roda um Lighthouse de verdade no servidor do Google, e essa
+ * máquina falha com alguma frequência: numa bateria de 24 chamadas seguidas,
+ * 7 voltaram com erro — e todas as repetidas passaram na tentativa seguinte,
+ * sem nenhuma mudança no alvo. É falha passageira, não problema do site.
+ *
+ * Daí a distinção abaixo. Repetir só ajuda quando o erro é do lado de lá:
+ *
+ *  - 500/502/503 e falha de rede: o caso comum, repetir resolve;
+ *  - 429: é limite de uso. Repetir rápido piora, então a espera é maior;
+ *  - 400/403/404: a resposta não muda na segunda tentativa (endereço inválido,
+ *    chave bloqueada). Repetir só faria o visitante esperar o dobro para
+ *    receber o mesmo erro.
+ */
+const buscarPageSpeedComRetentativas = async (
+  params: URLSearchParams,
+): Promise<{ data: PsiResponse; response: Response }> => {
   let data: PsiResponse | null = null;
   let response: Response | null = null;
   let ultimoErro: Error | null = null;
@@ -463,8 +456,15 @@ export const fetchPageSpeed = async (
     throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
   }
 
-  const audits = data.lighthouseResult.audits ?? {};
-  const categories = data.lighthouseResult.categories ?? {};
+  return { data, response };
+};
+
+const mapearPageSpeedReport = (
+  data: PsiResponse,
+  strategy: 'mobile' | 'desktop',
+): PageSpeedReport => {
+  const audits = data.lighthouseResult?.audits ?? {};
+  const categories = data.lighthouseResult?.categories ?? {};
   const numeric = (key: string): number | null => audits[key]?.numericValue ?? null;
 
   // O campo (CrUX) da URL específica costuma faltar em sites pequenos;
@@ -511,4 +511,18 @@ export const fetchPageSpeed = async (
     opportunities,
     fetchedAt: new Date().toISOString(),
   };
+};
+
+export const fetchPageSpeed = async (
+  domain: string,
+  strategy: 'mobile' | 'desktop' = 'mobile',
+): Promise<PageSpeedReport> => {
+  const params = new URLSearchParams({ url: `https://${domain}`, strategy });
+  for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) {
+    params.append('category', category);
+  }
+  if (PAGESPEED_KEY) params.set('key', PAGESPEED_KEY);
+
+  const { data } = await buscarPageSpeedComRetentativas(params);
+  return mapearPageSpeedReport(data, strategy);
 };
