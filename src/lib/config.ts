@@ -1,4 +1,4 @@
-/** Configuração central usada por todos os protótipos e pela landing final. */
+/** Configuração central usada pela landing. */
 
 export const CONTACT = {
   /** WhatsApp empresarial. */
