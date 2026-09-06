@@ -2,8 +2,8 @@
  * Orquestrador da auditoria.
  *
  * Executa as fontes em paralelo quando possível e informa o progresso etapa a
- * etapa, o que permite aos protótipos exibirem o andamento real da análise em
- * vez de uma barra de carregamento decorativa.
+ * etapa, o que permite à página exibir o andamento real da análise em vez de
+ * uma barra de carregamento decorativa.
  */
 
 import { buildFindings, scoreFromFindings } from './findings';
