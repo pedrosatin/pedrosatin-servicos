@@ -1,5 +1,7 @@
 /** Tipos compartilhados pelo motor de auditoria. */
 
+import type { AuditResponse as ContentReport } from '../../shared/report-types';
+
 export interface DnsReport {
   domain: string;
   resolves: boolean;
@@ -76,62 +78,22 @@ export interface PageSpeedReport {
   fetchedAt: string;
 }
 
-export interface HtmlReport {
-  bytes: number;
-  lang: string | null;
-  charset: string | null;
-  title: string | null;
-  titleLength: number;
-  metaDescription: string | null;
-  metaDescriptionLength: number;
-  canonical: string | null;
-  robotsMeta: string | null;
-  viewport: string | null;
-  h1: string[];
-  h2Count: number;
-  images: { total: number; withoutAlt: number; withoutDimensions: number; lazy: number };
-  openGraph: { title: string | null; description: string | null; image: string | null };
-  twitterCard: string | null;
-  jsonLdTypes: string[];
-  favicon: boolean;
-  scripts: { total: number; blocking: number; external: number };
-  stylesheets: number;
-  inlineStyleBytes: number;
-  generator: string | null;
-  hreflang: string[];
-  wordCount: number;
-  platform: string | null;
-}
-
-export interface ContentReport {
-  ok: boolean;
-  error?: string;
-  input: string;
-  requestedUrl: string;
-  finalUrl: string;
-  status: number;
-  redirects: { url: string; status: number; location: string | null }[];
-  servedOverHttps: boolean;
-  httpRedirectsToHttps: boolean | null;
-  edgeResponseMs: number;
-  server: string | null;
-  poweredBy: string | null;
-  cacheControl: string | null;
-  contentEncoding: string | null;
-  compressed: boolean;
-  securityHeaders: {
-    hsts: string | null;
-    contentTypeOptions: string | null;
-    frameOptions: string | null;
-    csp: string | null;
-    referrerPolicy: string | null;
-    permissionsPolicy: string | null;
-  };
-  html: HtmlReport | null;
-  robots: { found: boolean; blocksAll: boolean; sitemaps: string[] } | null;
-  sitemap: { found: boolean; url: string | null; urlCount: number | null; isIndex: boolean };
-  checkedAt: string;
-}
+/**
+ * O payload de auditoria (`HtmlReport`, `ContentReport` e suas partes) tem uma
+ * fonte única em `shared/report-types.ts`, consumida também pelo Worker. Mudar
+ * um campo lá quebra o `typecheck` dos dois lados. `ContentReport` é o nome do
+ * front para o `AuditResponse` que o Worker devolve.
+ */
+export type {
+  HtmlReport,
+  ImageStats,
+  ScriptStats,
+  RobotsReport,
+  RedirectHop,
+  SecurityHeaders,
+  SitemapReport,
+} from '../../shared/report-types';
+export type { AuditResponse as ContentReport } from '../../shared/report-types';
 
 export type Severity = 'critical' | 'warning' | 'good' | 'info';
 
