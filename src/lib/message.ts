@@ -2,7 +2,7 @@
 
 import { buildWhatsAppUrl } from './config';
 import { normalizeDomain } from './dominio';
-import type { AuditResult, Finding } from './types';
+import type { AuditResult } from './types';
 
 export const auditWhatsAppUrl = (result: AuditResult | null, domain?: string): string => {
   if (!result) {
@@ -27,11 +27,6 @@ export const auditWhatsAppUrl = (result: AuditResult | null, domain?: string): s
 
   return buildWhatsAppUrl(lines.join('\n'));
 };
-
-export const findingWhatsAppUrl = (domain: string, finding: Finding): string =>
-  buildWhatsAppUrl(
-    `Olá Pedro, na análise de ${domain} apareceu este ponto: "${finding.title}". Como funciona a correção?`,
-  );
 
 export interface Briefing {
   name: string;
