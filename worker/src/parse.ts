@@ -286,21 +286,47 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
 };
 
 export const parseRobots = (body: string): RobotsReport => {
-  const lines = body.split(/\r?\n/).map((line) => line.trim());
-  const sitemaps = lines
-    .filter((line) => /^sitemap\s*:/i.test(line))
-    .map((line) => line.replace(/^sitemap\s*:\s*/i, '').trim())
-    .filter(Boolean);
-
-  // "Disallow: /" dentro de um bloco User-agent: * bloqueia o site inteiro.
   let inWildcardBlock = false;
   let blocksAll = false;
-  for (const line of lines) {
-    if (/^user-agent\s*:/i.test(line)) {
-      inWildcardBlock = line.split(':')[1]?.trim() === '*';
-      continue;
+  const sitemaps: string[] = [];
+
+  let start = 0;
+  const len = body.length;
+  while (start < len) {
+    let end = body.indexOf('\n', start);
+    if (end === -1) end = len;
+
+    let lineStart = start;
+    let lineEnd = end;
+
+    if (lineEnd > lineStart && body.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--;
     }
-    if (inWildcardBlock && /^disallow\s*:\s*\/\s*$/i.test(line)) blocksAll = true;
+
+    while (lineStart < lineEnd && body.charCodeAt(lineStart) <= 32) {
+      lineStart++;
+    }
+
+    while (lineEnd > lineStart && body.charCodeAt(lineEnd - 1) <= 32) {
+      lineEnd--;
+    }
+
+    if (lineStart < lineEnd) {
+      const line = body.slice(lineStart, lineEnd);
+      const firstChar = line.charCodeAt(0) | 32;
+
+      if (firstChar === 115 && /^sitemap\s*:/i.test(line)) {
+        const colonIdx = line.indexOf(':');
+        const sitemap = line.slice(colonIdx + 1).trim();
+        if (sitemap) sitemaps.push(sitemap);
+      } else if (firstChar === 117 && /^user-agent\s*:/i.test(line)) {
+        const colonIdx = line.indexOf(':');
+        inWildcardBlock = line.slice(colonIdx + 1).trim() === '*';
+      } else if (inWildcardBlock && firstChar === 100 && /^disallow\s*:\s*\/\s*$/i.test(line)) {
+        blocksAll = true;
+      }
+    }
+    start = end + 1;
   }
 
   return { found: true, blocksAll, sitemaps };
