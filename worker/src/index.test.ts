@@ -42,6 +42,17 @@ describe('worker index helpers', () => {
       expect(await isInternalHost('::1')).toBe(true);
     });
 
+
+    it('handles DNS resolution failures gracefully (non-ok response)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
+      expect(await isInternalHost('error-domain.com')).toBe(false);
+    });
+
+    it('handles DNS resolution network errors gracefully (fetch throws)', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      expect(await isInternalHost('throw-domain.com')).toBe(false);
+    });
+
     it('allows public hosts', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
       expect(await isInternalHost('example.com')).toBe(false);
