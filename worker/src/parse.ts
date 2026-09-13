@@ -90,7 +90,7 @@ const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string):
 
 /**
  * Casa, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
- * com todo o seu conteúdo) OU um comentário HTML — fechado ou não.
+ * junto ao seu conteúdo completo) OU um comentário HTML — fechado ou não.
  *
  * A ordem das alternativas é o que faz o `<!--` que aparece dentro de um
  * JavaScript embutido (`var s = "<!--"`) não ser confundido com comentário: ao
@@ -100,7 +100,7 @@ const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string):
 const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
 
 /**
- * Remove apenas comentários HTML, preservando todo o resto do documento.
+ * Remove apenas comentários HTML, preservando o restante do documento.
  *
  * É de propósito que esta função não faça o que `stripNonContent` faz: os
  * blocos `<script>` e `<style>` precisam continuar no HTML, porque é deles que
