@@ -18,15 +18,23 @@ export type {
   RobotsReport,
 } from '../../shared/report-types.ts';
 
-const decodeEntities = (value: string): string =>
-  value
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&#x27;/gi, "'");
+const ENTITY_MAP: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#039;': "'",
+  '&#x27;': "'",
+  '&#X27;': "'",
+};
+const ENTITIES_REGEX = /&(?:nbsp|amp|lt|gt|quot|#0?39|#[xX]27);/g;
+
+const decodeEntities = (value: string): string => {
+  if (!value.includes('&')) return value;
+  return value.replace(ENTITIES_REGEX, (match) => ENTITY_MAP[match]);
+};
 
 const clean = (value: string | null | undefined): string | null => {
   if (!value) return null;
