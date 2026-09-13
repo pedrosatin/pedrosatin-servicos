@@ -78,6 +78,30 @@ describe('worker index helpers', () => {
       expect(await normalizeTarget('https://127.0.0.1')).toBeNull();
       expect(await normalizeTarget('https://%%%')).toBeNull();
     });
+
+    it('trims whitespace from the input', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect((await normalizeTarget('  https://example.com  '))?.href).toBe('https://example.com/');
+    });
+
+    it('returns null if URL constructor throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await normalizeTarget('https://javascript:alert(1)')).toBeNull();
+    });
+
+    it('returns null if the hostname does not contain a dot', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await normalizeTarget('https://internalhost')).toBeNull();
+      expect(await normalizeTarget('only-word')).toBeNull();
+    });
+
+    it('returns null if the domain resolves to an internal IP via DoH', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ Answer: [{ data: '192.168.1.1' }] })
+      });
+      expect(await normalizeTarget('https://looks-external.com')).toBeNull();
+    });
   });
 
   describe('fetchWithTimeout', () => {
