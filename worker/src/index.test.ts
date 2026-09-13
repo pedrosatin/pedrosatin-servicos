@@ -76,6 +76,10 @@ describe('worker index helpers', () => {
       expect(await normalizeTarget('ftp://example.com')).toBeNull();
       expect(await normalizeTarget('localhost')).toBeNull();
       expect(await normalizeTarget('https://127.0.0.1')).toBeNull();
+    });
+
+    it('swallows errors during URL parsing and returns null', async () => {
+      // "https://%%%" throws a TypeError: Invalid URL when passed to new URL()
       expect(await normalizeTarget('https://%%%')).toBeNull();
     });
   });
