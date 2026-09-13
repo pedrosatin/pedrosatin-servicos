@@ -16,16 +16,6 @@ import type {
   PageSpeedReport,
 } from './types';
 
-// As funções de domínio que não fazem rede moram em `dominio.ts`; ver o
-// cabeçalho de lá para o motivo. Continuam saindo por aqui para quem já as
-// importava deste arquivo.
-export {
-  getApexDomain,
-  googleIndexUrl,
-  isValidDomain,
-  normalizeDomain,
-  searchConsoleUrl,
-} from './dominio';
 
 
 /* ------------------------------------------------------------------ *
