@@ -372,6 +372,16 @@ export default {
       for (const [key, value] of rateLimitCache.entries()) {
         if (value.expiresAt < now) {
           rateLimitCache.delete(key);
+        } else {
+          // Maps preserve insertion order, and expiresAt is only set
+          // upon insertion (it's not updated on cache hits). Since the TTL is fixed,
+          // the Map is naturally sorted by expiresAt.
+          // As soon as we find an unexpired item, we know all subsequent
+          // items are also unexpired, so we can break early (O(N) -> O(K)).
+          // Note: If variable TTLs or expiration extensions are ever introduced,
+          // this early break will cause memory leaks and must be replaced with
+          // a bounded iteration approach.
+          break;
         }
       }
     }
