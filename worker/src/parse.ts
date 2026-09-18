@@ -53,16 +53,7 @@ const attr = (tag: string, name: string): string | null => {
   return null;
 };
 
-const hasAttrRegexCache = new Map<string, RegExp>();
 
-const hasAttr = (tag: string, name: string): boolean => {
-  let regex = hasAttrRegexCache.get(name);
-  if (!regex) {
-    regex = new RegExp(`\\b${name}\\b`, 'i');
-    hasAttrRegexCache.set(name, regex);
-  }
-  return regex.test(tag);
-};
 
 // A flag 'g' aqui é segura de cachear: String.prototype.match com regex global
 // zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
@@ -187,6 +178,14 @@ const collectJsonLdTypes = (html: string): string[] => {
   return [...types];
 };
 
+const ALT_RE = /\balt\s*=/i;
+const WIDTH_RE = /\bwidth\s*=/i;
+const HEIGHT_RE = /\bheight\s*=/i;
+const LAZY_RE = /\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w)/i;
+const SRC_RE = /\bsrc\s*=/i;
+const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
+const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
+
 export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // O que está dentro de comentário não é elemento da página: o navegador não
   // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
@@ -213,10 +212,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     withoutDimensions: 0,
     lazy: 0,
   };
+
+
   for (const tag of imageTags) {
-    if (attr(tag, 'alt') === null) images.withoutAlt++;
-    if (attr(tag, 'width') === null || attr(tag, 'height') === null) images.withoutDimensions++;
-    if ((attr(tag, 'loading') ?? '').toLowerCase() === 'lazy') images.lazy++;
+    if (!ALT_RE.test(tag)) images.withoutAlt++;
+    if (!WIDTH_RE.test(tag) || !HEIGHT_RE.test(tag)) images.withoutDimensions++;
+    if (LAZY_RE.test(tag)) images.lazy++;
   }
 
   const scriptTags = collectTags(markup, 'script');
@@ -226,9 +227,9 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     blocking: 0,
   };
   for (const tag of scriptTags) {
-    if (attr(tag, 'src') !== null) {
+    if (SRC_RE.test(tag)) {
       scripts.external++;
-      if (!hasAttr(tag, 'async') && !hasAttr(tag, 'defer') && (attr(tag, 'type') ?? '') !== 'module') {
+      if (!ASYNC_DEFER_RE.test(tag) && !TYPE_MODULE_RE.test(tag)) {
         scripts.blocking++;
       }
     }
