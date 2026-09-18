@@ -48,6 +48,11 @@ describe('worker index helpers', () => {
       expect(await isInternalHost('google.com')).toBe(false);
       expect(await isInternalHost('8.8.8.8')).toBe(false);
     });
+
+    it('handles DNS resolution errors by returning false', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('DNS Error'));
+      expect(await isInternalHost('example.com')).toBe(false);
+    });
   });
 
   describe('normalizeTarget', () => {
