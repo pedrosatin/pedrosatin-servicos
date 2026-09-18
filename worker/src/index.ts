@@ -372,6 +372,8 @@ export default {
       for (const [key, value] of rateLimitCache.entries()) {
         if (value.expiresAt < now) {
           rateLimitCache.delete(key);
+        } else {
+          break; // Map maintains insertion order, so if this isn't expired, neither are subsequent items
         }
       }
     }
@@ -389,6 +391,7 @@ export default {
         }
         record.count += 1;
       } else {
+        rateLimitCache.delete(clientIp); // Ensure the item is moved to the end of insertion order
         rateLimitCache.set(clientIp, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
       }
     }
