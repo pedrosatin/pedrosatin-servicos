@@ -34,6 +34,8 @@ const clean = (value: string | null | undefined): string | null => {
   return text.length > 0 ? text : null;
 };
 
+const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Os padrões dependem só do nome do atributo ou da tag, um conjunto pequeno e
 // fechado. Recompilar a mesma RegExp a cada tag do documento era o custo
 // dominante do parsing; o cache elimina isso sem mudar resultado nenhum.
@@ -43,7 +45,7 @@ const attrRegexCache = new Map<string, RegExp>();
 const attr = (tag: string, name: string): string | null => {
   let regex = attrRegexCache.get(name);
   if (!regex) {
-    regex = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
+    regex = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
     attrRegexCache.set(name, regex);
   }
   const match = regex.exec(tag);
@@ -58,7 +60,7 @@ const hasAttrRegexCache = new Map<string, RegExp>();
 const hasAttr = (tag: string, name: string): boolean => {
   let regex = hasAttrRegexCache.get(name);
   if (!regex) {
-    regex = new RegExp(`\\b${name}\\b`, 'i');
+    regex = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i');
     hasAttrRegexCache.set(name, regex);
   }
   return regex.test(tag);
@@ -72,7 +74,7 @@ const collectTagsRegexCache = new Map<string, RegExp>();
 const collectTags = (html: string, tagName: string): string[] => {
   let regex = collectTagsRegexCache.get(tagName);
   if (!regex) {
-    regex = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    regex = new RegExp(`<${escapeRegExp(tagName)}\\b[^>]*>`, 'gi');
     collectTagsRegexCache.set(tagName, regex);
   }
   return html.match(regex) ?? [];
