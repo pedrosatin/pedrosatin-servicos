@@ -69,6 +69,13 @@ describe('worker index helpers', () => {
       expect((await normalizeTarget('www.example.com/path'))?.href).toBe('https://www.example.com/path');
     });
 
+
+    it('returns null when URL parsing throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      // "https://%%%" causes new URL() to throw a TypeError
+      expect(await normalizeTarget('https://%%%')).toBeNull();
+    });
+
     it('returns null for empty strings or invalid inputs', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
       expect(await normalizeTarget('')).toBeNull();
