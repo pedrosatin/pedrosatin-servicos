@@ -208,10 +208,8 @@ const vcardName = (entity: RdapEntity | undefined): string | null => {
   if (!Array.isArray(array) || array.length < 2) return null;
   const fields = array[1];
   if (!Array.isArray(fields)) return null;
-  for (const field of fields) {
-    if (Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string') return field[3];
-  }
-  return null;
+  const match = fields.find((field) => Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string');
+  return match ? (match[3] as string) : null;
 };
 
 export const fetchRegistration = async (inputDomain: string): Promise<DomainRegistration> => {
