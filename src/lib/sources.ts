@@ -282,9 +282,15 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
  * ------------------------------------------------------------------ */
 
 export const fetchContent = async (domain: string): Promise<ContentReport> => {
-  const response = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
-  if (!response.ok) throw new Error(`O serviço de auditoria respondeu ${response.status}.`);
-  const report = (await response.json()) as ContentReport;
+  const res = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 403) {
+      // Worker detectou IP interno, localhost ou URL malformada.
+      throw new Error('Domínio inválido ou inacessível.');
+    }
+    throw new Error(`O servidor de análise falhou (status ${res.status}).`);
+  }
+  const report = (await res.json()) as ContentReport;
   if (report.error && !report.ok) throw new Error(report.error);
   return report;
 };
