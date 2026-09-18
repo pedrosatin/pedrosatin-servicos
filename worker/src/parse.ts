@@ -1,3 +1,8 @@
+
+const escapeRegExp = (string: string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 /**
  * Parser de HTML sem dependências externas.
  *
@@ -43,7 +48,7 @@ const attrRegexCache = new Map<string, RegExp>();
 const attr = (tag: string, name: string): string | null => {
   let regex = attrRegexCache.get(name);
   if (!regex) {
-    regex = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
+    regex = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
     attrRegexCache.set(name, regex);
   }
   const match = regex.exec(tag);
@@ -58,7 +63,7 @@ const hasAttrRegexCache = new Map<string, RegExp>();
 const hasAttr = (tag: string, name: string): boolean => {
   let regex = hasAttrRegexCache.get(name);
   if (!regex) {
-    regex = new RegExp(`\\b${name}\\b`, 'i');
+    regex = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i');
     hasAttrRegexCache.set(name, regex);
   }
   return regex.test(tag);
@@ -72,7 +77,7 @@ const collectTagsRegexCache = new Map<string, RegExp>();
 const collectTags = (html: string, tagName: string): string[] => {
   let regex = collectTagsRegexCache.get(tagName);
   if (!regex) {
-    regex = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    regex = new RegExp(`<${escapeRegExp(tagName)}\\b[^>]*>`, 'gi');
     collectTagsRegexCache.set(tagName, regex);
   }
   return html.match(regex) ?? [];
