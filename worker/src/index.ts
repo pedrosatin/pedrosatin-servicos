@@ -367,7 +367,7 @@ export default {
     const clientIp = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown';
 
     // Probabilistic cleanup (10% chance)
-    if (Math.random() < 0.1) {
+    if ((crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296) < 0.1) {
       const now = Date.now();
       for (const [key, value] of rateLimitCache.entries()) {
         if (value.expiresAt < now) {
