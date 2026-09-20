@@ -13,9 +13,8 @@ import {
   fetchEmailAuth,
   fetchPageSpeed,
   fetchRegistration,
-  isValidDomain,
-  normalizeDomain,
 } from './sources';
+import { isValidDomain, normalizeDomain } from './dominio';
 import type { AuditResult, AuditStep } from './types';
 
 export const createSteps = (domain: string): AuditStep[] => [
