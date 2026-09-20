@@ -80,7 +80,7 @@ describe('dominio', () => {
     });
 
     it('should treat long sld in .br as regular domains', () => {
-      // getApexDomain has a rule: sld.length <= 3 for .br
+      // The rule is that the SLD length must be 3 or less for .br domains
       expect(getApexDomain('sub.longname.br')).toBe('longname.br');
     });
   });
