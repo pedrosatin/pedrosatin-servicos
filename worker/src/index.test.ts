@@ -34,6 +34,16 @@ describe('worker index helpers', () => {
       expect(await isInternalHost('169.254.1.1')).toBe(true);
     });
 
+    it('identifies bypass representations of local IPs', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      // Decimal representation of 127.0.0.1
+      expect(await isInternalHost('2130706433')).toBe(true);
+      // Hex representation of 127.0.0.1
+      expect(await isInternalHost('0x7f000001')).toBe(true);
+      // Octal representation of 127.0.0.1
+      expect(await isInternalHost('0177.0.0.1')).toBe(true);
+    });
+
     it('identifies IPv4-mapped IPv6 addresses', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
       expect(await isInternalHost('::ffff:127.0.0.1')).toBe(true);

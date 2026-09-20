@@ -106,4 +106,21 @@ describe('worker parse', () => {
     expect(isSitemapIndex(sitemapIndexXml)).toBe(true);
     expect(isSitemapIndex(urlsetXml)).toBe(false);
   });
+  it('safely handles malicious attributes without causing ReDoS', () => {
+    // Attack vector: an attribute name with many unescaped regex special characters
+    // that without escaping would cause the RegExp engine to backtrack heavily or crash
+    const maliciousAttrName = 'a.*b.*c.*d.*e.*f.*g.*h.*i.*j.*k.*l.*m.*n.*o.*p.*q.*r.*s.*t.*u.*v.*w.*x.*y.*z.*';
+    const tag = `<img src="test.jpg" ${maliciousAttrName}="true">`;
+
+    // Should not hang/timeout and should return false because it searches for exact match
+    const start = Date.now();
+
+    // Test the parsing function directly if possible, or parseHtml which uses it
+    const html = `<!DOCTYPE html><html><body>${tag}</body></html>`;
+    const report = parseHtml(html, 100);
+
+    expect(Date.now() - start).toBeLessThan(100); // Should be very fast
+    expect(report.images.total).toBe(1);
+  });
+
 });
