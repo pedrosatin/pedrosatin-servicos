@@ -1,6 +1,9 @@
 import type { AuditResult, Finding, ContentReport, HtmlReport } from "../types";
 import { kb } from "./utils";
 
+export const NOINDEX_ACTION_MESSAGE =
+  "Essa tag remove a página dos resultados do Google mesmo que todo o resto esteja correto. Costuma ser resquício de ambiente de testes.";
+
 const checkRobots = (
   content: ContentReport | null,
   html: HtmlReport | null,
@@ -35,8 +38,7 @@ const checkRobots = (
       severity: "critical",
       title: "A página pede para não ser indexada",
       evidence: `A meta tag robots contém "${html.robotsMeta}".`,
-      action:
-        "Essa tag remove a página dos resultados do Google mesmo que todo o resto esteja correto. Costuma ser resquício de ambiente de testes.",
+      action: NOINDEX_ACTION_MESSAGE,
     });
   }
 };
