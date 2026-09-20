@@ -372,6 +372,51 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
   }
 };
 
+type PageSpeedAttemptResult =
+  | { success: true; data: PsiResponse; response: Response }
+  | { success: false; erro: Error; isDefinitivo: boolean; isLimiteDeUso: boolean };
+
+const formatarErroPageSpeed = (status: number): Error => {
+  const isLimiteDeUso = status === 429;
+  return new Error(
+    isLimiteDeUso
+      ? 'Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.'
+      : 'A medição de velocidade do Google não pôde ser concluída no momento.',
+  );
+};
+
+const formatarErroDeRede = (erro: unknown): Error => {
+  return erro instanceof Error && erro.name === 'AbortError'
+    ? new Error('O Google demorou demais para responder a medição de velocidade.')
+    : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
+};
+
+const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeedAttemptResult> => {
+  try {
+    const response = await buscarPageSpeed(params);
+    const data = (await response.json()) as PsiResponse;
+
+    if (!data.error && response.ok && data.lighthouseResult) {
+      return { success: true, data, response };
+    }
+
+    const status = data.error?.code ?? response.status;
+    return {
+      success: false,
+      erro: formatarErroPageSpeed(status),
+      isDefinitivo: isErroDefinitivo(status),
+      isLimiteDeUso: status === 429,
+    };
+  } catch (erro) {
+    return {
+      success: false,
+      erro: formatarErroDeRede(erro),
+      isDefinitivo: false,
+      isLimiteDeUso: false,
+    };
+  }
+};
+
 /**
  * O PageSpeed roda um Lighthouse de verdade no servidor do Google, e essa
  * máquina falha com alguma frequência: numa bateria de 24 chamadas seguidas,
@@ -389,50 +434,28 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
 const buscarPageSpeedComRetentativas = async (
   params: URLSearchParams,
 ): Promise<{ data: PsiResponse; response: Response }> => {
-  let data: PsiResponse | null = null;
-  let response: Response | null = null;
   let ultimoErro: Error | null = null;
 
   for (let tentativa = 1; tentativa <= PAGESPEED_TENTATIVAS; tentativa += 1) {
-    let foiLimiteDeUso = false;
+    const resultado = await tentarBuscarPageSpeed(params);
 
-    try {
-      response = await buscarPageSpeed(params);
-      data = (await response.json()) as PsiResponse;
+    if (resultado.success) {
+      return { data: resultado.data, response: resultado.response };
+    }
 
-      const status = data.error?.code ?? response.status;
+    ultimoErro = resultado.erro;
 
-      if (!data.error && response.ok && data.lighthouseResult) break;
-
-      foiLimiteDeUso = status === 429;
-      ultimoErro = new Error(
-        foiLimiteDeUso
-          ? 'Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.'
-          : 'A medição de velocidade do Google não pôde ser concluída no momento.',
-      );
-
-      // Insistir aqui só atrasaria o mesmo erro.
-      if (isErroDefinitivo(status)) throw ultimoErro;
-    } catch (erro) {
-      if (erro === ultimoErro) throw erro;
-      // Rede caiu ou o tempo estourou: a resposta sequer chegou.
-      ultimoErro =
-        erro instanceof Error && erro.name === 'AbortError'
-          ? new Error('O Google demorou demais para responder a medição de velocidade.')
-          : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
-      data = null;
+    // Insistir aqui só atrasaria o mesmo erro.
+    if (resultado.isDefinitivo) {
+      throw ultimoErro;
     }
 
     if (tentativa < PAGESPEED_TENTATIVAS) {
-      await esperar(esperaDaTentativa(tentativa, foiLimiteDeUso));
+      await esperar(esperaDaTentativa(tentativa, resultado.isLimiteDeUso));
     }
   }
 
-  if (!data?.lighthouseResult || !response?.ok || data.error) {
-    throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
-  }
-
-  return { data, response };
+  throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
 };
 
 const mapearPageSpeedReport = (
