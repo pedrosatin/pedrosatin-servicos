@@ -178,14 +178,38 @@ describe('sources', () => {
   });
 
   describe('fetchContent', () => {
-    it('should throw an error when response is not ok', async () => {
+    it('should throw a specific error when response status is 400', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'Domínio inválido ou inacessível.'
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
+    });
+
+    it('should throw a specific error when response status is 403', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'Domínio inválido ou inacessível.'
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
+    });
+
+    it('should throw an error when response is not ok and status is other than 400/403', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
       } as unknown as Response);
 
       await expect(fetchContent('example.com')).rejects.toThrow(
-        'O serviço de auditoria respondeu 500.'
+        'O servidor de análise falhou (status 500).'
       );
       expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
     });
