@@ -313,51 +313,53 @@ export const auditRobotsAndSitemap = async (
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
 };
 
-const runAudit = async (input: string): Promise<AuditResponse> => {
-  const target = await normalizeTarget(input);
-  const checkedAt = new Date().toISOString();
+const createErrorAuditResponse = (
+  input: string,
+  error: string,
+  checkedAt: string,
+): AuditResponse => ({
+  ok: false,
+  error,
+  input,
+  requestedUrl: input,
+  finalUrl: input,
+  status: 0,
+  redirects: [],
+  servedOverHttps: false,
+  httpRedirectsToHttps: null,
+  edgeResponseMs: 0,
+  server: null,
+  poweredBy: null,
+  cacheControl: null,
+  contentEncoding: null,
+  compressed: false,
+  securityHeaders: {
+    hsts: null,
+    contentTypeOptions: null,
+    frameOptions: null,
+    csp: null,
+    referrerPolicy: null,
+    permissionsPolicy: null,
+  },
+  html: null,
+  robots: null,
+  sitemap: { found: false, url: null, urlCount: null, isIndex: false },
+  checkedAt,
+});
 
-  if (!target) {
-    return {
-      ok: false,
-      error: 'Domínio inválido. Use o formato exemplo.com.br',
-      input,
-      requestedUrl: input,
-      finalUrl: input,
-      status: 0,
-      redirects: [],
-      servedOverHttps: false,
-      httpRedirectsToHttps: null,
-      edgeResponseMs: 0,
-      server: null,
-      poweredBy: null,
-      cacheControl: null,
-      contentEncoding: null,
-      compressed: false,
-      securityHeaders: {
-        hsts: null,
-        contentTypeOptions: null,
-        frameOptions: null,
-        csp: null,
-        referrerPolicy: null,
-        permissionsPolicy: null,
-      },
-      html: null,
-      robots: null,
-      sitemap: { found: false, url: null, urlCount: null, isIndex: false },
-      checkedAt,
-    };
-  }
-
-  const { response, hops, finalUrl, elapsedMs } = await followRedirects(target);
-  const finalOrigin = new URL(finalUrl).origin;
-
-  const [{ text, bytes }, httpRedirectsToHttps, robotsAndSitemap] = await Promise.all([
-    readBodyLimited(response.clone()),
-    checkHttpsUpgrade(target.hostname),
-    auditRobotsAndSitemap(finalOrigin),
-  ]);
-
+const createSuccessAuditResponse = (
+  input: string,
+  target: URL,
+  checkedAt: string,
+  response: Response,
+  hops: RedirectHop[],
+  finalUrl: string,
+  elapsedMs: number,
+  text: string,
+  bytes: number,
+  httpRedirectsToHttps: boolean | null,
+  robotsAndSitemap: { robots: RobotsReport | null; sitemap: AuditResponse['sitemap'] },
+): AuditResponse => {
   const header = (name: string): string | null => response.headers.get(name);
   const contentType = header('content-type') ?? '';
   const isHtml = contentType.includes('html') || /<html/i.test(text.slice(0, 500));
@@ -394,6 +396,37 @@ const runAudit = async (input: string): Promise<AuditResponse> => {
   };
 };
 
+const runAudit = async (input: string): Promise<AuditResponse> => {
+  const target = await normalizeTarget(input);
+  const checkedAt = new Date().toISOString();
+
+  if (!target) {
+    return createErrorAuditResponse(input, 'Domínio inválido. Use o formato exemplo.com.br', checkedAt);
+  }
+
+  const { response, hops, finalUrl, elapsedMs } = await followRedirects(target);
+  const finalOrigin = new URL(finalUrl).origin;
+
+  const [{ text, bytes }, httpRedirectsToHttps, robotsAndSitemap] = await Promise.all([
+    readBodyLimited(response.clone()),
+    checkHttpsUpgrade(target.hostname),
+    auditRobotsAndSitemap(finalOrigin),
+  ]);
+
+  return createSuccessAuditResponse(
+    input,
+    target,
+    checkedAt,
+    response,
+    hops,
+    finalUrl,
+    elapsedMs,
+    text,
+    bytes,
+    httpRedirectsToHttps,
+    robotsAndSitemap
+  );
+};
 
 // Rate limiting cache: IP -> { count, expiresAt }
 export const rateLimitCache = new Map<string, { count: number; expiresAt: number }>();
