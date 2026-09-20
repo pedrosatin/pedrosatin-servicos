@@ -62,7 +62,14 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
 const isInternalIp = (hostname: string): boolean => {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  try {
+    const urlStr = host.includes(':') ? `http://[${host}]` : `http://${host}`;
+    const url = new URL(urlStr);
+    host = url.hostname.replace(/^\[|\]$/g, '');
+  } catch (e) {
+    // Ignore URL parse errors
+  }
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
     return true;
