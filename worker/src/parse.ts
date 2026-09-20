@@ -5,61 +5,44 @@
  * executado em Node durante os testes, sem precisar subir o wrangler.
  */
 
-export interface ImageStats {
-  total: number;
-  withoutAlt: number;
-  withoutDimensions: number;
-  lazy: number;
-}
+/**
+ * Os tipos do payload vêm de `shared/report-types.ts`, a mesma fonte que o
+ * front consome. Reexportados aqui para não quebrar quem importa de `./parse`.
+ */
+import type { HtmlReport, ImageStats, ScriptStats, RobotsReport } from '../../shared/report-types.ts';
 
-export interface ScriptStats {
-  total: number;
-  blocking: number;
-  external: number;
-}
+export type {
+  HtmlReport,
+  ImageStats,
+  ScriptStats,
+  RobotsReport,
+} from '../../shared/report-types.ts';
 
-export interface HtmlReport {
-  bytes: number;
-  lang: string | null;
-  charset: string | null;
-  title: string | null;
-  titleLength: number;
-  metaDescription: string | null;
-  metaDescriptionLength: number;
-  canonical: string | null;
-  robotsMeta: string | null;
-  viewport: string | null;
-  h1: string[];
-  h2Count: number;
-  images: ImageStats;
-  openGraph: { title: string | null; description: string | null; image: string | null };
-  twitterCard: string | null;
-  jsonLdTypes: string[];
-  favicon: boolean;
-  scripts: ScriptStats;
-  stylesheets: number;
-  inlineStyleBytes: number;
-  generator: string | null;
-  hreflang: string[];
-  wordCount: number;
-  platform: string | null;
-}
+const ENTITY_MAP: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#039;': "'",
+  '&#x27;': "'",
+  '&#X27;': "'",
+};
+const ENTITIES_REGEX = /&(?:nbsp|amp|lt|gt|quot|#0?39|#[xX]27);/g;
 
-const decodeEntities = (value: string): string =>
-  value
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&#x27;/gi, "'");
+const decodeEntities = (value: string): string => {
+  if (!value.includes('&')) return value;
+  return value.replace(ENTITIES_REGEX, (match) => ENTITY_MAP[match]);
+};
 
 const clean = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const text = decodeEntities(value).replace(/\s+/g, ' ').trim();
   return text.length > 0 ? text : null;
 };
+
+const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Os padrões dependem só do nome do atributo ou da tag, um conjunto pequeno e
 // fechado. Recompilar a mesma RegExp a cada tag do documento era o custo
@@ -70,7 +53,7 @@ const attrRegexCache = new Map<string, RegExp>();
 const attr = (tag: string, name: string): string | null => {
   let regex = attrRegexCache.get(name);
   if (!regex) {
-    regex = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
+    regex = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s">]+))`, 'i');
     attrRegexCache.set(name, regex);
   }
   const match = regex.exec(tag);
@@ -80,16 +63,7 @@ const attr = (tag: string, name: string): string | null => {
   return null;
 };
 
-const hasAttrRegexCache = new Map<string, RegExp>();
 
-const hasAttr = (tag: string, name: string): boolean => {
-  let regex = hasAttrRegexCache.get(name);
-  if (!regex) {
-    regex = new RegExp(`\\b${name}\\b`, 'i');
-    hasAttrRegexCache.set(name, regex);
-  }
-  return regex.test(tag);
-};
 
 // A flag 'g' aqui é segura de cachear: String.prototype.match com regex global
 // zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
@@ -99,7 +73,7 @@ const collectTagsRegexCache = new Map<string, RegExp>();
 const collectTags = (html: string, tagName: string): string[] => {
   let regex = collectTagsRegexCache.get(tagName);
   if (!regex) {
-    regex = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    regex = new RegExp(`<${escapeRegExp(tagName)}\\b[^>]*>`, 'gi');
     collectTagsRegexCache.set(tagName, regex);
   }
   return html.match(regex) ?? [];
@@ -117,7 +91,7 @@ const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string):
 
 /**
  * Casa, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
- * com todo o seu conteúdo) OU um comentário HTML — fechado ou não.
+ * junto ao seu conteúdo completo) OU um comentário HTML — fechado ou não.
  *
  * A ordem das alternativas é o que faz o `<!--` que aparece dentro de um
  * JavaScript embutido (`var s = "<!--"`) não ser confundido com comentário: ao
@@ -127,7 +101,7 @@ const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string):
 const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
 
 /**
- * Remove apenas comentários HTML, preservando todo o resto do documento.
+ * Remove apenas comentários HTML, preservando o restante do documento.
  *
  * É de propósito que esta função não faça o que `stripNonContent` faz: os
  * blocos `<script>` e `<style>` precisam continuar no HTML, porque é deles que
@@ -214,6 +188,14 @@ const collectJsonLdTypes = (html: string): string[] => {
   return [...types];
 };
 
+const ALT_RE = /\balt\s*=/i;
+const WIDTH_RE = /\bwidth\s*=/i;
+const HEIGHT_RE = /\bheight\s*=/i;
+const LAZY_RE = /\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w)/i;
+const SRC_RE = /\bsrc\s*=/i;
+const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
+const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
+
 export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // O que está dentro de comentário não é elemento da página: o navegador não
   // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
@@ -240,10 +222,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     withoutDimensions: 0,
     lazy: 0,
   };
+
+
   for (const tag of imageTags) {
-    if (attr(tag, 'alt') === null) images.withoutAlt++;
-    if (attr(tag, 'width') === null || attr(tag, 'height') === null) images.withoutDimensions++;
-    if ((attr(tag, 'loading') ?? '').toLowerCase() === 'lazy') images.lazy++;
+    if (!ALT_RE.test(tag)) images.withoutAlt++;
+    if (!WIDTH_RE.test(tag) || !HEIGHT_RE.test(tag)) images.withoutDimensions++;
+    if (LAZY_RE.test(tag)) images.lazy++;
   }
 
   const scriptTags = collectTags(markup, 'script');
@@ -253,9 +237,9 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     blocking: 0,
   };
   for (const tag of scriptTags) {
-    if (attr(tag, 'src') !== null) {
+    if (SRC_RE.test(tag)) {
       scripts.external++;
-      if (!hasAttr(tag, 'async') && !hasAttr(tag, 'defer') && (attr(tag, 'type') ?? '') !== 'module') {
+      if (!ASYNC_DEFER_RE.test(tag) && !TYPE_MODULE_RE.test(tag)) {
         scripts.blocking++;
       }
     }
@@ -312,28 +296,48 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   };
 };
 
-export interface RobotsReport {
-  found: boolean;
-  blocksAll: boolean;
-  sitemaps: string[];
-}
-
 export const parseRobots = (body: string): RobotsReport => {
-  const lines = body.split(/\r?\n/).map((line) => line.trim());
-  const sitemaps = lines
-    .filter((line) => /^sitemap\s*:/i.test(line))
-    .map((line) => line.replace(/^sitemap\s*:\s*/i, '').trim())
-    .filter(Boolean);
-
-  // "Disallow: /" dentro de um bloco User-agent: * bloqueia o site inteiro.
   let inWildcardBlock = false;
   let blocksAll = false;
-  for (const line of lines) {
-    if (/^user-agent\s*:/i.test(line)) {
-      inWildcardBlock = line.split(':')[1]?.trim() === '*';
-      continue;
+  const sitemaps: string[] = [];
+
+  let start = 0;
+  const len = body.length;
+  while (start < len) {
+    let end = body.indexOf('\n', start);
+    if (end === -1) end = len;
+
+    let lineStart = start;
+    let lineEnd = end;
+
+    if (lineEnd > lineStart && body.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--;
     }
-    if (inWildcardBlock && /^disallow\s*:\s*\/\s*$/i.test(line)) blocksAll = true;
+
+    while (lineStart < lineEnd && body.charCodeAt(lineStart) <= 32) {
+      lineStart++;
+    }
+
+    while (lineEnd > lineStart && body.charCodeAt(lineEnd - 1) <= 32) {
+      lineEnd--;
+    }
+
+    if (lineStart < lineEnd) {
+      const line = body.slice(lineStart, lineEnd);
+      const firstChar = line.charCodeAt(0) | 32;
+
+      if (firstChar === 115 && /^sitemap\s*:/i.test(line)) {
+        const colonIdx = line.indexOf(':');
+        const sitemap = line.slice(colonIdx + 1).trim();
+        if (sitemap) sitemaps.push(sitemap);
+      } else if (firstChar === 117 && /^user-agent\s*:/i.test(line)) {
+        const colonIdx = line.indexOf(':');
+        inWildcardBlock = line.slice(colonIdx + 1).trim() === '*';
+      } else if (inWildcardBlock && firstChar === 100 && /^disallow\s*:\s*\/\s*$/i.test(line)) {
+        blocksAll = true;
+      }
+    }
+    start = end + 1;
   }
 
   return { found: true, blocksAll, sitemaps };

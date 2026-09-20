@@ -10,14 +10,8 @@
  * Rota: GET /audit?url=<domínio ou URL>
  */
 
-import {
-  countSitemapUrls,
-  isSitemapIndex,
-  parseHtml,
-  parseRobots,
-  type HtmlReport,
-  type RobotsReport,
-} from './parse.ts';
+import { countSitemapUrls, isSitemapIndex, parseHtml, parseRobots } from './parse.ts';
+import type { AuditResponse, RedirectHop, RobotsReport } from '../../shared/report-types.ts';
 
 interface Env {
   ALLOWED_ORIGINS?: string;
@@ -35,44 +29,6 @@ const USER_AGENT =
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 3_000_000;
-
-interface RedirectHop {
-  url: string;
-  status: number;
-  location: string | null;
-}
-
-interface SecurityHeaders {
-  hsts: string | null;
-  contentTypeOptions: string | null;
-  frameOptions: string | null;
-  csp: string | null;
-  referrerPolicy: string | null;
-  permissionsPolicy: string | null;
-}
-
-interface AuditResponse {
-  ok: boolean;
-  error?: string;
-  input: string;
-  requestedUrl: string;
-  finalUrl: string;
-  status: number;
-  redirects: RedirectHop[];
-  servedOverHttps: boolean;
-  httpRedirectsToHttps: boolean | null;
-  edgeResponseMs: number;
-  server: string | null;
-  poweredBy: string | null;
-  cacheControl: string | null;
-  contentEncoding: string | null;
-  compressed: boolean;
-  securityHeaders: SecurityHeaders;
-  html: HtmlReport | null;
-  robots: RobotsReport | null;
-  sitemap: { found: boolean; url: string | null; urlCount: number | null; isIndex: boolean };
-  checkedAt: string;
-}
 
 export const allowedOrigins = (env: Env): string[] => {
   if (!env.ALLOWED_ORIGINS || env.ALLOWED_ORIGINS.trim() === '') return DEFAULT_ORIGINS;
@@ -106,7 +62,14 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
 const isInternalIp = (hostname: string): boolean => {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  try {
+    const urlStr = host.includes(':') ? `http://[${host}]` : `http://${host}`;
+    const url = new URL(urlStr);
+    host = url.hostname.replace(/^\[|\]$/g, '');
+  } catch (e) {
+    // Ignore URL parse errors
+  }
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
     return true;
@@ -259,13 +222,48 @@ export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | nul
 };
 
 const readBodyLimited = async (response: Response): Promise<{ text: string; bytes: number }> => {
-  const buffer = await response.arrayBuffer();
-  const bytes = buffer.byteLength;
-  const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
-  // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-  // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
-  // seria pior para quem está sendo auditado. É o comportamento padrão.
-  return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  if (!response.body) {
+    const buffer = await response.arrayBuffer();
+    const bytes = buffer.byteLength;
+    const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let text = '';
+  let bytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunkLength = value.length;
+
+      if (bytes < MAX_HTML_BYTES) {
+        const remaining = MAX_HTML_BYTES - bytes;
+        if (chunkLength <= remaining) {
+          text += decoder.decode(value, { stream: true });
+        } else {
+          text += decoder.decode(value.subarray(0, remaining), { stream: true });
+        }
+      }
+
+      bytes += chunkLength;
+    }
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { text, bytes };
 };
 
 export const auditRobotsAndSitemap = async (
@@ -288,27 +286,29 @@ export const auditRobotsAndSitemap = async (
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
-  const results = await Promise.all(
-    candidates.slice(0, 3).map(async (candidate) => {
-      try {
-        const response = await fetchWithTimeout(candidate);
-        if (!response.ok) return null;
-        const xml = await response.text();
-        if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
-        return {
-          found: true as const,
-          url: candidate,
-          urlCount: countSitemapUrls(xml),
-          isIndex: isSitemapIndex(xml),
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const promises = candidates.slice(0, 3).map(async (candidate) => {
+    try {
+      const response = await fetchWithTimeout(candidate);
+      if (!response.ok) return null;
+      const xml = await response.text();
+      if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
+      return {
+        found: true as const,
+        url: candidate,
+        urlCount: countSitemapUrls(xml),
+        isIndex: isSitemapIndex(xml),
+      };
+    } catch {
+      return null;
+    }
+  });
 
-  const firstValid = results.find((entry) => entry !== null);
-  if (firstValid) return { robots, sitemap: firstValid };
+  for (const promise of promises) {
+    const entry = await promise;
+    if (entry !== null) {
+      return { robots, sitemap: entry };
+    }
+  }
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
 };
@@ -444,11 +444,13 @@ export default {
     const clientIp = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown';
 
     // Probabilistic cleanup (10% chance)
-    if (Math.random() < 0.1) {
+    if ((crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) < 0.1) {
       const now = Date.now();
       for (const [key, value] of rateLimitCache.entries()) {
         if (value.expiresAt < now) {
           rateLimitCache.delete(key);
+        } else {
+          break; // Map maintains insertion order, so if this isn't expired, neither are subsequent items
         }
       }
     }
@@ -466,6 +468,7 @@ export default {
         }
         record.count += 1;
       } else {
+        rateLimitCache.delete(clientIp); // Ensure the item is moved to the end of insertion order
         rateLimitCache.set(clientIp, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
       }
     }

@@ -18,6 +18,7 @@ import './LandingPage.css';
 import { ServicesSection } from './components/ServicesSection';
 import { GoogleSection } from './components/GoogleSection';
 import { FaqSection } from './components/FaqSection';
+import { FactList } from './components/FactList';
 import { Footer } from './components/Footer';
 
 
@@ -649,24 +650,26 @@ export const LandingPage: React.FC = () => {
           </p>
 
           <div className="lp-domain-facts">
-            <ul>
-              <li>
-                <strong>Titularidade</strong>
-                <span>seu CPF ou CNPJ desde o primeiro dia, sem intermediário</span>
-              </li>
-              <li>
-                <strong>Custo do domínio</strong>
-                <span>a partir de R$ 40 ao ano pago direto ao Registro.br</span>
-              </li>
-              <li>
-                <strong>Hospedagem</strong>
-                <span>configurada em contas suas (Vercel, Cloudflare, AWS)</span>
-              </li>
-              <li>
-                <strong>Meu trabalho</strong>
-                <span>arquitetura, apontamento de DNS, SSL e publicação</span>
-              </li>
-            </ul>
+            <FactList
+              items={[
+                {
+                  label: 'Titularidade',
+                  value: 'seu CPF ou CNPJ desde o primeiro dia, sem intermediário',
+                },
+                {
+                  label: 'Custo do domínio',
+                  value: 'a partir de R$ 40 ao ano pago direto ao Registro.br',
+                },
+                {
+                  label: 'Hospedagem',
+                  value: 'configurada em contas suas (Vercel, Cloudflare, AWS)',
+                },
+                {
+                  label: 'Meu trabalho',
+                  value: 'arquitetura, apontamento de DNS, SSL e publicação',
+                },
+              ]}
+            />
           </div>
 
           {result?.registration?.found && (
@@ -775,24 +778,27 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <ul className="lp-about-facts">
-              <li>
-                <strong>Engenharia</strong>
-                <span>Software Engineer na Saúde Bliss (IA e integrações)</span>
-              </li>
-              <li>
-                <strong>Docência</strong>
-                <span>Professor de Tecnologias Emergentes na UniCesumar</span>
-              </li>
-              <li>
-                <strong>Experiência</strong>
-                <span>Frontend no Inter (Intershop), Claranet e UniCesumar</span>
-              </li>
-              <li>
-                <strong>Formação</strong>
-                <span>Bacharel em Engenharia de Software com pós em Frontend</span>
-              </li>
-            </ul>
+            <FactList
+              className="lp-about-facts"
+              items={[
+                {
+                  label: 'Engenharia',
+                  value: 'Software Engineer na Saúde Bliss (IA e integrações)',
+                },
+                {
+                  label: 'Docência',
+                  value: 'Professor de Tecnologias Emergentes na UniCesumar',
+                },
+                {
+                  label: 'Experiência',
+                  value: 'Frontend no Inter (Intershop), Claranet e UniCesumar',
+                },
+                {
+                  label: 'Formação',
+                  value: 'Bacharel em Engenharia de Software com pós em Frontend',
+                },
+              ]}
+            />
           </div>
 
           <div className="lp-about-links">
@@ -951,26 +957,25 @@ export const LandingPage: React.FC = () => {
 
             <aside className="lp-request-side">
               <h3>O que acontece depois</h3>
-              <ol>
-                <li>
-                  <strong>Levantamento</strong>
-                  <span>
-                    conversamos sobre o projeto e necessidades. Se houver link, eu analiso a saúde técnica.
-                  </span>
-                </li>
-                <li>
-                  <strong>Orçamento</strong>
-                  <span>
-                    valor fechado do trabalho com escopo escrito e prazo claro.
-                  </span>
-                </li>
-                <li>
-                  <strong>Execução e entrega</strong>
-                  <span>
-                    desenvolvimento com acompanhamento, publicação nas suas contas e auditoria final.
-                  </span>
-                </li>
-              </ol>
+              <FactList
+                as="ol"
+                items={[
+                  {
+                    label: 'Levantamento',
+                    value:
+                      'conversamos sobre o projeto e necessidades. Se houver link, eu analiso a saúde técnica.',
+                  },
+                  {
+                    label: 'Orçamento',
+                    value: 'valor fechado do trabalho com escopo escrito e prazo claro.',
+                  },
+                  {
+                    label: 'Execução e entrega',
+                    value:
+                      'desenvolvimento com acompanhamento, publicação nas suas contas e auditoria final.',
+                  },
+                ]}
+              />
               <div className="lp-request-contact">
                 <span>WhatsApp</span>
                 <a

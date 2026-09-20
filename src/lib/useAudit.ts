@@ -16,8 +16,9 @@ export interface UseAuditReturn {
 }
 
 /**
- * Hook compartilhado pelos protótipos. Mantém o estado das etapas para que a
- * interface acompanhe a auditoria enquanto ela acontece.
+ * Hook usado pela página para acompanhar o progresso da auditoria em tempo real.
+ * Mantém o estado das etapas para que a interface acompanhe a auditoria enquanto
+ * ela acontece.
  */
 export const useAudit = (options: AuditOptions = {}): UseAuditReturn => {
   const [phase, setPhase] = useState<AuditPhase>('idle');
