@@ -28,6 +28,40 @@ const SITE_NAME = 'Pedro Satin: Engenharia Web e Deploy para Projetos com IA';
 const DESCRIPTION =
   'Engenharia web e deploy sob demanda para projetos criados com IA (Cursor, Lovable, v0, Bolt). Publicação com domínio próprio, correção de bugs, banco de dados, pagamentos e SEO técnico. Sem mensalidade, código 100% seu.';
 
+function buildServicesCatalog(providerId: string) {
+  return {
+    '@type': 'OfferCatalog',
+    name: 'O que eu resolvo',
+    itemListElement: SERVICES.map((service) => ({
+      '@type': 'Offer',
+      itemOffered: {
+        '@type': 'Service',
+        name: service.title,
+        description: service.short,
+        provider: { '@id': providerId },
+        areaServed: { '@type': 'Country', name: 'Brasil' },
+      },
+    })),
+  };
+}
+
+function buildFaqEntity() {
+  return FAQ_ITEMS.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a.join(' ') },
+  }));
+}
+
+function buildCaseStudiesList() {
+  return CASE_STUDIES.map((item, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: item.name,
+    url: `https://${item.domain}`,
+  }));
+}
+
 export const buildStructuredData = (): string =>
   JSON.stringify({
     '@context': 'https://schema.org',
@@ -79,20 +113,7 @@ export const buildStructuredData = (): string =>
         founder: { '@id': PERSON_ID },
         // Sem `aggregateRating` nem `review`: não existem avaliações públicas, e
         // inventar uma é motivo de penalidade manual, além de ser mentira.
-        hasOfferCatalog: {
-          '@type': 'OfferCatalog',
-          name: 'O que eu resolvo',
-          itemListElement: SERVICES.map((service) => ({
-            '@type': 'Offer',
-            itemOffered: {
-              '@type': 'Service',
-              name: service.title,
-              description: service.short,
-              provider: { '@id': PERSON_ID },
-              areaServed: { '@type': 'Country', name: 'Brasil' },
-            },
-          })),
-        },
+        hasOfferCatalog: buildServicesCatalog(PERSON_ID),
       },
       {
         '@type': 'WebPage',
@@ -109,22 +130,13 @@ export const buildStructuredData = (): string =>
         '@type': 'FAQPage',
         '@id': `${SITE_URL}/#perguntas`,
         isPartOf: { '@id': PAGE_ID },
-        mainEntity: FAQ_ITEMS.map((item) => ({
-          '@type': 'Question',
-          name: item.q,
-          acceptedAnswer: { '@type': 'Answer', text: item.a.join(' ') },
-        })),
+        mainEntity: buildFaqEntity(),
       },
       {
         '@type': 'ItemList',
         '@id': `${SITE_URL}/#trabalhos`,
         name: 'Sites que eu fiz',
-        itemListElement: CASE_STUDIES.map((item, index) => ({
-          '@type': 'ListItem',
-          position: index + 1,
-          name: item.name,
-          url: `https://${item.domain}`,
-        })),
+        itemListElement: buildCaseStudiesList(),
       },
     ],
   }).replace(/</g, '\\u003c');
