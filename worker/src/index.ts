@@ -62,7 +62,14 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
 const isInternalIp = (hostname: string): boolean => {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  try {
+    const urlStr = host.includes(':') ? `http://[${host}]` : `http://${host}`;
+    const url = new URL(urlStr);
+    host = url.hostname.replace(/^\[|\]$/g, '');
+  } catch (e) {
+    // Ignore URL parse errors
+  }
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
     return true;
@@ -215,13 +222,48 @@ export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | nul
 };
 
 const readBodyLimited = async (response: Response): Promise<{ text: string; bytes: number }> => {
-  const buffer = await response.arrayBuffer();
-  const bytes = buffer.byteLength;
-  const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
-  // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-  // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
-  // seria pior para quem está sendo auditado. É o comportamento padrão.
-  return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  if (!response.body) {
+    const buffer = await response.arrayBuffer();
+    const bytes = buffer.byteLength;
+    const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let text = '';
+  let bytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunkLength = value.length;
+
+      if (bytes < MAX_HTML_BYTES) {
+        const remaining = MAX_HTML_BYTES - bytes;
+        if (chunkLength <= remaining) {
+          text += decoder.decode(value, { stream: true });
+        } else {
+          text += decoder.decode(value.subarray(0, remaining), { stream: true });
+        }
+      }
+
+      bytes += chunkLength;
+    }
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { text, bytes };
 };
 
 export const auditRobotsAndSitemap = async (
@@ -244,76 +286,80 @@ export const auditRobotsAndSitemap = async (
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
-  const results = await Promise.all(
-    candidates.slice(0, 3).map(async (candidate) => {
-      try {
-        const response = await fetchWithTimeout(candidate);
-        if (!response.ok) return null;
-        const xml = await response.text();
-        if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
-        return {
-          found: true as const,
-          url: candidate,
-          urlCount: countSitemapUrls(xml),
-          isIndex: isSitemapIndex(xml),
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const promises = candidates.slice(0, 3).map(async (candidate) => {
+    try {
+      const response = await fetchWithTimeout(candidate);
+      if (!response.ok) return null;
+      const xml = await response.text();
+      if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
+      return {
+        found: true as const,
+        url: candidate,
+        urlCount: countSitemapUrls(xml),
+        isIndex: isSitemapIndex(xml),
+      };
+    } catch {
+      return null;
+    }
+  });
 
-  const firstValid = results.find((entry) => entry !== null);
-  if (firstValid) return { robots, sitemap: firstValid };
+  for (const promise of promises) {
+    const entry = await promise;
+    if (entry !== null) {
+      return { robots, sitemap: entry };
+    }
+  }
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
 };
 
-const runAudit = async (input: string): Promise<AuditResponse> => {
-  const target = await normalizeTarget(input);
-  const checkedAt = new Date().toISOString();
+const createErrorAuditResponse = (
+  input: string,
+  error: string,
+  checkedAt: string,
+): AuditResponse => ({
+  ok: false,
+  error,
+  input,
+  requestedUrl: input,
+  finalUrl: input,
+  status: 0,
+  redirects: [],
+  servedOverHttps: false,
+  httpRedirectsToHttps: null,
+  edgeResponseMs: 0,
+  server: null,
+  poweredBy: null,
+  cacheControl: null,
+  contentEncoding: null,
+  compressed: false,
+  securityHeaders: {
+    hsts: null,
+    contentTypeOptions: null,
+    frameOptions: null,
+    csp: null,
+    referrerPolicy: null,
+    permissionsPolicy: null,
+  },
+  html: null,
+  robots: null,
+  sitemap: { found: false, url: null, urlCount: null, isIndex: false },
+  checkedAt,
+});
 
-  if (!target) {
-    return {
-      ok: false,
-      error: 'Domínio inválido. Use o formato exemplo.com.br',
-      input,
-      requestedUrl: input,
-      finalUrl: input,
-      status: 0,
-      redirects: [],
-      servedOverHttps: false,
-      httpRedirectsToHttps: null,
-      edgeResponseMs: 0,
-      server: null,
-      poweredBy: null,
-      cacheControl: null,
-      contentEncoding: null,
-      compressed: false,
-      securityHeaders: {
-        hsts: null,
-        contentTypeOptions: null,
-        frameOptions: null,
-        csp: null,
-        referrerPolicy: null,
-        permissionsPolicy: null,
-      },
-      html: null,
-      robots: null,
-      sitemap: { found: false, url: null, urlCount: null, isIndex: false },
-      checkedAt,
-    };
-  }
-
-  const { response, hops, finalUrl, elapsedMs } = await followRedirects(target);
-  const finalOrigin = new URL(finalUrl).origin;
-
-  const [{ text, bytes }, httpRedirectsToHttps, robotsAndSitemap] = await Promise.all([
-    readBodyLimited(response.clone()),
-    checkHttpsUpgrade(target.hostname),
-    auditRobotsAndSitemap(finalOrigin),
-  ]);
-
+const createSuccessAuditResponse = (
+  input: string,
+  target: URL,
+  checkedAt: string,
+  response: Response,
+  hops: RedirectHop[],
+  finalUrl: string,
+  elapsedMs: number,
+  text: string,
+  bytes: number,
+  httpRedirectsToHttps: boolean | null,
+  robotsAndSitemap: { robots: RobotsReport | null; sitemap: AuditResponse['sitemap'] },
+): AuditResponse => {
   const header = (name: string): string | null => response.headers.get(name);
   const contentType = header('content-type') ?? '';
   const isHtml = contentType.includes('html') || /<html/i.test(text.slice(0, 500));
@@ -350,6 +396,37 @@ const runAudit = async (input: string): Promise<AuditResponse> => {
   };
 };
 
+const runAudit = async (input: string): Promise<AuditResponse> => {
+  const target = await normalizeTarget(input);
+  const checkedAt = new Date().toISOString();
+
+  if (!target) {
+    return createErrorAuditResponse(input, 'Domínio inválido. Use o formato exemplo.com.br', checkedAt);
+  }
+
+  const { response, hops, finalUrl, elapsedMs } = await followRedirects(target);
+  const finalOrigin = new URL(finalUrl).origin;
+
+  const [{ text, bytes }, httpRedirectsToHttps, robotsAndSitemap] = await Promise.all([
+    readBodyLimited(response.clone()),
+    checkHttpsUpgrade(target.hostname),
+    auditRobotsAndSitemap(finalOrigin),
+  ]);
+
+  return createSuccessAuditResponse(
+    input,
+    target,
+    checkedAt,
+    response,
+    hops,
+    finalUrl,
+    elapsedMs,
+    text,
+    bytes,
+    httpRedirectsToHttps,
+    robotsAndSitemap
+  );
+};
 
 // Rate limiting cache: IP -> { count, expiresAt }
 export const rateLimitCache = new Map<string, { count: number; expiresAt: number }>();
@@ -367,11 +444,13 @@ export default {
     const clientIp = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown';
 
     // Probabilistic cleanup (10% chance)
-    if (Math.random() < 0.1) {
+    if ((crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) < 0.1) {
       const now = Date.now();
       for (const [key, value] of rateLimitCache.entries()) {
         if (value.expiresAt < now) {
           rateLimitCache.delete(key);
+        } else {
+          break; // Map maintains insertion order, so if this isn't expired, neither are subsequent items
         }
       }
     }
@@ -389,6 +468,7 @@ export default {
         }
         record.count += 1;
       } else {
+        rateLimitCache.delete(clientIp); // Ensure the item is moved to the end of insertion order
         rateLimitCache.set(clientIp, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
       }
     }

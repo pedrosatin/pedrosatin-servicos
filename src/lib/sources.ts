@@ -16,16 +16,6 @@ import type {
   PageSpeedReport,
 } from './types';
 
-// As funções de domínio que não fazem rede moram em `dominio.ts`; ver o
-// cabeçalho de lá para o motivo. Continuam saindo por aqui para quem já as
-// importava deste arquivo.
-export {
-  getApexDomain,
-  googleIndexUrl,
-  isValidDomain,
-  normalizeDomain,
-  searchConsoleUrl,
-} from './dominio';
 
 
 /* ------------------------------------------------------------------ *
@@ -93,35 +83,17 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
     resolveRecord(`www.${domain}`, 'CNAME'),
   ]);
 
-  const nsNames = ns.reduce<string[]>((acc, r) => {
-    if (r.type === 2) acc.push(r.data.replace(/\.$/, ''));
-    return acc;
-  }, []);
-  const cnameTargets = cname.reduce<string[]>((acc, r) => {
-    if (r.type === 5) acc.push(r.data.replace(/\.$/, ''));
-    return acc;
-  }, []);
+  const nsNames = ns.filter(r => r.type === 2).map(r => r.data.replace(/\.$/, ''));
+  const cnameTargets = cname.filter(r => r.type === 5).map(r => r.data.replace(/\.$/, ''));
 
   return {
     domain,
     resolves: a.length > 0 || aaaa.length > 0,
-    a: a.reduce<string[]>((acc, r) => {
-      if (r.type === 1) acc.push(r.data);
-      return acc;
-    }, []),
-    aaaa: aaaa.reduce<string[]>((acc, r) => {
-      if (r.type === 28) acc.push(r.data);
-      return acc;
-    }, []),
+    a: a.filter(r => r.type === 1).map(r => r.data),
+    aaaa: aaaa.filter(r => r.type === 28).map(r => r.data),
     ns: nsNames,
-    mx: mx.reduce<string[]>((acc, r) => {
-      if (r.type === 15) acc.push(r.data);
-      return acc;
-    }, []),
-    txt: txt.reduce<string[]>((acc, r) => {
-      if (r.type === 16) acc.push(stripQuotes(r.data));
-      return acc;
-    }, []),
+    mx: mx.filter(r => r.type === 15).map(r => r.data),
+    txt: txt.filter(r => r.type === 16).map(r => stripQuotes(r.data)),
     cname: cnameTargets,
     hosting: identifyProvider([...cnameTargets, ...nsNames]),
     dnsProvider: identifyProvider(nsNames),
@@ -208,10 +180,8 @@ const vcardName = (entity: RdapEntity | undefined): string | null => {
   if (!Array.isArray(array) || array.length < 2) return null;
   const fields = array[1];
   if (!Array.isArray(fields)) return null;
-  for (const field of fields) {
-    if (Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string') return field[3];
-  }
-  return null;
+  const match = fields.find((field) => Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string');
+  return match ? (match[3] as string) : null;
 };
 
 export const fetchRegistration = async (inputDomain: string): Promise<DomainRegistration> => {
@@ -282,9 +252,15 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
  * ------------------------------------------------------------------ */
 
 export const fetchContent = async (domain: string): Promise<ContentReport> => {
-  const response = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
-  if (!response.ok) throw new Error(`O serviço de auditoria respondeu ${response.status}.`);
-  const report = (await response.json()) as ContentReport;
+  const res = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 403) {
+      // Worker detectou IP interno, localhost ou URL malformada.
+      throw new Error('Domínio inválido ou inacessível.');
+    }
+    throw new Error(`O servidor de análise falhou (status ${res.status}).`);
+  }
+  const report = (await res.json()) as ContentReport;
   if (report.error && !report.ok) throw new Error(report.error);
   return report;
 };
@@ -378,7 +354,7 @@ const esperar = (ms: number): Promise<void> =>
  */
 const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number => {
   const base = foiLimiteDeUso ? 5_000 : 1_000;
-  return base * 2 ** (tentativa - 1) + Math.random() * 500;
+  return base * 2 ** (tentativa - 1) + (crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) * 500;
 };
 
 /** Uma ida ao PageSpeed, com teto de tempo próprio. */
