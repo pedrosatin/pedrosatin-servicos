@@ -62,7 +62,14 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * link-local, IPv6 local e os sufixos usados em redes internas.
  */
 const isInternalIp = (hostname: string): boolean => {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  try {
+    const urlStr = host.includes(':') ? `http://[${host}]` : `http://${host}`;
+    const url = new URL(urlStr);
+    host = url.hostname.replace(/^\[|\]$/g, '');
+  } catch (e) {
+    // Ignore URL parse errors
+  }
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) {
     return true;
@@ -215,13 +222,48 @@ export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | nul
 };
 
 const readBodyLimited = async (response: Response): Promise<{ text: string; bytes: number }> => {
-  const buffer = await response.arrayBuffer();
-  const bytes = buffer.byteLength;
-  const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
-  // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-  // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
-  // seria pior para quem está sendo auditado. É o comportamento padrão.
-  return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  if (!response.body) {
+    const buffer = await response.arrayBuffer();
+    const bytes = buffer.byteLength;
+    const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    return { text: new TextDecoder('utf-8').decode(slice), bytes };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let text = '';
+  let bytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunkLength = value.length;
+
+      if (bytes < MAX_HTML_BYTES) {
+        const remaining = MAX_HTML_BYTES - bytes;
+        if (chunkLength <= remaining) {
+          text += decoder.decode(value, { stream: true });
+        } else {
+          text += decoder.decode(value.subarray(0, remaining), { stream: true });
+        }
+      }
+
+      bytes += chunkLength;
+    }
+    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
+    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
+    // seria pior para quem está sendo auditado. É o comportamento padrão.
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { text, bytes };
 };
 
 export const auditRobotsAndSitemap = async (
