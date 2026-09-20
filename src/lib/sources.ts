@@ -16,16 +16,6 @@ import type {
   PageSpeedReport,
 } from './types';
 
-// As funções de domínio que não fazem rede moram em `dominio.ts`; ver o
-// cabeçalho de lá para o motivo. Continuam saindo por aqui para quem já as
-// importava deste arquivo.
-export {
-  getApexDomain,
-  googleIndexUrl,
-  isValidDomain,
-  normalizeDomain,
-  searchConsoleUrl,
-} from './dominio';
 
 
 /* ------------------------------------------------------------------ *
@@ -360,7 +350,7 @@ const esperar = (ms: number): Promise<void> =>
  */
 const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number => {
   const base = foiLimiteDeUso ? 5_000 : 1_000;
-  return base * 2 ** (tentativa - 1) + Math.random() * 500;
+  return base * 2 ** (tentativa - 1) + (crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) * 500;
 };
 
 /** Uma ida ao PageSpeed, com teto de tempo próprio. */
