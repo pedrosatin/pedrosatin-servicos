@@ -1030,7 +1030,7 @@ export const LandingPage: React.FC = () => {
           executado: é dado, e a CSP o trata como tal. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: buildStructuredData() }}
+        dangerouslySetInnerHTML={{ __html: buildStructuredData().replace(/</g, '\\u003c') }}
       />
     </div>
   );
