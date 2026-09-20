@@ -54,6 +54,31 @@ describe('sources', () => {
         source: 'registro.br',
       });
     });
+
+    it('should return a default object with found: false when json parsing throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockRejectedValue(new Error('JSON parse error')),
+      } as unknown as Response);
+
+      const result = await fetchRegistration('example.com');
+
+      expect(result).toEqual({
+        found: false,
+        domain: 'example.com',
+        registrar: null,
+        registeredAt: null,
+        expiresAt: null,
+        changedAt: null,
+        daysToExpire: null,
+        status: [],
+        nameservers: [],
+        dnssec: false,
+        source: 'rdap.org',
+      });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('fetchEmailAuth', () => {
@@ -153,14 +178,38 @@ describe('sources', () => {
   });
 
   describe('fetchContent', () => {
-    it('should throw an error when response is not ok', async () => {
+    it('should throw a specific error when response status is 400', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'Domínio inválido ou inacessível.'
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
+    });
+
+    it('should throw a specific error when response status is 403', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'Domínio inválido ou inacessível.'
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
+    });
+
+    it('should throw an error when response is not ok and status is other than 400/403', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
       } as unknown as Response);
 
       await expect(fetchContent('example.com')).rejects.toThrow(
-        'O serviço de auditoria respondeu 500.'
+        'O servidor de análise falhou (status 500).'
       );
       expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
     });

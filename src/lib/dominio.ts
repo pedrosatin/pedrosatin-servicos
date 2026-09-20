@@ -7,9 +7,6 @@
  * mesmo arquivo, o import estático destas arrastaria todo o motor de consultas
  * para o pacote que abre a página, e o `import()` dinâmico de `audit.ts` não
  * teria o que separar.
- *
- * `sources.ts` reexporta tudo daqui, então quem já importava de lá continua
- * funcionando.
  */
 
 /** Remove protocolo, caminho e www para obter o domínio registrável. */
