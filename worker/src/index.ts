@@ -286,27 +286,29 @@ export const auditRobotsAndSitemap = async (
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
-  const results = await Promise.all(
-    candidates.slice(0, 3).map(async (candidate) => {
-      try {
-        const response = await fetchWithTimeout(candidate);
-        if (!response.ok) return null;
-        const xml = await response.text();
-        if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
-        return {
-          found: true as const,
-          url: candidate,
-          urlCount: countSitemapUrls(xml),
-          isIndex: isSitemapIndex(xml),
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const promises = candidates.slice(0, 3).map(async (candidate) => {
+    try {
+      const response = await fetchWithTimeout(candidate);
+      if (!response.ok) return null;
+      const xml = await response.text();
+      if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
+      return {
+        found: true as const,
+        url: candidate,
+        urlCount: countSitemapUrls(xml),
+        isIndex: isSitemapIndex(xml),
+      };
+    } catch {
+      return null;
+    }
+  });
 
-  const firstValid = results.find((entry) => entry !== null);
-  if (firstValid) return { robots, sitemap: firstValid };
+  for (const promise of promises) {
+    const entry = await promise;
+    if (entry !== null) {
+      return { robots, sitemap: entry };
+    }
+  }
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
 };
