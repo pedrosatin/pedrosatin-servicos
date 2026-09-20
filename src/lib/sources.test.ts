@@ -54,6 +54,31 @@ describe('sources', () => {
         source: 'registro.br',
       });
     });
+
+    it('should return a default object with found: false when json parsing throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockRejectedValue(new Error('JSON parse error')),
+      } as unknown as Response);
+
+      const result = await fetchRegistration('example.com');
+
+      expect(result).toEqual({
+        found: false,
+        domain: 'example.com',
+        registrar: null,
+        registeredAt: null,
+        expiresAt: null,
+        changedAt: null,
+        daysToExpire: null,
+        status: [],
+        nameservers: [],
+        dnssec: false,
+        source: 'rdap.org',
+      });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('fetchEmailAuth', () => {
