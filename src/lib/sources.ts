@@ -16,16 +16,6 @@ import type {
   PageSpeedReport,
 } from './types';
 
-// As funções de domínio que não fazem rede moram em `dominio.ts`; ver o
-// cabeçalho de lá para o motivo. Continuam saindo por aqui para quem já as
-// importava deste arquivo.
-export {
-  getApexDomain,
-  googleIndexUrl,
-  isValidDomain,
-  normalizeDomain,
-  searchConsoleUrl,
-} from './dominio';
 
 
 /* ------------------------------------------------------------------ *
@@ -93,35 +83,17 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
     resolveRecord(`www.${domain}`, 'CNAME'),
   ]);
 
-  const nsNames = ns.reduce<string[]>((acc, r) => {
-    if (r.type === 2) acc.push(r.data.replace(/\.$/, ''));
-    return acc;
-  }, []);
-  const cnameTargets = cname.reduce<string[]>((acc, r) => {
-    if (r.type === 5) acc.push(r.data.replace(/\.$/, ''));
-    return acc;
-  }, []);
+  const nsNames = ns.filter(r => r.type === 2).map(r => r.data.replace(/\.$/, ''));
+  const cnameTargets = cname.filter(r => r.type === 5).map(r => r.data.replace(/\.$/, ''));
 
   return {
     domain,
     resolves: a.length > 0 || aaaa.length > 0,
-    a: a.reduce<string[]>((acc, r) => {
-      if (r.type === 1) acc.push(r.data);
-      return acc;
-    }, []),
-    aaaa: aaaa.reduce<string[]>((acc, r) => {
-      if (r.type === 28) acc.push(r.data);
-      return acc;
-    }, []),
+    a: a.filter(r => r.type === 1).map(r => r.data),
+    aaaa: aaaa.filter(r => r.type === 28).map(r => r.data),
     ns: nsNames,
-    mx: mx.reduce<string[]>((acc, r) => {
-      if (r.type === 15) acc.push(r.data);
-      return acc;
-    }, []),
-    txt: txt.reduce<string[]>((acc, r) => {
-      if (r.type === 16) acc.push(stripQuotes(r.data));
-      return acc;
-    }, []),
+    mx: mx.filter(r => r.type === 15).map(r => r.data),
+    txt: txt.filter(r => r.type === 16).map(r => stripQuotes(r.data)),
     cname: cnameTargets,
     hosting: identifyProvider([...cnameTargets, ...nsNames]),
     dnsProvider: identifyProvider(nsNames),
@@ -208,10 +180,8 @@ const vcardName = (entity: RdapEntity | undefined): string | null => {
   if (!Array.isArray(array) || array.length < 2) return null;
   const fields = array[1];
   if (!Array.isArray(fields)) return null;
-  for (const field of fields) {
-    if (Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string') return field[3];
-  }
-  return null;
+  const match = fields.find((field) => Array.isArray(field) && field[0] === 'fn' && typeof field[3] === 'string');
+  return match ? (match[3] as string) : null;
 };
 
 export const fetchRegistration = async (inputDomain: string): Promise<DomainRegistration> => {
@@ -282,9 +252,15 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
  * ------------------------------------------------------------------ */
 
 export const fetchContent = async (domain: string): Promise<ContentReport> => {
-  const response = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
-  if (!response.ok) throw new Error(`O serviço de auditoria respondeu ${response.status}.`);
-  const report = (await response.json()) as ContentReport;
+  const res = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 403) {
+      // Worker detectou IP interno, localhost ou URL malformada.
+      throw new Error('Domínio inválido ou inacessível.');
+    }
+    throw new Error(`O servidor de análise falhou (status ${res.status}).`);
+  }
+  const report = (await res.json()) as ContentReport;
   if (report.error && !report.ok) throw new Error(report.error);
   return report;
 };
@@ -378,7 +354,7 @@ const esperar = (ms: number): Promise<void> =>
  */
 const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number => {
   const base = foiLimiteDeUso ? 5_000 : 1_000;
-  return base * 2 ** (tentativa - 1) + Math.random() * 500;
+  return base * 2 ** (tentativa - 1) + (crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) * 500;
 };
 
 /** Uma ida ao PageSpeed, com teto de tempo próprio. */
@@ -393,6 +369,51 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
     );
   } finally {
     clearTimeout(timeout);
+  }
+};
+
+type PageSpeedAttemptResult =
+  | { success: true; data: PsiResponse; response: Response }
+  | { success: false; erro: Error; isDefinitivo: boolean; isLimiteDeUso: boolean };
+
+const formatarErroPageSpeed = (status: number): Error => {
+  const isLimiteDeUso = status === 429;
+  return new Error(
+    isLimiteDeUso
+      ? 'Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.'
+      : 'A medição de velocidade do Google não pôde ser concluída no momento.',
+  );
+};
+
+const formatarErroDeRede = (erro: unknown): Error => {
+  return erro instanceof Error && erro.name === 'AbortError'
+    ? new Error('O Google demorou demais para responder a medição de velocidade.')
+    : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
+};
+
+const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeedAttemptResult> => {
+  try {
+    const response = await buscarPageSpeed(params);
+    const data = (await response.json()) as PsiResponse;
+
+    if (!data.error && response.ok && data.lighthouseResult) {
+      return { success: true, data, response };
+    }
+
+    const status = data.error?.code ?? response.status;
+    return {
+      success: false,
+      erro: formatarErroPageSpeed(status),
+      isDefinitivo: isErroDefinitivo(status),
+      isLimiteDeUso: status === 429,
+    };
+  } catch (erro) {
+    return {
+      success: false,
+      erro: formatarErroDeRede(erro),
+      isDefinitivo: false,
+      isLimiteDeUso: false,
+    };
   }
 };
 
@@ -413,50 +434,28 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
 const buscarPageSpeedComRetentativas = async (
   params: URLSearchParams,
 ): Promise<{ data: PsiResponse; response: Response }> => {
-  let data: PsiResponse | null = null;
-  let response: Response | null = null;
   let ultimoErro: Error | null = null;
 
   for (let tentativa = 1; tentativa <= PAGESPEED_TENTATIVAS; tentativa += 1) {
-    let foiLimiteDeUso = false;
+    const resultado = await tentarBuscarPageSpeed(params);
 
-    try {
-      response = await buscarPageSpeed(params);
-      data = (await response.json()) as PsiResponse;
+    if (resultado.success) {
+      return { data: resultado.data, response: resultado.response };
+    }
 
-      const status = data.error?.code ?? response.status;
+    ultimoErro = resultado.erro;
 
-      if (!data.error && response.ok && data.lighthouseResult) break;
-
-      foiLimiteDeUso = status === 429;
-      ultimoErro = new Error(
-        foiLimiteDeUso
-          ? 'Serviço do Google momentaneamente sobrecarregado. Tente novamente em instantes.'
-          : 'A medição de velocidade do Google não pôde ser concluída no momento.',
-      );
-
-      // Insistir aqui só atrasaria o mesmo erro.
-      if (isErroDefinitivo(status)) throw ultimoErro;
-    } catch (erro) {
-      if (erro === ultimoErro) throw erro;
-      // Rede caiu ou o tempo estourou: a resposta sequer chegou.
-      ultimoErro =
-        erro instanceof Error && erro.name === 'AbortError'
-          ? new Error('O Google demorou demais para responder a medição de velocidade.')
-          : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
-      data = null;
+    // Insistir aqui só atrasaria o mesmo erro.
+    if (resultado.isDefinitivo) {
+      throw ultimoErro;
     }
 
     if (tentativa < PAGESPEED_TENTATIVAS) {
-      await esperar(esperaDaTentativa(tentativa, foiLimiteDeUso));
+      await esperar(esperaDaTentativa(tentativa, resultado.isLimiteDeUso));
     }
   }
 
-  if (!data?.lighthouseResult || !response?.ok || data.error) {
-    throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
-  }
-
-  return { data, response };
+  throw ultimoErro ?? new Error('O Google não conseguiu analisar este endereço no momento.');
 };
 
 const mapearPageSpeedReport = (

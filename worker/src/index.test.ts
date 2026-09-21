@@ -34,12 +34,33 @@ describe('worker index helpers', () => {
       expect(await isInternalHost('169.254.1.1')).toBe(true);
     });
 
+    it('identifies bypass representations of local IPs', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      // Decimal representation of 127.0.0.1
+      expect(await isInternalHost('2130706433')).toBe(true);
+      // Hex representation of 127.0.0.1
+      expect(await isInternalHost('0x7f000001')).toBe(true);
+      // Octal representation of 127.0.0.1
+      expect(await isInternalHost('0177.0.0.1')).toBe(true);
+    });
+
     it('identifies IPv4-mapped IPv6 addresses', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
       expect(await isInternalHost('::ffff:127.0.0.1')).toBe(true);
       expect(await isInternalHost('::ffff:7f00:1')).toBe(true);
       expect(await isInternalHost('::ffff:c0a8:101')).toBe(true);
       expect(await isInternalHost('::1')).toBe(true);
+    });
+
+
+    it('handles DNS resolution failures gracefully (non-ok response)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
+      expect(await isInternalHost('error-domain.com')).toBe(false);
+    });
+
+    it('handles DNS resolution network errors gracefully (fetch throws)', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      expect(await isInternalHost('throw-domain.com')).toBe(false);
     });
 
     it('allows public hosts', async () => {
@@ -69,6 +90,13 @@ describe('worker index helpers', () => {
       expect((await normalizeTarget('www.example.com/path'))?.href).toBe('https://www.example.com/path');
     });
 
+
+    it('returns null when URL parsing throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      // "https://%%%" causes new URL() to throw a TypeError
+      expect(await normalizeTarget('https://%%%')).toBeNull();
+    });
+
     it('returns null for empty strings or invalid inputs', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
       expect(await normalizeTarget('')).toBeNull();
@@ -77,6 +105,30 @@ describe('worker index helpers', () => {
       expect(await normalizeTarget('localhost')).toBeNull();
       expect(await normalizeTarget('https://127.0.0.1')).toBeNull();
       expect(await normalizeTarget('https://%%%')).toBeNull();
+    });
+
+    it('trims whitespace from the input', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect((await normalizeTarget('  https://example.com  '))?.href).toBe('https://example.com/');
+    });
+
+    it('returns null if URL constructor throws an error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await normalizeTarget('https://javascript:alert(1)')).toBeNull();
+    });
+
+    it('returns null if the hostname does not contain a dot', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      expect(await normalizeTarget('https://internalhost')).toBeNull();
+      expect(await normalizeTarget('only-word')).toBeNull();
+    });
+
+    it('returns null if the domain resolves to an internal IP via DoH', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ Answer: [{ data: '192.168.1.1' }] })
+      });
+      expect(await normalizeTarget('https://looks-external.com')).toBeNull();
     });
   });
 
