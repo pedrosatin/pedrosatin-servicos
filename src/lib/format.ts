@@ -20,13 +20,5 @@ export const formatDateTime = (iso: string | null | undefined): string =>
 export const formatScore = (value: number | null | undefined): string =>
   value === null || value === undefined ? '—' : String(value);
 
-/** Verde acima de 90, âmbar entre 50 e 89, vermelho abaixo — a escala do Lighthouse. */
-export const scoreTone = (value: number | null | undefined): 'good' | 'average' | 'poor' | 'none' => {
-  if (value === null || value === undefined) return 'none';
-  if (value >= 90) return 'good';
-  if (value >= 50) return 'average';
-  return 'poor';
-};
-
 export const pluralize = (count: number, singular: string, plural: string): string =>
   `${count} ${count === 1 ? singular : plural}`;
