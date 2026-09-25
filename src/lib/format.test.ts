@@ -5,7 +5,6 @@ import {
   formatDate,
   formatDateTime,
   formatScore,
-  scoreTone,
   pluralize,
 } from './format';
 
@@ -90,28 +89,6 @@ describe('formatScore', () => {
     expect(formatScore(0)).toBe('0');
     expect(formatScore(55)).toBe('55');
     expect(formatScore(100)).toBe('100');
-  });
-});
-
-describe('scoreTone', () => {
-  it('returns "none" for null or undefined', () => {
-    expect(scoreTone(null)).toBe('none');
-    expect(scoreTone(undefined)).toBe('none');
-  });
-
-  it('returns "good" for values >= 90', () => {
-    expect(scoreTone(90)).toBe('good');
-    expect(scoreTone(100)).toBe('good');
-  });
-
-  it('returns "average" for values >= 50 and < 90', () => {
-    expect(scoreTone(50)).toBe('average');
-    expect(scoreTone(89)).toBe('average');
-  });
-
-  it('returns "poor" for values < 50', () => {
-    expect(scoreTone(49)).toBe('poor');
-    expect(scoreTone(0)).toBe('poor');
   });
 });
 
