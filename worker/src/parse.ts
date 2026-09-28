@@ -248,6 +248,24 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   const linkTags = collectTags(markup, 'link');
   const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
 
+  let canonical: string | null = null;
+  let favicon = false;
+  let stylesheets = 0;
+  const hreflang: string[] = [];
+
+  for (const tag of linkTags) {
+    const rel = relOf(tag);
+    if (rel === 'canonical' && canonical === null) {
+      canonical = clean(attr(tag, 'href'));
+    }
+    if (rel.includes('icon')) favicon = true;
+    if (rel.includes('stylesheet')) stylesheets++;
+    if (rel === 'alternate') {
+      const hlang = attr(tag, 'hreflang');
+      if (hlang !== null) hreflang.push(hlang);
+    }
+  }
+
   const inlineStyleBytes = [...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
     (total, match) => total + match[1].length,
     0,
@@ -268,9 +286,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     titleLength: title?.length ?? 0,
     metaDescription,
     metaDescriptionLength: metaDescription?.length ?? 0,
-    canonical: clean(
-      linkTags.filter((tag) => relOf(tag) === 'canonical').map((tag) => attr(tag, 'href'))[0] ?? null,
-    ),
+    canonical,
     robotsMeta: metaContent(metaTags, 'name', 'robots'),
     viewport: metaContent(metaTags, 'name', 'viewport'),
     h1,
@@ -283,14 +299,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     },
     twitterCard: metaContent(metaTags, 'name', 'twitter:card'),
     jsonLdTypes: collectJsonLdTypes(markup),
-    favicon: linkTags.some((tag) => relOf(tag).includes('icon')),
+    favicon,
     scripts,
-    stylesheets: linkTags.filter((tag) => relOf(tag).includes('stylesheet')).length,
+    stylesheets,
     inlineStyleBytes,
     generator,
-    hreflang: linkTags
-      .filter((tag) => relOf(tag) === 'alternate' && attr(tag, 'hreflang') !== null)
-      .map((tag) => attr(tag, 'hreflang') as string),
+    hreflang,
     wordCount,
     platform: detectPlatform(html, generator),
   };
