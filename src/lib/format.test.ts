@@ -4,7 +4,6 @@ import {
   formatBytes,
   formatDate,
   formatDateTime,
-  formatScore,
   scoreTone,
   pluralize,
 } from './format';
@@ -77,19 +76,6 @@ describe('formatDateTime', () => {
     const formatted = formatDateTime(dateStr);
     expect(formatted).toMatch(/05\/10\/2023/);
     expect(formatted).toMatch(/14:30|11:30/); // Depends on timezone UTC vs BRT
-  });
-});
-
-describe('formatScore', () => {
-  it('returns "—" for null or undefined', () => {
-    expect(formatScore(null)).toBe('—');
-    expect(formatScore(undefined)).toBe('—');
-  });
-
-  it('formats numeric scores as strings', () => {
-    expect(formatScore(0)).toBe('0');
-    expect(formatScore(55)).toBe('55');
-    expect(formatScore(100)).toBe('100');
   });
 });
 

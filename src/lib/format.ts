@@ -17,9 +17,6 @@ export const formatDate = (iso: string | null | undefined): string =>
 export const formatDateTime = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
-export const formatScore = (value: number | null | undefined): string =>
-  value === null || value === undefined ? '—' : String(value);
-
 /** Verde acima de 90, âmbar entre 50 e 89, vermelho abaixo — a escala do Lighthouse. */
 export const scoreTone = (value: number | null | undefined): 'good' | 'average' | 'poor' | 'none' => {
   if (value === null || value === undefined) return 'none';
