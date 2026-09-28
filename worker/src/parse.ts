@@ -188,10 +188,7 @@ const collectJsonLdTypes = (html: string): string[] => {
   return [...types];
 };
 
-const ALT_RE = /\balt\s*=/i;
-const WIDTH_RE = /\bwidth\s*=/i;
-const HEIGHT_RE = /\bheight\s*=/i;
-const LAZY_RE = /\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w)/i;
+
 const SRC_RE = /\bsrc\s*=/i;
 const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
 const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
@@ -224,10 +221,24 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   };
 
 
+  const ATTRS_FAST_RE = /\b(?:alt\s*=|width\s*=|height\s*=|loading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w))/gi;
+
   for (const tag of imageTags) {
-    if (!ALT_RE.test(tag)) images.withoutAlt++;
-    if (!WIDTH_RE.test(tag) || !HEIGHT_RE.test(tag)) images.withoutDimensions++;
-    if (LAZY_RE.test(tag)) images.lazy++;
+    let hasAlt = false, hasWidth = false, hasHeight = false, hasLazy = false;
+
+    ATTRS_FAST_RE.lastIndex = 0;
+    let m;
+    while ((m = ATTRS_FAST_RE.exec(tag)) !== null) {
+      const c = m[0].charCodeAt(0) | 32;
+      if (c === 97) hasAlt = true;
+      else if (c === 119) hasWidth = true;
+      else if (c === 104) hasHeight = true;
+      else if (c === 108) hasLazy = true;
+    }
+
+    if (!hasAlt) images.withoutAlt++;
+    if (!hasWidth || !hasHeight) images.withoutDimensions++;
+    if (hasLazy) images.lazy++;
   }
 
   const scriptTags = collectTags(markup, 'script');
