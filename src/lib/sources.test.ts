@@ -239,8 +239,8 @@ describe('sources', () => {
     it('should abort fetch and throw specific error when response takes longer than PAGESPEED_TIMEOUT_MS', async () => {
       vi.useFakeTimers();
 
-      globalThis.fetch = vi.fn().mockImplementation((url, options) => {
-        return new Promise((resolve, reject) => {
+      globalThis.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_resolve, reject) => {
           if (options?.signal) {
             options.signal.addEventListener('abort', () => {
               const abortError = new Error('The operation was aborted');
