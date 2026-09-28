@@ -236,6 +236,30 @@ describe('sources', () => {
   });
 
   describe('fetchPageSpeed', () => {
+    it('should abort fetch and throw specific error when response takes longer than PAGESPEED_TIMEOUT_MS', async () => {
+      vi.useFakeTimers();
+
+      globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        return new Promise((resolve, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const abortError = new Error('The operation was aborted');
+              abortError.name = 'AbortError';
+              reject(abortError);
+            });
+          }
+        });
+      });
+
+      const fetchPromise = fetchPageSpeed('example.com');
+      const assertion = expect(fetchPromise).rejects.toThrow('O Google demorou demais para responder a medição de velocidade.');
+
+      await vi.runAllTimersAsync();
+      await assertion;
+
+      vi.useRealTimers();
+    });
+
     it('should handle definitive HTTP 400 error immediately without endless retries', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
