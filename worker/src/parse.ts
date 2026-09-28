@@ -65,19 +65,6 @@ const attr = (tag: string, name: string): string | null => {
 
 
 
-// A flag 'g' aqui é segura de cachear: String.prototype.match com regex global
-// zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
-const collectTagsRegexCache = new Map<string, RegExp>();
-
-/** Todas as tags de um tipo, com o conteúdo interno quando houver. */
-const collectTags = (html: string, tagName: string): string[] => {
-  let regex = collectTagsRegexCache.get(tagName);
-  if (!regex) {
-    regex = new RegExp(`<${escapeRegExp(tagName)}\\b[^>]*>`, 'gi');
-    collectTagsRegexCache.set(tagName, regex);
-  }
-  return html.match(regex) ?? [];
-};
 
 const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string): string | null => {
   for (const tag of tags) {
@@ -188,6 +175,8 @@ const collectJsonLdTypes = (html: string): string[] => {
   return [...types];
 };
 
+const TAG_COLLECTOR_RE = /<(meta|img|script|link)\b[^>]*>/gi;
+
 const ALT_RE = /\balt\s*=/i;
 const WIDTH_RE = /\bwidth\s*=/i;
 const HEIGHT_RE = /\bheight\s*=/i;
@@ -204,7 +193,21 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // documentados nela.
   const markup = stripComments(html);
 
-  const metaTags = collectTags(markup, 'meta');
+  const metaTags: string[] = [];
+  const imageTags: string[] = [];
+  const scriptTags: string[] = [];
+  const linkTags: string[] = [];
+
+  TAG_COLLECTOR_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TAG_COLLECTOR_RE.exec(markup)) !== null) {
+    const tagMatch = match[0];
+    const firstChar = match[1].charCodeAt(0) | 32;
+    if (firstChar === 109) metaTags.push(tagMatch); // 'm' for meta
+    else if (firstChar === 105) imageTags.push(tagMatch); // 'i' for img
+    else if (firstChar === 115) scriptTags.push(tagMatch); // 's' for script
+    else if (firstChar === 108) linkTags.push(tagMatch); // 'l' for link
+  }
 
   const htmlTag = /<html\b[^>]*>/i.exec(markup)?.[0] ?? '';
 
@@ -215,7 +218,6 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
     .filter((value): value is string => value !== null);
 
-  const imageTags = collectTags(markup, 'img');
   const images: ImageStats = {
     total: imageTags.length,
     withoutAlt: 0,
@@ -223,14 +225,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     lazy: 0,
   };
 
-
   for (const tag of imageTags) {
     if (!ALT_RE.test(tag)) images.withoutAlt++;
     if (!WIDTH_RE.test(tag) || !HEIGHT_RE.test(tag)) images.withoutDimensions++;
     if (LAZY_RE.test(tag)) images.lazy++;
   }
 
-  const scriptTags = collectTags(markup, 'script');
   const scripts: ScriptStats = {
     total: scriptTags.length,
     external: 0,
@@ -244,8 +244,6 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
       }
     }
   }
-
-  const linkTags = collectTags(markup, 'link');
   const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
 
   const inlineStyleBytes = [...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
