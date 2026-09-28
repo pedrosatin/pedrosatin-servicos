@@ -247,5 +247,74 @@ describe('sources', () => {
         'A medição de velocidade do Google não pôde ser concluída no momento.',
       );
     });
+
+
+    it('should retry after a 429 limit error and return successful response', async () => {
+      vi.useFakeTimers();
+      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
+        arr[0] = 0;
+        return arr;
+      });
+
+      const mockSuccessfulData = { lighthouseResult: { categories: {} } };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          json: async () => ({ error: { code: 429, message: 'Too Many Requests' } }),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => mockSuccessfulData,
+        } as unknown as Response);
+
+      const promise = fetchPageSpeed('example.com');
+
+      // Advance by the 5000ms expected delay to resolve the setTimeout in `esperar`
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await promise;
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      cryptoSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('should retry after a 500 server error and return successful response', async () => {
+      vi.useFakeTimers();
+      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
+        arr[0] = 0;
+        return arr;
+      });
+
+      const mockSuccessfulData = { lighthouseResult: { categories: {} } };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: { code: 500, message: 'Internal Server Error' } }),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => mockSuccessfulData,
+        } as unknown as Response);
+
+      const promise = fetchPageSpeed('example.com');
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await promise;
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      cryptoSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
   });
 });
