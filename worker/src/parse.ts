@@ -195,6 +195,7 @@ const LAZY_RE = /\bloading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w)/i;
 const SRC_RE = /\bsrc\s*=/i;
 const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
 const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
+const WORD_RE = /\S{2,}/g;
 
 export const parseHtml = (html: string, bytes: number): HtmlReport => {
   // O que está dentro de comentário não é elemento da página: o navegador não
@@ -255,9 +256,11 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
 
   const generator = metaContent(metaTags, 'name', 'generator');
   const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
-  const wordCount = decodeEntities(textContent)
-    .split(/\s+/)
-    .filter((word) => word.length > 1).length;
+  const decodedText = decodeEntities(textContent);
+  let wordCount = 0;
+  while (WORD_RE.test(decodedText)) {
+    wordCount++;
+  }
 
   return {
     bytes,
