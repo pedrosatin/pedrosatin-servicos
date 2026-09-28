@@ -251,7 +251,7 @@ describe('sources', () => {
 
     it('should retry after a 429 limit error and return successful response', async () => {
       vi.useFakeTimers();
-      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
+      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr: any) => {
         arr[0] = 0;
         return arr;
       });
@@ -285,7 +285,7 @@ describe('sources', () => {
 
     it('should retry after a 500 server error and return successful response', async () => {
       vi.useFakeTimers();
-      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
+      const cryptoSpy = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr: any) => {
         arr[0] = 0;
         return arr;
       });
