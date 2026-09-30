@@ -332,6 +332,26 @@ describe('sources', () => {
   });
 
   describe('fetchPageSpeed', () => {
+    it('should succeed without retries when API returns a valid response', async () => {
+      const mockPsiResponse = {
+        lighthouseResult: {
+          categories: { performance: { score: 0.95 } },
+          audits: {},
+        },
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockPsiResponse,
+      } as unknown as Response);
+
+      const result = await fetchPageSpeed('example.com');
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(result.scores.performance).toBe(95);
+    });
+
     it('should handle definitive HTTP 400 error immediately without endless retries', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
