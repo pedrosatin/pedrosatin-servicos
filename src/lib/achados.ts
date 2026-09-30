@@ -18,9 +18,12 @@ export const AREA_LABELS: Record<Finding['area'], string> = {
   conteudo: 'Conteúdo',
 };
 
-export const countBySeverity = (findings: Finding[]) => ({
-  critical: findings.filter((f) => f.severity === 'critical').length,
-  warning: findings.filter((f) => f.severity === 'warning').length,
-  info: findings.filter((f) => f.severity === 'info').length,
-  good: findings.filter((f) => f.severity === 'good').length,
-});
+export const countBySeverity = (findings: Finding[]) => {
+  return findings.reduce(
+    (acc, f) => {
+      acc[f.severity]++;
+      return acc;
+    },
+    { critical: 0, warning: 0, info: 0, good: 0 }
+  );
+};
