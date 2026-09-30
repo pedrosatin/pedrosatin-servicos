@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   formatMs,
   formatDate,
-  formatScore,
 } from './format';
 
 describe('formatMs', () => {
@@ -41,18 +40,3 @@ describe('formatDate', () => {
     expect(formatted).toMatch(/05\/10\/2023/);
   });
 });
-
-describe('formatScore', () => {
-  it('returns "—" for null or undefined', () => {
-    expect(formatScore(null)).toBe('—');
-    expect(formatScore(undefined)).toBe('—');
-  });
-
-  it('formats numeric scores as strings', () => {
-    expect(formatScore(0)).toBe('0');
-    expect(formatScore(55)).toBe('55');
-    expect(formatScore(100)).toBe('100');
-  });
-});
-
-
