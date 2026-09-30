@@ -14,6 +14,102 @@ describe('sources', () => {
   });
 
   describe('fetchRegistration', () => {
+
+    it('should return a successful domain registration object for .com domains', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-05-15T12:00:00Z'));
+
+      const mockRdapData = {
+        ldhName: 'EXAMPLE.COM',
+        events: [
+          { eventAction: 'registration', eventDate: '2000-01-01T12:00:00Z' },
+          { eventAction: 'expiration', eventDate: '2025-01-01T12:00:00Z' },
+          { eventAction: 'last changed', eventDate: '2023-01-01T12:00:00Z' }
+        ],
+        entities: [
+          {
+            roles: ['registrar'],
+            vcardArray: [
+              'vcard',
+              [
+                ['version', {}, 'text', '4.0'],
+                ['fn', {}, 'text', 'Mock Registrar, Inc.']
+              ]
+            ]
+          }
+        ],
+        status: ['clientTransferProhibited'],
+        nameservers: [{ ldhName: 'NS1.EXAMPLE.COM' }, { ldhName: 'NS2.EXAMPLE.COM' }],
+        secureDNS: { delegationSigned: true }
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockRdapData,
+      } as unknown as Response);
+
+      const result = await fetchRegistration('example.com');
+
+      expect(result).toEqual({
+        found: true,
+        domain: 'example.com',
+        registrar: 'Mock Registrar, Inc.',
+        registeredAt: '2000-01-01T12:00:00Z',
+        expiresAt: '2025-01-01T12:00:00Z',
+        changedAt: '2023-01-01T12:00:00Z',
+        daysToExpire: 231, // (2025-01-01 - 2024-05-15) / 86400000 -> 231
+        status: ['clientTransferProhibited'],
+        nameservers: ['ns1.example.com', 'ns2.example.com'],
+        dnssec: true,
+        source: 'rdap.org',
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledWith('https://rdap.org/domain/example.com', { headers: { accept: 'application/rdap+json' } });
+
+      vi.useRealTimers();
+    });
+
+    it('should handle .br domains correctly with fallback values', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-05-15T12:00:00Z'));
+
+      const mockRdapData = {
+        ldhName: 'example.com.br',
+        events: [
+          { eventAction: 'registration', eventDate: '2010-01-01T12:00:00Z' },
+          { eventAction: 'expiration', eventDate: '2024-06-15T12:00:00Z' }
+        ]
+        // Omit entities to test fallback, .br should hardcode registrar
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockRdapData,
+      } as unknown as Response);
+
+      const result = await fetchRegistration('sub.example.com.br');
+
+      expect(result).toEqual({
+        found: true,
+        domain: 'example.com.br',
+        registrar: 'Registro.br (NIC.br)',
+        registeredAt: '2010-01-01T12:00:00Z',
+        expiresAt: '2024-06-15T12:00:00Z',
+        changedAt: null,
+        daysToExpire: 31, // (2024-06-15 - 2024-05-15)
+        status: [],
+        nameservers: [],
+        dnssec: false,
+        source: 'registro.br',
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledWith('https://rdap.registro.br/domain/example.com.br', { headers: { accept: 'application/rdap+json' } });
+
+      vi.useRealTimers();
+    });
+
     it('should return a default object with found: false when fetch throws an error', async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
 
@@ -258,6 +354,26 @@ describe('sources', () => {
       await assertion;
 
       vi.useRealTimers();
+    });
+
+    it('should succeed without retries when API returns a valid response', async () => {
+      const mockPsiResponse = {
+        lighthouseResult: {
+          categories: { performance: { score: 0.95 } },
+          audits: {},
+        },
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockPsiResponse,
+      } as unknown as Response);
+
+      const result = await fetchPageSpeed('example.com');
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(result.scores.performance).toBe(95);
     });
 
     it('should handle definitive HTTP 400 error immediately without endless retries', async () => {

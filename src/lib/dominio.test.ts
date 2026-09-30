@@ -4,7 +4,6 @@ import {
   isValidDomain,
   getApexDomain,
   googleIndexUrl,
-  searchConsoleUrl,
 } from './dominio';
 
 describe('dominio', () => {
@@ -88,20 +87,6 @@ describe('dominio', () => {
   describe('googleIndexUrl', () => {
     it('should construct correct Google search URL for site operator', () => {
       expect(googleIndexUrl('example.com')).toBe('https://www.google.com/search?q=site%3Aexample.com');
-    });
-  });
-
-  describe('searchConsoleUrl', () => {
-    it('should construct correct Search Console URL for standard domains', () => {
-      expect(searchConsoleUrl('example.com')).toBe(
-        'https://search.google.com/search-console?resource_id=sc-domain%3Aexample.com'
-      );
-    });
-
-    it('should construct correct Search Console URL for subdomains', () => {
-      expect(searchConsoleUrl('sub.example.com')).toBe(
-        'https://search.google.com/search-console?resource_id=sc-domain%3Asub.example.com'
-      );
     });
   });
 });
