@@ -45,5 +45,3 @@ export const getApexDomain = (domain: string): string => {
 export const googleIndexUrl = (domain: string): string =>
   `https://www.google.com/search?q=${encodeURIComponent(`site:${domain}`)}`;
 
-export const searchConsoleUrl = (domain: string): string =>
-  `https://search.google.com/search-console?resource_id=${encodeURIComponent(`sc-domain:${domain}`)}`;

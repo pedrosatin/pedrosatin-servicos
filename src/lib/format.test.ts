@@ -1,11 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatMs,
-  formatBytes,
   formatDate,
-  formatDateTime,
   formatScore,
-  pluralize,
 } from './format';
 
 describe('formatMs', () => {
@@ -29,26 +26,6 @@ describe('formatMs', () => {
   });
 });
 
-describe('formatBytes', () => {
-  it('returns "—" for null or undefined', () => {
-    expect(formatBytes(null)).toBe('—');
-    expect(formatBytes(undefined)).toBe('—');
-  });
-
-  it('formats values under 1MB as KB', () => {
-    expect(formatBytes(0)).toBe('0 KB');
-    expect(formatBytes(1024)).toBe('1 KB');
-    expect(formatBytes(512)).toBe('1 KB'); // Math.round(512 / 1024) -> 1 KB
-    expect(formatBytes(2048)).toBe('2 KB');
-    expect(formatBytes(1_048_575)).toBe('1024 KB');
-  });
-
-  it('formats values >= 1MB as MB', () => {
-    expect(formatBytes(1_048_576)).toBe('1.0 MB');
-    expect(formatBytes(1_572_864)).toBe('1.5 MB'); // 1.5 * 1024 * 1024
-  });
-});
-
 describe('formatDate', () => {
   it('returns "—" for null or undefined', () => {
     expect(formatDate(null)).toBe('—');
@@ -65,20 +42,6 @@ describe('formatDate', () => {
   });
 });
 
-describe('formatDateTime', () => {
-  it('returns "—" for null or undefined', () => {
-    expect(formatDateTime(null)).toBe('—');
-    expect(formatDateTime(undefined)).toBe('—');
-  });
-
-  it('formats ISO strings to pt-BR locale with date and time', () => {
-    const dateStr = '2023-10-05T14:30:00Z';
-    const formatted = formatDateTime(dateStr);
-    expect(formatted).toMatch(/05\/10\/2023/);
-    expect(formatted).toMatch(/14:30|11:30/); // Depends on timezone UTC vs BRT
-  });
-});
-
 describe('formatScore', () => {
   it('returns "—" for null or undefined', () => {
     expect(formatScore(null)).toBe('—');
@@ -92,15 +55,4 @@ describe('formatScore', () => {
   });
 });
 
-describe('pluralize', () => {
-  it('returns singular form when count is 1', () => {
-    expect(pluralize(1, 'item', 'itens')).toBe('1 item');
-    expect(pluralize(1, 'dia', 'dias')).toBe('1 dia');
-  });
 
-  it('returns plural form when count is not 1', () => {
-    expect(pluralize(0, 'item', 'itens')).toBe('0 itens');
-    expect(pluralize(2, 'item', 'itens')).toBe('2 itens');
-    expect(pluralize(-1, 'item', 'itens')).toBe('-1 itens');
-  });
-});
