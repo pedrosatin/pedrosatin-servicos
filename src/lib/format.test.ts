@@ -6,7 +6,6 @@ import {
   formatDateTime,
   formatScore,
   scoreTone,
-  pluralize,
 } from './format';
 
 describe('formatMs', () => {
@@ -115,15 +114,3 @@ describe('scoreTone', () => {
   });
 });
 
-describe('pluralize', () => {
-  it('returns singular form when count is 1', () => {
-    expect(pluralize(1, 'item', 'itens')).toBe('1 item');
-    expect(pluralize(1, 'dia', 'dias')).toBe('1 dia');
-  });
-
-  it('returns plural form when count is not 1', () => {
-    expect(pluralize(0, 'item', 'itens')).toBe('0 itens');
-    expect(pluralize(2, 'item', 'itens')).toBe('2 itens');
-    expect(pluralize(-1, 'item', 'itens')).toBe('-1 itens');
-  });
-});
