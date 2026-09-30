@@ -69,14 +69,28 @@ const attr = (tag: string, name: string): string | null => {
 // zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
 const ALL_TAGS_RE = /<(?:meta|img|script|link|html)\b[^>]*>/gi;
 
-const metaContent = (tags: string[], keyAttr: 'name' | 'property', key: string): string | null => {
+const parseMetaTags = (tags: string[]): Map<string, string> => {
+  const dict = new Map<string, string>();
   for (const tag of tags) {
-    const found = attr(tag, keyAttr);
-    if (found && found.toLowerCase() === key.toLowerCase()) {
-      return clean(attr(tag, 'content'));
+    const contentAttr = attr(tag, 'content');
+    if (contentAttr === null) continue;
+
+    const content = clean(contentAttr);
+    if (content === null) continue;
+
+    const name = attr(tag, 'name');
+    if (name) {
+      const key = `name:${name.toLowerCase()}`;
+      if (!dict.has(key)) dict.set(key, content);
+    }
+
+    const property = attr(tag, 'property');
+    if (property) {
+      const key = `property:${property.toLowerCase()}`;
+      if (!dict.has(key)) dict.set(key, content);
     }
   }
-  return null;
+  return dict;
 };
 
 /**
@@ -211,7 +225,9 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   }
 
   const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null);
-  const metaDescription = metaContent(metaTags, 'name', 'description');
+  const metaDict = parseMetaTags(metaTags);
+  const getMeta = (keyAttr: 'name' | 'property', key: string) => metaDict.get(`${keyAttr}:${key.toLowerCase()}`) ?? null;
+  const metaDescription = getMeta('name', 'description');
 
   const h1 = [...markup.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
@@ -266,7 +282,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     0,
   );
 
-  const generator = metaContent(metaTags, 'name', 'generator');
+  const generator = getMeta('name', 'generator');
   const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
   const wordCount = decodeEntities(textContent)
     .split(/\s+/)
@@ -284,17 +300,17 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     canonical: clean(
       linkTags.filter((tag) => relOf(tag) === 'canonical').map((tag) => attr(tag, 'href'))[0] ?? null,
     ),
-    robotsMeta: metaContent(metaTags, 'name', 'robots'),
-    viewport: metaContent(metaTags, 'name', 'viewport'),
+    robotsMeta: getMeta('name', 'robots'),
+    viewport: getMeta('name', 'viewport'),
     h1,
     h2Count: (markup.match(/<h2\b/gi) ?? []).length,
     images,
     openGraph: {
-      title: metaContent(metaTags, 'property', 'og:title'),
-      description: metaContent(metaTags, 'property', 'og:description'),
-      image: metaContent(metaTags, 'property', 'og:image'),
+      title: getMeta('property', 'og:title'),
+      description: getMeta('property', 'og:description'),
+      image: getMeta('property', 'og:image'),
     },
-    twitterCard: metaContent(metaTags, 'name', 'twitter:card'),
+    twitterCard: getMeta('name', 'twitter:card'),
     jsonLdTypes: collectJsonLdTypes(markup),
     favicon: linkTags.some((tag) => relOf(tag).includes('icon')),
     scripts,
