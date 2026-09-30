@@ -8,9 +8,6 @@ export const formatMs = (value: number | null | undefined): string => {
 export const formatDate = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
 
-export const formatDateTime = (iso: string | null | undefined): string =>
-  iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-
 export const formatScore = (value: number | null | undefined): string =>
   value === null || value === undefined ? '—' : String(value);
 

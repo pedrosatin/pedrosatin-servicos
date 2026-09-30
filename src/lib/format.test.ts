@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   formatMs,
   formatDate,
-  formatDateTime,
   formatScore,
   scoreTone,
 } from './format';
@@ -41,20 +40,6 @@ describe('formatDate', () => {
     // 2023-10-05
     const formatted = formatDate(dateStr);
     expect(formatted).toMatch(/05\/10\/2023/);
-  });
-});
-
-describe('formatDateTime', () => {
-  it('returns "—" for null or undefined', () => {
-    expect(formatDateTime(null)).toBe('—');
-    expect(formatDateTime(undefined)).toBe('—');
-  });
-
-  it('formats ISO strings to pt-BR locale with date and time', () => {
-    const dateStr = '2023-10-05T14:30:00Z';
-    const formatted = formatDateTime(dateStr);
-    expect(formatted).toMatch(/05\/10\/2023/);
-    expect(formatted).toMatch(/14:30|11:30/); // Depends on timezone UTC vs BRT
   });
 });
 
