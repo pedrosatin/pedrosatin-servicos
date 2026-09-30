@@ -332,6 +332,30 @@ describe('sources', () => {
   });
 
   describe('fetchPageSpeed', () => {
+    it('should abort fetch and throw specific error when response takes longer than PAGESPEED_TIMEOUT_MS', async () => {
+      vi.useFakeTimers();
+
+      globalThis.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_resolve, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const abortError = new Error('The operation was aborted');
+              abortError.name = 'AbortError';
+              reject(abortError);
+            });
+          }
+        });
+      });
+
+      const fetchPromise = fetchPageSpeed('example.com');
+      const assertion = expect(fetchPromise).rejects.toThrow('O Google demorou demais para responder a medição de velocidade.');
+
+      await vi.runAllTimersAsync();
+      await assertion;
+
+      vi.useRealTimers();
+    });
+
     it('should succeed without retries when API returns a valid response', async () => {
       const mockPsiResponse = {
         lighthouseResult: {
