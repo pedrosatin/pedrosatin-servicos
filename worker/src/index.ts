@@ -303,11 +303,34 @@ export const auditRobotsAndSitemap = async (
     }
   });
 
-  for (const promise of promises) {
-    const entry = await promise;
-    if (entry !== null) {
-      return { robots, sitemap: entry };
-    }
+  const entry = await new Promise<AuditResponse['sitemap'] | null>((resolve) => {
+    if (promises.length === 0) return resolve(null);
+    const results = new Array<AuditResponse['sitemap'] | null | undefined>(promises.length).fill(undefined);
+    let done = false;
+
+    promises.forEach((p, i) => {
+      p.then(val => {
+        if (done) return;
+        results[i] = val;
+
+        for (let j = 0; j < promises.length; j++) {
+          if (results[j] === undefined) break; // still waiting for higher priority
+          if (results[j] !== null) {
+            done = true;
+            return resolve(results[j]!);
+          }
+        }
+
+        if (results.every(r => r !== undefined)) {
+          done = true;
+          resolve(null);
+        }
+      });
+    });
+  });
+
+  if (entry !== null) {
+    return { robots, sitemap: entry };
   }
 
   return { robots, sitemap: { found: false, url: null, urlCount: null, isIndex: false } };
