@@ -1028,10 +1028,9 @@ export const LandingPage: React.FC = () => {
       {/* Dados estruturados. Ficam no corpo, junto do texto que descrevem, e
           por isso saem no HTML pré-renderizado. `application/ld+json` não é
           executado: é dado, e a CSP o trata como tal. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: buildStructuredData().replace(/</g, '\\u003c') }}
-      />
+      <script type="application/ld+json">
+        {buildStructuredData().replace(/</g, '\\u003c')}
+      </script>
     </div>
   );
 };
