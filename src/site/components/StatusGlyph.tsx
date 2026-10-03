@@ -1,6 +1,7 @@
 import React from 'react';
+import type { StepStatus } from '../../lib/types';
 
-export const StatusGlyph: React.FC<{ status: string }> = ({ status }) => {
+export const StatusGlyph: React.FC<{ status: StepStatus }> = ({ status }) => {
   if (status === 'running') return <span className="lp-glyph running">···</span>;
   if (status === 'done') return <span className="lp-glyph done">ok</span>;
   if (status === 'failed') return <span className="lp-glyph failed">falhou</span>;
