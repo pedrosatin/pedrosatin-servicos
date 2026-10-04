@@ -1,6 +1,6 @@
 import { LandingPage } from './site/LandingPage';
 
-export function App() {
+function App() {
   return <LandingPage />;
 }
 
