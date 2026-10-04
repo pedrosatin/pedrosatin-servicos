@@ -128,13 +128,25 @@ export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<Em
   const { activeDns, targetDomain } = await resolveApexDns(domain, dns);
 
   const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
-  const dmarc =
-    dmarcRecords
-      .filter((r) => r.type === 16)
-      .map((r) => stripQuotes(r.data))
-      .find((value) => value.toLowerCase().startsWith('v=dmarc1')) ?? null;
 
-  const spf = activeDns.txt.find((value) => value.toLowerCase().startsWith('v=spf1')) ?? null;
+  let dmarc: string | null = null;
+  for (const r of dmarcRecords) {
+    if (r.type === 16) {
+      const value = stripQuotes(r.data);
+      if (value.toLowerCase().startsWith('v=dmarc1')) {
+        dmarc = value;
+        break;
+      }
+    }
+  }
+
+  let spf: string | null = null;
+  for (const value of activeDns.txt) {
+    if (value.toLowerCase().startsWith('v=spf1')) {
+      spf = value;
+      break;
+    }
+  }
 
   const policyMatch = dmarc ? /\bp\s*=\s*(none|quarantine|reject)/i.exec(dmarc) : null;
 
