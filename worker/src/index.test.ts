@@ -69,6 +69,13 @@ describe('worker index helpers', () => {
       expect(await isInternalHost('google.com')).toBe(false);
       expect(await isInternalHost('8.8.8.8')).toBe(false);
     });
+
+    it('handles malformed hostnames that trigger URL parsing errors gracefully', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+      // Passes an invalid IPv6-like string to trigger the catch block in URL parsing
+      expect(await isInternalHost('invalid:hostname:with:colons')).toBe(false);
+    });
+
   });
 
   describe('normalizeTarget', () => {

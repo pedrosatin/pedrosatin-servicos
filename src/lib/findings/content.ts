@@ -1,7 +1,7 @@
 import type { AuditResult, Finding, ContentReport, HtmlReport } from "../types";
 import { kb } from "./utils";
 
-export const NOINDEX_ACTION_MESSAGE =
+const NOINDEX_ACTION_MESSAGE =
   "Essa tag remove a página dos resultados do Google mesmo que todo o resto esteja correto. Costuma ser resquício de ambiente de testes.";
 
 const checkRobots = (
