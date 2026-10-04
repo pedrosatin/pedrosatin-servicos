@@ -48,28 +48,30 @@ const resolveRecord = async (domain: string, type: string): Promise<DohAnswer[]>
 
 const stripQuotes = (value: string): string => value.replace(/^"|"$/g, '').replace(/"\s+"/g, '');
 
+const PROVIDER_TABLE: [RegExp, string][] = [
+  [/cloudflare/, 'Cloudflare'],
+  [/vercel/, 'Vercel'],
+  [/netlify/, 'Netlify'],
+  [/awsdns|amazonaws/, 'AWS'],
+  [/azure|microsoftonline/, 'Microsoft Azure'],
+  [/googledomains|google\.com|gcp/, 'Google'],
+  [/hostgator/, 'HostGator'],
+  [/hostinger/, 'Hostinger'],
+  [/locaweb/, 'Locaweb'],
+  [/uolhost|uol\.com/, 'UOL Host'],
+  [/kinghost/, 'KingHost'],
+  [/registro\.br|dns\.br/, 'Registro.br (DNS gratuito)'],
+  [/godaddy|domaincontrol/, 'GoDaddy'],
+  [/wixdns/, 'Wix'],
+  [/squarespace/, 'Squarespace'],
+  [/shopify/, 'Shopify'],
+  [/digitalocean/, 'DigitalOcean'],
+];
+
 const identifyProvider = (hostnames: string[]): string | null => {
   const joined = hostnames.join(' ').toLowerCase();
-  const table: [RegExp, string][] = [
-    [/cloudflare/, 'Cloudflare'],
-    [/vercel/, 'Vercel'],
-    [/netlify/, 'Netlify'],
-    [/awsdns|amazonaws/, 'AWS'],
-    [/azure|microsoftonline/, 'Microsoft Azure'],
-    [/googledomains|google\.com|gcp/, 'Google'],
-    [/hostgator/, 'HostGator'],
-    [/hostinger/, 'Hostinger'],
-    [/locaweb/, 'Locaweb'],
-    [/uolhost|uol\.com/, 'UOL Host'],
-    [/kinghost/, 'KingHost'],
-    [/registro\.br|dns\.br/, 'Registro.br (DNS gratuito)'],
-    [/godaddy|domaincontrol/, 'GoDaddy'],
-    [/wixdns/, 'Wix'],
-    [/squarespace/, 'Squarespace'],
-    [/shopify/, 'Shopify'],
-    [/digitalocean/, 'DigitalOcean'],
-  ];
-  for (const [pattern, name] of table) if (pattern.test(joined)) return name;
+
+  for (const [pattern, name] of PROVIDER_TABLE) if (pattern.test(joined)) return name;
   return null;
 };
 
