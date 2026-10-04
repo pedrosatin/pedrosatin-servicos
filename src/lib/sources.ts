@@ -113,9 +113,18 @@ const resolveApexDns = async (domain: string, dns: DnsReport) => {
   }
 
   try {
-    const apexDns = await fetchDns(apex);
-    if (apexDns.mx.length > 0) {
-      return { activeDns: apexDns, targetDomain: apex };
+    const [apexMxRecords, apexTxtRecords] = await Promise.all([
+      resolveRecord(apex, 'MX'),
+      resolveRecord(apex, 'TXT'),
+    ]);
+
+    const apexMx = apexMxRecords.filter((r) => r.type === 15).map((r) => r.data);
+    if (apexMx.length > 0) {
+      const apexTxt = apexTxtRecords.filter((r) => r.type === 16).map((r) => stripQuotes(r.data));
+      return {
+        activeDns: { ...dns, mx: apexMx, txt: apexTxt },
+        targetDomain: apex,
+      };
     }
   } catch {
     // mantém dns original
