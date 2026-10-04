@@ -441,7 +441,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (request.method !== 'GET') return json({ error: 'Método não permitido' }, 405, headers);
 
-    const clientIp = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+    const clientIp = request.headers.get('cf-connecting-ip') ?? 'unknown';
 
     // Probabilistic cleanup (10% chance)
     if ((crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) < 0.1) {
