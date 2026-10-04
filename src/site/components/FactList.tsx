@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface Fact {
+interface Fact {
   label: string;
   value: string;
 }
