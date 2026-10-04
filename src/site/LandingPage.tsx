@@ -60,16 +60,19 @@ export const LandingPage: React.FC = () => {
 
   const grouped = useMemo(() => {
     if (!result) return [];
+    const groups: [Finding['area'], Finding[]][] = [];
     const map = new Map<Finding['area'], Finding[]>();
     for (const finding of result.findings) {
       let list = map.get(finding.area);
-      if (!list) {
-        list = [];
+      if (list === undefined) {
+        list = [finding];
         map.set(finding.area, list);
+        groups.push([finding.area, list]);
+      } else {
+        list.push(finding);
       }
-      list.push(finding);
     }
-    return [...map.entries()];
+    return groups;
   }, [result]);
 
   const run = async (target: string): Promise<void> => {
