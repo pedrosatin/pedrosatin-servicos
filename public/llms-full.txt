@@ -70,3 +70,4 @@ O trabalho abrange principalmente TypeScript e o ecossistema web moderno: React,
 - pedrosatin.com: Portfólio de engenharia em Astro, HTML estático servido por CDN e indexado no Google e Bing.
 - silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, responsivo e presente na busca.
 - palpitae.com.br: Plataforma web de bolões de futebol desenvolvida em Vite e Cloudflare.
+- https://kpopquiz.online: site bilíngue de jogos diários e perguntas em Astro e Preact com domínio próprio.
