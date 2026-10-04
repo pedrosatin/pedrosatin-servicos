@@ -100,48 +100,70 @@ export const fetchDns = async (domain: string): Promise<DnsReport> => {
   };
 };
 
+const resolveApexDns = async (domain: string, dns: DnsReport) => {
+  if (dns.mx.length > 0) {
+    return { activeDns: dns, targetDomain: domain };
+  }
+
+  const apex = getApexDomain(domain);
+  if (apex === domain) {
+    return { activeDns: dns, targetDomain: domain };
+  }
+
+  try {
+    const [apexMxRecords, apexTxtRecords] = await Promise.all([
+      resolveRecord(apex, 'MX'),
+      resolveRecord(apex, 'TXT'),
+    ]);
+
+    const apexMx = apexMxRecords.filter((r) => r.type === 15).map((r) => r.data);
+    if (apexMx.length > 0) {
+      const apexTxt = apexTxtRecords.filter((r) => r.type === 16).map((r) => stripQuotes(r.data));
+      return {
+        activeDns: { ...dns, mx: apexMx, txt: apexTxt },
+        targetDomain: apex,
+      };
+    }
+  } catch {
+    // mantém dns original
+  }
+
+  return { activeDns: dns, targetDomain: domain };
+};
+
 export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<EmailAuthReport> => {
-  let activeMx = dns.mx;
-  let activeTxt = dns.txt;
-  let targetDomain = domain;
+  const { activeDns, targetDomain } = await resolveApexDns(domain, dns);
 
-  if (activeMx.length === 0) {
-    const apex = getApexDomain(domain);
-    if (apex !== domain) {
-      try {
-        const [apexMxRecords, apexTxtRecords] = await Promise.all([
-          resolveRecord(apex, 'MX'),
-          resolveRecord(apex, 'TXT')
-        ]);
+  const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
 
-        const apexMx = apexMxRecords.filter((r) => r.type === 15).map((r) => r.data);
-        if (apexMx.length > 0) {
-          activeMx = apexMx;
-          activeTxt = apexTxtRecords.filter((r) => r.type === 16).map((r) => stripQuotes(r.data));
-          targetDomain = apex;
-        }
-      } catch {
-        // mantém dns original
+  let dmarc: string | null = null;
+  for (const r of dmarcRecords) {
+    if (r.type === 16) {
+      const value = stripQuotes(r.data);
+      if (value.toLowerCase().startsWith('v=dmarc1')) {
+        dmarc = value;
+        break;
       }
     }
   }
 
-  const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
-  const dmarc =
-    dmarcRecords
-      .filter((r) => r.type === 16)
-      .map((r) => stripQuotes(r.data))
-      .find((value) => value.toLowerCase().startsWith('v=dmarc1')) ?? null;
-
-  const spf = activeTxt.find((value) => value.toLowerCase().startsWith('v=spf1')) ?? null;
+  let spf: string | null = null;
+  for (const value of activeDns.txt) {
+    if (value.toLowerCase().startsWith('v=spf1')) {
+      spf = value;
+      break;
+    }
+  }
 
   const policyMatch = dmarc ? /\bp\s*=\s*(none|quarantine|reject)/i.exec(dmarc) : null;
 
   return {
-    hasMx: activeMx.length > 0,
-    mxProvider: identifyProvider(activeMx),
+    hasMx: activeDns.mx.length > 0,
+    mxProvider: identifyProvider(activeDns.mx),
     spf,
     dmarc,
+    // O grupo 1 existe sempre que a expressão casa, mas o tipo de `exec` não
+    // sabe disso; `?? null` evita a asserção não verificada.
     dmarcPolicy: (policyMatch?.[1]?.toLowerCase() as 'none' | 'quarantine' | 'reject') ?? null,
   };
 };
