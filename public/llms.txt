@@ -28,6 +28,7 @@ Pedro Satin é engenheiro de software e professor universitário no Paraná, Bra
 - https://pedrosatin.com: Portfólio de engenharia em Astro, leve e indexado.
 - https://silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, 100% responsivo e indexado em buscas locais.
 - https://palpitae.com.br: Plataforma web de bolões de futebol em Vite e Cloudflare.
+- https://kpopquiz.online: site bilíngue de jogos diários e desafios de perguntas sobre música pop coreana, construído em Astro e Preact.
 
 ## Links complementares
 - Detalhamento completo e FAQ: https://servicos.pedrosatin.com/llms-full.txt

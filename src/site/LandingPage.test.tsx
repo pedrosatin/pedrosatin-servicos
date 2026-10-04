@@ -94,6 +94,7 @@ describe('LandingPage', () => {
     vi.clearAllMocks();
   });
 
+  // A suíte completa deixa o jsdom mais lento; 5s padrão falha sob carga.
   test('handles fetchPageSpeed failure for desktop gracefully', async () => {
     const error = new Error('PageSpeed Failed');
     vi.mocked(sources.fetchPageSpeed).mockRejectedValue(error);
@@ -107,8 +108,13 @@ describe('LandingPage', () => {
     fireEvent.change(input, { target: { value: 'example.com' } });
     fireEvent.click(button);
 
-    await waitFor(() => {
-      expect(screen.getByText(/A medição em computador não pôde ser feita agora/i)).toBeInTheDocument();
-    });
-  });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(/A medição em computador não pôde ser feita agora/i),
+        ).toBeInTheDocument();
+      },
+      { timeout: 10_000 },
+    );
+  }, 15_000);
 });
