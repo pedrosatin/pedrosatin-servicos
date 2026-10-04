@@ -79,20 +79,12 @@ export interface PageSpeedReport {
 }
 
 /**
- * O payload de auditoria (`HtmlReport`, `ContentReport` e suas partes) tem uma
- * fonte única em `shared/report-types.ts`, consumida também pelo Worker. Mudar
- * um campo lá quebra o `typecheck` dos dois lados. `ContentReport` é o nome do
- * front para o `AuditResponse` que o Worker devolve.
+ * O payload de auditoria (`HtmlReport`, `ContentReport`) tem uma fonte única em
+ * `shared/report-types.ts`, consumida também pelo Worker. Mudar um campo lá
+ * quebra o `typecheck` dos dois lados. `ContentReport` é o nome do front para
+ * o `AuditResponse` que o Worker devolve.
  */
-export type {
-  HtmlReport,
-  ImageStats,
-  ScriptStats,
-  RobotsReport,
-  RedirectHop,
-  SecurityHeaders,
-  SitemapReport,
-} from '../../shared/report-types';
+export type { HtmlReport } from '../../shared/report-types';
 export type { AuditResponse as ContentReport } from '../../shared/report-types';
 
 export type Severity = 'critical' | 'warning' | 'good' | 'info';

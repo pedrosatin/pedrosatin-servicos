@@ -11,12 +11,7 @@
  */
 import type { HtmlReport, ImageStats, ScriptStats, RobotsReport } from '../../shared/report-types.ts';
 
-export type {
-  HtmlReport,
-  ImageStats,
-  ScriptStats,
-  RobotsReport,
-} from '../../shared/report-types.ts';
+export type { HtmlReport, RobotsReport } from '../../shared/report-types.ts';
 
 const ENTITY_MAP: Record<string, string> = {
   '&nbsp;': ' ',
