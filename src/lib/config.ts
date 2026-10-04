@@ -70,6 +70,12 @@ export const CASE_STUDIES: CaseStudy[] = [
     segment: 'Aplicação web',
     summary: 'Plataforma de bolões de futebol em Vite e Cloudflare com domínio próprio.',
   },
+  {
+    domain: 'kpopquiz.online',
+    name: 'K-pop Quiz',
+    segment: 'Jogos web',
+    summary: 'Site bilíngue de jogos diários e perguntas em Astro e Preact com domínio próprio.',
+  },
 ];
 
 /** Extensões .br mais comuns para aplicações, empresas e profissionais. */
