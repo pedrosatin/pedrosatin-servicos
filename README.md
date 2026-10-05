@@ -110,6 +110,14 @@ searchable part of the page, didn't exist for crawlers at all.
    `servicos.pedrosatin.com` itself. That's the test that matters, since the
    tool and the site hosting it get judged by the same standard.
 
+## Author
+
+Criado por [@pedrosatin](https://github.com/pedrosatin)
+
+## Contributing
+
+Issues and suggestions are welcome; please [open an issue](https://github.com/pedrosatin/pedrosatin-servicos/issues).
+
 ## License
 
 MIT. See [LICENSE](./LICENSE).
