@@ -264,6 +264,29 @@ describe('worker index helpers', () => {
         isIndex: false,
       });
     });
+
+    it('rejects internal IP and host sitemap candidates from robots.txt', async () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+
+      // Mock robots.txt with internal/cloud metadata sitemap
+      fetchMock.mockImplementationOnce(() =>
+        Promise.resolve({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              'User-agent: *\nAllow: /\nSitemap: http://169.254.169.254/latest/meta-data/\nSitemap: http://10.0.0.1/sitemap.xml',
+            ),
+        } as unknown as Response),
+      );
+
+      // Same-origin fallback fails
+      fetchMock.mockImplementationOnce(() => Promise.reject(new Error('404')));
+
+      const result = await auditRobotsAndSitemap('https://example.com');
+      expect(result.sitemap.found).toBe(false);
+      expect(result.sitemap.url).toBeNull();
+    });
   });
 
   describe('allowedOrigins', () => {

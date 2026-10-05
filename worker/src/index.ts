@@ -286,8 +286,14 @@ export const auditRobotsAndSitemap = async (
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
+  const originHost = new URL(origin).hostname;
   const promises = candidates.slice(0, 3).map(async (candidate) => {
     try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+      if (isInternalIp(parsed.hostname)) return null;
+      if (parsed.hostname !== originHost && (await isInternalHost(parsed.hostname))) return null;
+
       const response = await fetchWithTimeout(candidate);
       if (!response.ok) return null;
       const xml = await response.text();
