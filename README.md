@@ -116,8 +116,7 @@ Criado por [@pedrosatin](https://github.com/pedrosatin)
 
 ## Contributing
 
-Issues and suggestions are welcome at
-https://github.com/pedrosatin/pedrosatin-servicos/issues.
+Issues and suggestions are welcome; please [open an issue](https://github.com/pedrosatin/pedrosatin-servicos/issues).
 
 ## License
 
