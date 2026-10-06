@@ -1,6 +1,9 @@
 import type { AuditResult, Finding, ContentReport, HtmlReport } from "../types";
 import { kb } from "./utils";
 
+/** Teto de leitura do HTML no Worker. Acima disso o tamanho real é desconhecido. */
+const LIMITE_LEITURA_HTML = 3_000_000;
+
 const NOINDEX_ACTION_MESSAGE =
   "Essa tag remove a página dos resultados do Google mesmo que todo o resto esteja correto. Costuma ser resquício de ambiente de testes.";
 
@@ -48,7 +51,17 @@ const checkSitemap = (
   push: (finding: Finding) => void,
 ): void => {
   if (content) {
-    if (!content.sitemap.found) {
+    if (!content.sitemap.found && content.sitemap.error) {
+      push({
+        id: "sitemap-nao-verificado",
+        area: "indexacao",
+        severity: "info",
+        title: "Não foi possível verificar o sitemap",
+        evidence: content.sitemap.error,
+        action:
+          "A consulta falhou antes de receber resposta. Vale rodar a análise de novo antes de concluir que o sitemap não existe.",
+      });
+    } else if (!content.sitemap.found) {
       push({
         id: "sitemap-ausente",
         area: "indexacao",
@@ -317,7 +330,7 @@ const checkAssets = (
       area: "desempenho",
       severity: "warning",
       title: "HTML muito grande",
-      evidence: `O documento tem ${kb(html.bytes)} antes de imagens, scripts e estilos.`,
+      evidence: `O documento tem ${html.bytes >= LIMITE_LEITURA_HTML ? `mais de ${kb(LIMITE_LEITURA_HTML)}` : kb(html.bytes)} antes de imagens, scripts e estilos.`,
       action:
         "Documentos acima de 500 KB atrasam a primeira renderização em redes móveis.",
     });

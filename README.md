@@ -95,11 +95,17 @@ searchable part of the page, didn't exist for crawlers at all.
 
 1. **Worker first.** Set `ALLOWED_ORIGINS` in `worker/wrangler.toml` to the
    final origins and run `npm run worker:deploy`. Note the generated URL.
-2. **PageSpeed key.** Store it with `cd worker && npx wrangler secret put PSI_KEY`.
-   Restrict it to the PageSpeed API and set provider quotas. A key previously
-   published in a browser bundle should be rotated. Without a key, the proxy
-   uses the provider's anonymous quota. Existing `VITE_PSI_KEY` settings no longer
-   enter browser builds.
+   CI also publishes the Worker before Pages, because the site calls the
+   Worker's `/pagespeed` route.
+2. **PageSpeed key.** `PSI_KEY` is required in production. The deploy
+   workflow copies the repository secret `PSI_KEY` (falling back to the old
+   `VITE_PSI_KEY`) into the Worker before publishing it; by hand, run
+   `cd worker && npx wrangler secret put PSI_KEY`. Without a key the Worker
+   falls back to Google's anonymous quota, shared across Cloudflare egress IPs,
+   which usually answers 429. The previous key shipped in browser bundles:
+   create a new one restricted to the PageSpeed Insights API with a quota,
+   store it as `PSI_KEY`, revoke the old one, and remove `VITE_PSI_KEY` from
+   GitHub secrets and Pages variables.
 3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker URL.
 4. **Build and publish.** Command `npm run build`, output directory `dist`.
 5. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,

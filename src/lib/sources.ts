@@ -274,9 +274,14 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
  * Conteúdo do site (via Worker)
  * ------------------------------------------------------------------ */
 
+/** Mensagem do limite por IP do Worker, separado do limite de uso do Google. */
+const MENSAGEM_LIMITE_DO_WORKER =
+  'Muitas análises seguidas a partir da sua conexão. Aguarde um minuto e tente de novo.';
+
 export const fetchContent = async (domain: string): Promise<ContentReport> => {
   const res = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
   if (!res.ok) {
+    if (res.status === 429) throw new Error(MENSAGEM_LIMITE_DO_WORKER);
     if (res.status === 400 || res.status === 403) {
       // Worker detectou IP interno, localhost ou URL malformada.
       throw new Error('Domínio inválido ou inacessível.');
@@ -312,6 +317,8 @@ interface PsiLoadingExperience {
 
 interface PsiResponse {
   error?: { message: string; code: number };
+  /** `rate_limited` quando quem recusou foi o limitador do Worker, não o Google. */
+  code?: string;
   lighthouseResult?: {
     categories?: Record<string, { score?: number | null }>;
     audits?: Record<string, PsiAudit>;
@@ -423,6 +430,17 @@ const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeed
       return { success: true, data, response };
     }
 
+    // O limite do Worker vale por um minuto inteiro: repetir em 5 ou 10 s só
+    // gastaria a mesma janela.
+    if (response.status === 429 && data.code === 'rate_limited') {
+      return {
+        success: false,
+        erro: new Error(MENSAGEM_LIMITE_DO_WORKER),
+        isDefinitivo: true,
+        isLimiteDeUso: true,
+      };
+    }
+
     const status = data.error?.code ?? response.status;
     return {
       success: false,
@@ -450,6 +468,8 @@ const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeed
  *
  *  - 500/502/503 e falha de rede: o caso comum, repetir resolve;
  *  - 429: é limite de uso. Repetir rápido piora, então a espera é maior;
+ *  - 429 com `code: rate_limited`: é o limite por IP do Worker, que dura um
+ *    minuto. Repetir dentro da mesma janela não adianta;
  *  - 400/403/404: a resposta não muda na segunda tentativa (endereço inválido,
  *    chave bloqueada). Repetir só faria o visitante esperar o dobro para
  *    receber o mesmo erro.

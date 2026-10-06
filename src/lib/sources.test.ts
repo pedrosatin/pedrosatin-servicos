@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchRegistration, fetchEmailAuth, fetchPageSpeed, fetchContent } from './sources';
 import type { DnsReport } from './types';
+import { AUDIT_ENDPOINT } from './config';
 
 describe('sources', () => {
   const originalFetch = globalThis.fetch;
@@ -286,6 +287,17 @@ describe('sources', () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('url=example.com'));
     });
 
+    it('should explain the Worker rate limit on 429', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+      } as unknown as Response);
+
+      await expect(fetchContent('example.com')).rejects.toThrow(
+        'Muitas análises seguidas a partir da sua conexão.'
+      );
+    });
+
     it('should throw a specific error when response status is 403', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
@@ -374,6 +386,34 @@ describe('sources', () => {
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
       expect(result.scores.performance).toBe(95);
+    });
+
+    it('calls the Worker /pagespeed route without a key', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ lighthouseResult: { categories: {} } }),
+      } as unknown as Response);
+
+      await fetchPageSpeed('example.com', 'desktop');
+
+      const called = new URL(String(vi.mocked(globalThis.fetch).mock.calls[0]?.[0]));
+      expect(`${called.origin}${called.pathname}`).toBe(`${AUDIT_ENDPOINT.replace(/\/$/, '')}/pagespeed`);
+      expect(called.searchParams.get('domain')).toBe('https://example.com');
+      expect(called.searchParams.get('strategy')).toBe('desktop');
+      expect(called.searchParams.has('key')).toBe(false);
+      expect(String(vi.mocked(globalThis.fetch).mock.calls[0]?.[0])).not.toContain('googleapis.com');
+    });
+
+    it('stops at the Worker rate limit with its own message instead of retrying', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: 'Muitas requisições. Tente novamente mais tarde.', code: 'rate_limited' }),
+      } as unknown as Response);
+
+      await expect(fetchPageSpeed('example.com')).rejects.toThrow('Muitas análises seguidas a partir da sua conexão.');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('should handle definitive HTTP 400 error immediately without endless retries', async () => {
