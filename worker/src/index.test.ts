@@ -388,7 +388,11 @@ describe('PageSpeed proxy', () => {
     const text = await response.text();
     expect(text).toBe(psiBody);
     expect(text).not.toContain('synthetic-test-secret');
-    expect(siteCalls(mock).some((url) => url.includes('key=synthetic-test-secret'))).toBe(true);
+    const google = mock.mock.calls.find(([url]) => String(url).includes('pagespeedonline'));
+    expect(String(google?.[0])).not.toContain('synthetic-test-secret');
+    const sent = new Headers(google?.[1]?.headers);
+    expect(sent.get('x-goog-api-key')).toBe('synthetic-test-secret');
+    expect(sent.get('referer')).toBe('https://servicos.pedrosatin.com/');
   });
 
   it('passes the Google status through without the provider body', async () => {
