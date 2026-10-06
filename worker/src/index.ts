@@ -173,7 +173,7 @@ const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> =
   const res = await fetch(url, {
     headers: { accept: 'application/dns-json' },
     signal: AbortSignal.timeout(3_000),
-    redirect: 'error',
+    redirect: 'manual',
   });
   if (!res.ok) throw new Error('Falha ao verificar o DNS do destino.');
   const data = JSON.parse((await readBodyLimited(res, 64_000)).text) as DohResponse;
@@ -536,7 +536,7 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
   if (env.PSI_KEY) params.set('key', env.PSI_KEY);
   try {
     const response = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(PAGESPEED_TIMEOUT_MS),
     });
     if (!response.ok) {

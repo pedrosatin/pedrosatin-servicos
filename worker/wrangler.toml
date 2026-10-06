@@ -1,5 +1,5 @@
 name = "pedrosatin-audit"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-08-18"
 
 workers_dev = true
