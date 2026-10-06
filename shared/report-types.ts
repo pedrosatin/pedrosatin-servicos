@@ -75,6 +75,8 @@ export interface SitemapReport {
   url: string | null;
   urlCount: number | null;
   isIndex: boolean;
+  /** Presente quando a consulta falhou e a ausência não foi confirmada. */
+  error?: string;
 }
 
 /**

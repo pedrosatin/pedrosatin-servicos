@@ -6,14 +6,14 @@ whatever same-origin policy stops the browser from reading directly.
 
 ```bash
 npm install
-cp .env.example .env   # fill in VITE_PSI_KEY
+cp .env.example .env   # set the Worker URL
 
 npm run worker:dev     # audit backend at http://localhost:8787
 npm run dev            # site at http://localhost:5173
 ```
 
-Stick to port **5173**. The PageSpeed key is restricted by referrer, and the
-Worker rejects any origin not listed in `ALLOWED_ORIGINS`.
+Use port **5173**. The Worker rejects origins outside `ALLOWED_ORIGINS`.
+PageSpeed requests go through the Worker, which keeps `PSI_KEY` out of browser assets.
 
 ## Structure
 
@@ -95,12 +95,18 @@ searchable part of the page, didn't exist for crawlers at all.
 
 1. **Worker first.** Set `ALLOWED_ORIGINS` in `worker/wrangler.toml` to the
    final origins and run `npm run worker:deploy`. Note the generated URL.
-2. **PageSpeed key.** In the Google console, restrict the referrer to only
-   `servicos.pedrosatin.com/*` and the `localhost:5173` used for
-   development.
-3. **Site variables.** In Cloudflare Pages, set `VITE_AUDIT_ENDPOINT` to the
-   Worker URL and `VITE_PSI_KEY` to the key. Both end up in the browser
-   bundle, which is fine because the key is referrer-restricted.
+   CI also publishes the Worker before Pages, because the site calls the
+   Worker's `/pagespeed` route.
+2. **PageSpeed key.** `PSI_KEY` is required in production. The deploy
+   workflow copies the repository secret `PSI_KEY` (falling back to the old
+   `VITE_PSI_KEY`) into the Worker before publishing it; by hand, run
+   `cd worker && npx wrangler secret put PSI_KEY`. Without a key the Worker
+   falls back to Google's anonymous quota, shared across Cloudflare egress IPs,
+   which usually answers 429. The previous key shipped in browser bundles:
+   create a new one restricted to the PageSpeed Insights API with a quota,
+   store it as `PSI_KEY`, revoke the old one, and remove `VITE_PSI_KEY` from
+   GitHub secrets and Pages variables.
+3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker URL.
 4. **Build and publish.** Command `npm run build`, output directory `dist`.
 5. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,
    and cache rules. When the Worker moves to its own domain, swap

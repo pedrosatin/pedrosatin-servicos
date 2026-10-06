@@ -51,6 +51,22 @@ describe('buildContentFindings', () => {
     );
   });
 
+  it('reports an unverified sitemap instead of a missing one when the lookup failed', () => {
+    const push = vi.fn();
+    const result = {
+      content: {
+        sitemap: { found: false, url: null, urlCount: null, isIndex: false, error: 'Não foi possível consultar o sitemap.' },
+      },
+    } as unknown as AuditResult;
+
+    buildContentFindings(result, push);
+
+    expect(push).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sitemap-nao-verificado', severity: 'info' })
+    );
+    expect(push).not.toHaveBeenCalledWith(expect.objectContaining({ id: 'sitemap-ausente' }));
+  });
+
   it('identifies valid sitemap', () => {
     const push = vi.fn();
     const result = {
@@ -415,6 +431,21 @@ describe('buildContentFindings', () => {
 
     expect(push).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'html-pesado', severity: 'warning' })
+    );
+  });
+  it('says the HTML is larger than the read ceiling when the Worker truncated it', () => {
+    const push = vi.fn();
+    const result = {
+      content: {
+        sitemap: { found: true },
+        html: { h1: ['A'], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: { title: 'A', image: 'B' }, title: 'A', metaDescription: 'B', canonical: 'C', wordCount: 300, viewport: 'width=device-width', lang: 'pt', bytes: 3_000_000 }
+      },
+    } as unknown as AuditResult;
+
+    buildContentFindings(result, push);
+
+    expect(push).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'html-pesado', evidence: expect.stringContaining('mais de 2.9 MB') })
     );
   });
 });
