@@ -15,6 +15,7 @@ import type { AuditResponse, RedirectHop, RobotsReport } from '../../shared/repo
 
 interface Env {
   ALLOWED_ORIGINS?: string;
+  PSI_KEY?: string;
 }
 
 const DEFAULT_ORIGINS = [
@@ -100,41 +101,41 @@ const isInternalIp = (hostname: string): boolean => {
 };
 
 interface DohResponse {
-  Answer?: { data: string }[];
+  Status?: number;
+  Answer?: { type: number; data: string }[];
 }
 
 const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
-  try {
-    const url = new URL('https://cloudflare-dns.com/dns-query');
-    url.searchParams.set('name', name);
-    url.searchParams.set('type', type);
-    const res = await fetch(url.toString(), {
-      headers: { accept: 'application/dns-json' },
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as DohResponse;
-    return (data.Answer || []).map((a) => a.data);
-  } catch {
-    return [];
-  }
+  const url = new URL('https://cloudflare-dns.com/dns-query');
+  url.searchParams.set('name', name);
+  url.searchParams.set('type', type);
+  const res = await fetch(url, {
+    headers: { accept: 'application/dns-json' },
+    signal: AbortSignal.timeout(3_000),
+    redirect: 'error',
+  });
+  if (!res.ok) throw new Error('Falha ao verificar o DNS do destino.');
+  const data = JSON.parse((await readBodyLimited(res, 64_000)).text) as DohResponse;
+  if (data.Status !== 0) throw new Error('DNS do destino não foi confirmado.');
+  return (data.Answer ?? []).filter((a) => a.type === (type === 'A' ? 1 : 28)).map((a) => a.data);
 };
 
 export const isInternalHost = async (hostname: string): Promise<boolean> => {
-  // Ignora se for IP (já avaliado) e resolve domínio
   if (isInternalIp(hostname)) return true;
-
-  const [ipv4s, ipv6s] = await Promise.all([
-    resolveDoh(hostname, 'A'),
-    resolveDoh(hostname, 'AAAA'),
-  ]);
-
-  for (const ip of ipv4s) {
-    if (isInternalIp(ip)) return true;
+  if (/^[0-9.]+$/.test(hostname)) return false;
+  try {
+    const answers = (await Promise.all([resolveDoh(hostname, 'A'), resolveDoh(hostname, 'AAAA')])).flat();
+    return answers.length === 0 || answers.some(isInternalIp);
+  } catch {
+    return true;
   }
-  for (const ip of ipv6s) {
-    if (isInternalIp(ip)) return true;
+};
+
+const validateTarget = async (url: URL): Promise<void> => {
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port ||
+      !url.hostname.includes('.') || await isInternalHost(url.hostname)) {
+    throw new Error('Destino público HTTP inválido ou DNS não confirmado.');
   }
-  return false;
 };
 
 /** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
@@ -144,9 +145,7 @@ export const normalizeTarget = async (raw: string): Promise<URL | null> => {
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
     const url = new URL(withScheme);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    if (!url.hostname.includes('.')) return null;
-    if (await isInternalHost(url.hostname)) return null;
+    await validateTarget(url);
     return url;
   } catch {
     return null;
@@ -154,23 +153,19 @@ export const normalizeTarget = async (raw: string): Promise<URL | null> => {
 };
 
 export const fetchWithTimeout = async (url: string, init: RequestInit = {}): Promise<Response> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        'user-agent': USER_AGENT,
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'accept-encoding': 'gzip, deflate, br, zstd',
-        'accept-language': 'pt-BR,pt;q=0.9',
-        ...(init.headers as Record<string, string> | undefined),
-      },
-    });
-  } finally {
-    clearTimeout(timer);
-  }
+  await validateTarget(new URL(url));
+  // The same signal covers headers and body. The Worker runtime blocks private egress;
+  // DNS validation alone cannot pin the resolver used by fetch across a DNS change.
+  return fetch(url, {
+    method: 'GET',
+    redirect: 'manual',
+    signal: init.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    headers: {
+      'user-agent': USER_AGENT,
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'pt-BR,pt;q=0.9',
+    },
+  });
 };
 
 /** Segue redirects manualmente para expor a cadeia inteira ao cliente. */
@@ -180,22 +175,19 @@ const followRedirects = async (
   const hops: RedirectHop[] = [];
   let current = start.toString();
   const began = Date.now();
+  const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
 
   for (let i = 0; i < 6; i += 1) {
-    const response = await fetchWithTimeout(current, { redirect: 'manual' });
+    const response = await fetchWithTimeout(current, { signal });
     const location = response.headers.get('location');
 
     if (response.status >= 300 && response.status < 400 && location) {
+      await response.body?.cancel();
       const next = new URL(location, current);
       // O destino de um redirecionamento é escolhido pelo site auditado, não
       // por quem pediu a análise. Sem revalidar aqui, um site poderia mandar o
       // Worker buscar um endereço da rede interna.
-      if (next.protocol !== 'https:' && next.protocol !== 'http:') {
-        throw new Error(`Redirecionamento para um esquema não suportado: ${next.protocol}`);
-      }
-      if (await isInternalHost(next.hostname)) {
-        throw new Error('O site redireciona para um endereço de rede interna.');
-      }
+      await validateTarget(next);
       hops.push({ url: current, status: response.status, location });
       current = next.toString();
       continue;
@@ -212,6 +204,7 @@ export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | nul
   try {
     const response = await fetchWithTimeout(`http://${hostname}/`, { redirect: 'manual' });
     const location = response.headers.get('location');
+    await response.body?.cancel();
     if (response.status >= 300 && response.status < 400 && location) {
       return new URL(location, `http://${hostname}/`).protocol === 'https:';
     }
@@ -221,49 +214,33 @@ export const checkHttpsUpgrade = async (hostname: string): Promise<boolean | nul
   }
 };
 
-const readBodyLimited = async (response: Response): Promise<{ text: string; bytes: number }> => {
-  if (!response.body) {
-    const buffer = await response.arrayBuffer();
-    const bytes = buffer.byteLength;
-    const slice = bytes > MAX_HTML_BYTES ? buffer.slice(0, MAX_HTML_BYTES) : buffer;
-    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
-    // seria pior para quem está sendo auditado. É o comportamento padrão.
-    return { text: new TextDecoder('utf-8').decode(slice), bytes };
-  }
-
+export const readBodyLimited = async (
+  response: Response, limit = MAX_HTML_BYTES, timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<{ text: string; bytes: number }> => {
+  if (!response.body) return { text: '', bytes: 0 };
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const aborted = () => { void reader.cancel().catch(() => {}); };
+  deadline.addEventListener('abort', aborted, { once: true });
   let text = '';
   let bytes = 0;
-
   try {
-    while (true) {
+    while (bytes < limit) {
       const { done, value } = await reader.read();
+      deadline.throwIfAborted();
       if (done) break;
-
-      const chunkLength = value.length;
-
-      if (bytes < MAX_HTML_BYTES) {
-        const remaining = MAX_HTML_BYTES - bytes;
-        if (chunkLength <= remaining) {
-          text += decoder.decode(value, { stream: true });
-        } else {
-          text += decoder.decode(value.subarray(0, remaining), { stream: true });
-        }
-      }
-
-      bytes += chunkLength;
+      const chunk = value.subarray(0, limit - bytes);
+      text += decoder.decode(chunk, { stream: true });
+      bytes += chunk.length;
     }
-    // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-    // lançar. Um HTML mal codificado ainda é analisável, e recusá-lo por isso
-    // seria pior para quem está sendo auditado. É o comportamento padrão.
     text += decoder.decode();
+    return { text, bytes };
   } finally {
+    deadline.removeEventListener('abort', aborted);
+    void reader.cancel().catch(() => {});
     reader.releaseLock();
   }
-
-  return { text, bytes };
 };
 
 export const auditRobotsAndSitemap = async (
@@ -272,8 +249,8 @@ export const auditRobotsAndSitemap = async (
   let robots: RobotsReport | null = null;
 
   try {
-    const response = await fetchWithTimeout(`${origin}/robots.txt`);
-    const body = await response.text();
+    const { response } = await followRedirects(new URL(`${origin}/robots.txt`));
+    const body = (await readBodyLimited(response, 128_000)).text;
     // Muitos servidores devolvem a home com status 200 no lugar de um 404.
     const looksLikeRobots = response.ok && !/<html/i.test(body.slice(0, 200));
     robots = looksLikeRobots ? parseRobots(body) : { found: false, blocksAll: false, sitemaps: [] };
@@ -286,17 +263,11 @@ export const auditRobotsAndSitemap = async (
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
-  const originHost = new URL(origin).hostname;
   const promises = candidates.slice(0, 3).map(async (candidate) => {
     try {
-      const parsed = new URL(candidate);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-      if (isInternalIp(parsed.hostname)) return null;
-      if (parsed.hostname !== originHost && (await isInternalHost(parsed.hostname))) return null;
-
-      const response = await fetchWithTimeout(candidate);
-      if (!response.ok) return null;
-      const xml = await response.text();
+      const { response } = await followRedirects(new URL(candidate));
+      if (!response.ok) { await response.body?.cancel(); return null; }
+      const xml = (await readBodyLimited(response, 1_000_000)).text;
       if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
       return {
         found: true as const,
@@ -414,7 +385,7 @@ const runAudit = async (input: string): Promise<AuditResponse> => {
   const finalOrigin = new URL(finalUrl).origin;
 
   const [{ text, bytes }, httpRedirectsToHttps, robotsAndSitemap] = await Promise.all([
-    readBodyLimited(response.clone()),
+    readBodyLimited(response),
     checkHttpsUpgrade(target.hostname),
     auditRobotsAndSitemap(finalOrigin),
   ]);
@@ -447,7 +418,12 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (request.method !== 'GET') return json({ error: 'Método não permitido' }, 405, headers);
 
-    const clientIp = request.headers.get('cf-connecting-ip') ?? 'unknown';
+    const clientIp = request.headers.get('cf-connecting-ip');
+    if (!clientIp) return json({ error: 'Endereço do cliente não confirmado.' }, 403, headers);
+    if (rateLimitCache.size >= 5000 && !rateLimitCache.has(clientIp)) {
+      for (const [key, value] of rateLimitCache) if (value.expiresAt <= Date.now()) rateLimitCache.delete(key);
+      if (rateLimitCache.size >= 5000) return json({ error: 'Serviço ocupado.' }, 429, headers);
+    }
 
     // Probabilistic cleanup (10% chance)
     if ((crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) < 0.1) {
@@ -461,7 +437,7 @@ export default {
       }
     }
 
-    if (clientIp !== 'unknown') {
+    {
       const now = Date.now();
       const record = rateLimitCache.get(clientIp);
 
@@ -488,6 +464,22 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === '/pagespeed') {
+      const domain = url.searchParams.get('domain') ?? '';
+      const target = await normalizeTarget(domain);
+      const strategy = url.searchParams.get('strategy') ?? 'mobile';
+      if (!target || !['mobile', 'desktop'].includes(strategy)) return json({ error: 'Destino inválido.' }, 400, headers);
+      const params = new URLSearchParams({ url: target.toString(), strategy });
+      for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) params.append('category', category);
+      if (env.PSI_KEY) params.set('key', env.PSI_KEY);
+      try {
+        const response = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, { redirect: 'error', signal: AbortSignal.timeout(45_000) });
+        const { text } = await readBodyLimited(response, 12_000_000, 45_000);
+        const body: unknown = JSON.parse(text);
+        if (!response.ok) return json({ error: 'PageSpeed indisponível.' }, response.status >= 400 && response.status < 600 ? response.status : 502, headers);
+        return json(body, 200, { ...headers, 'cache-control': 'no-store' });
+      } catch { return json({ error: 'PageSpeed indisponível.' }, 502, headers); }
+    }
     if (url.pathname !== '/audit') {
       return json({ error: 'Rota não encontrada. Use /audit?url=exemplo.com.br' }, 404, headers);
     }

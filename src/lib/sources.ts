@@ -6,7 +6,7 @@
  * orquestrador marca a etapa como falha em vez de inventar um valor.
  */
 
-import { AUDIT_ENDPOINT, PAGESPEED_KEY } from './config';
+import { AUDIT_ENDPOINT } from './config';
 import { getApexDomain } from './dominio';
 import type {
   ContentReport,
@@ -387,7 +387,7 @@ const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
   const timeout = setTimeout(() => controller.abort(), PAGESPEED_TIMEOUT_MS);
   try {
     return await fetch(
-      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`,
+      `${AUDIT_ENDPOINT.replace(/\/$/, '')}/pagespeed?${new URLSearchParams({ domain: params.get('url') ?? '', strategy: params.get('strategy') ?? 'mobile' })}`,
       { signal: controller.signal },
     );
   } finally {
@@ -543,7 +543,6 @@ export const fetchPageSpeed = async (
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) {
     params.append('category', category);
   }
-  if (PAGESPEED_KEY) params.set('key', PAGESPEED_KEY);
 
   const { data } = await buscarPageSpeedComRetentativas(params);
   return mapearPageSpeedReport(data, strategy);

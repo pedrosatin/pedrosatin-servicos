@@ -48,3 +48,21 @@ VITE_AUDIT_ENDPOINT=https://pedrosatin-audit.<seu-subdominio>.workers.dev
 - `robots.txt` (inclusive se bloqueia o site inteiro) e `sitemap.xml`
 - Contagem de palavras do HTML inicial — revela sites que dependem de
   JavaScript para exibir conteúdo
+
+## PageSpeed e limites HTTP
+
+`GET /pagespeed?domain=exemplo.com.br&strategy=mobile` usa a mesma lista de
+origens e limite por IP da auditoria. A chave opcional PSI_KEY fica no Worker.
+Configure com `npx wrangler secret put PSI_KEY`; para wrangler dev, use .dev.vars.
+O servidor Node local aceita PSI_KEY do ambiente e escuta somente em 127.0.0.1.
+
+Todas as saídas HTTP da auditoria verificam DNS público, protocolo e redirects.
+DNS inconclusivo recusa o destino. O Worker usa fetch da plataforma, que bloqueia
+redes privadas; a verificação DoH não fixa o IP usado pelo resolver de fetch.
+O teto de leitura é 3 MB para HTML, 128 KB para robots e 1 MB para cada sitemap.
+Cada cadeia tem até seis requests e deadline de 12 segundos para headers e body.
+O proxy PageSpeed usa destino fixo do Google, até 12 MB e 45 segundos.
+
+O limite de dez requests por minuto é por IP e por isolate do Worker. Ele reduz
+abuso casual; a cota no provedor deve limitar gastos globais, porque origens
+HTTP podem ser forjadas e o contador não é compartilhado entre regiões.

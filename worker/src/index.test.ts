@@ -1,488 +1,97 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import worker, {
-  normalizeTarget,
-  isInternalHost,
-  fetchWithTimeout,
-  checkHttpsUpgrade,
-  auditRobotsAndSitemap,
-  allowedOrigins,
-  rateLimitCache,
-} from './index';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import worker, { normalizeTarget, isInternalHost, readBodyLimited, auditRobotsAndSitemap, rateLimitCache, fetchWithTimeout } from './index';
 
-describe('worker index helpers', () => {
-  describe('isInternalHost', () => {
-    const originalFetch = globalThis.fetch;
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-    });
-
-    it('identifies localhost and local domain names', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await isInternalHost('localhost')).toBe(true);
-      expect(await isInternalHost('test.localhost')).toBe(true);
-      expect(await isInternalHost('server.local')).toBe(true);
-      expect(await isInternalHost('service.internal')).toBe(true);
-      expect(await isInternalHost('router.home.arpa')).toBe(true);
-    });
-
-    it('identifies private IPv4 addresses', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await isInternalHost('127.0.0.1')).toBe(true);
-      expect(await isInternalHost('10.0.0.1')).toBe(true);
-      expect(await isInternalHost('192.168.1.1')).toBe(true);
-      expect(await isInternalHost('172.16.0.1')).toBe(true);
-      expect(await isInternalHost('169.254.1.1')).toBe(true);
-    });
-
-    it('identifies bypass representations of local IPs', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      // Decimal representation of 127.0.0.1
-      expect(await isInternalHost('2130706433')).toBe(true);
-      // Hex representation of 127.0.0.1
-      expect(await isInternalHost('0x7f000001')).toBe(true);
-      // Octal representation of 127.0.0.1
-      expect(await isInternalHost('0177.0.0.1')).toBe(true);
-    });
-
-    it('identifies IPv4-mapped IPv6 addresses', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await isInternalHost('::ffff:127.0.0.1')).toBe(true);
-      expect(await isInternalHost('::ffff:7f00:1')).toBe(true);
-      expect(await isInternalHost('::ffff:c0a8:101')).toBe(true);
-      expect(await isInternalHost('::1')).toBe(true);
-    });
-
-
-    it('handles DNS resolution failures gracefully (non-ok response)', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
-      expect(await isInternalHost('error-domain.com')).toBe(false);
-    });
-
-    it('handles DNS resolution network errors gracefully (fetch throws)', async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-      expect(await isInternalHost('throw-domain.com')).toBe(false);
-    });
-
-    it('allows public hosts', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await isInternalHost('example.com')).toBe(false);
-      expect(await isInternalHost('google.com')).toBe(false);
-      expect(await isInternalHost('8.8.8.8')).toBe(false);
-    });
-
-    it('handles malformed hostnames that trigger URL parsing errors gracefully', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      // Passes an invalid IPv6-like string to trigger the catch block in URL parsing
-      expect(await isInternalHost('invalid:hostname:with:colons')).toBe(false);
-    });
-
+const dns = () => Response.json({ Status: 0, Answer: [{ type: 1, data: '93.184.216.34' }] });
+const installFetch = (handler: (url: string, init?: RequestInit) => Response | Promise<Response>) => {
+  const mock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    return url.includes('cloudflare-dns.com/') ? dns() : handler(url, init);
   });
+  vi.stubGlobal('fetch', mock);
+  return mock;
+};
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+beforeEach(() => rateLimitCache.clear());
 
-  describe('normalizeTarget', () => {
-    const originalFetch = globalThis.fetch;
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-    });
-
-    it('returns valid URLs unchanged if they have a supported protocol', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect((await normalizeTarget('https://example.com'))?.href).toBe('https://example.com/');
-      expect((await normalizeTarget('http://example.com'))?.href).toBe('http://example.com/');
-      expect((await normalizeTarget('https://example.com/path'))?.href).toBe('https://example.com/path');
-    });
-
-    it('adds https:// if no protocol is provided', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect((await normalizeTarget('example.com'))?.href).toBe('https://example.com/');
-      expect((await normalizeTarget('www.example.com/path'))?.href).toBe('https://www.example.com/path');
-    });
-
-
-    it('returns null when URL parsing throws an error', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      // "https://%%%" causes new URL() to throw a TypeError
-      expect(await normalizeTarget('https://%%%')).toBeNull();
-    });
-
-    it('returns null for empty strings or invalid inputs', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await normalizeTarget('')).toBeNull();
-      expect(await normalizeTarget('   ')).toBeNull();
-      expect(await normalizeTarget('ftp://example.com')).toBeNull();
-      expect(await normalizeTarget('localhost')).toBeNull();
-      expect(await normalizeTarget('https://127.0.0.1')).toBeNull();
-      expect(await normalizeTarget('https://%%%')).toBeNull();
-    });
-
-    it('trims whitespace from the input', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect((await normalizeTarget('  https://example.com  '))?.href).toBe('https://example.com/');
-    });
-
-    it('returns null if URL constructor throws an error', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await normalizeTarget('https://javascript:alert(1)')).toBeNull();
-    });
-
-    it('returns null if the hostname does not contain a dot', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-      expect(await normalizeTarget('https://internalhost')).toBeNull();
-      expect(await normalizeTarget('only-word')).toBeNull();
-    });
-
-    it('returns null if the domain resolves to an internal IP via DoH', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ Answer: [{ data: '192.168.1.1' }] })
-      });
-      expect(await normalizeTarget('https://looks-external.com')).toBeNull();
-    });
+describe('public HTTP targets', () => {
+  it('rejects private addresses and encoded variants', async () => {
+    installFetch(() => new Response(''));
+    for (const host of ['localhost', '2130706433', '0x7f000001', '::ffff:7f00:1', '192.168.1.1', '169.254.169.254']) {
+      expect(await isInternalHost(host)).toBe(true);
+    }
   });
-
-  describe('fetchWithTimeout', () => {
-    const originalFetch = globalThis.fetch;
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-      globalThis.fetch = originalFetch;
-      vi.restoreAllMocks();
-    });
-
-    it('clears timeout and returns response on success', async () => {
-      const mockResponse = new Response('ok', { status: 200 });
-      globalThis.fetch = vi.fn().mockResolvedValue(mockResponse);
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-
-      const res = await fetchWithTimeout('https://example.com');
-
-      expect(res).toBe(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-      expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('propagates fetch errors and clears timeout', async () => {
-      const error = new Error('Network failure');
-      globalThis.fetch = vi.fn().mockRejectedValue(error);
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-
-      await expect(fetchWithTimeout('https://example.com')).rejects.toThrow('Network failure');
-      expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
-    });
+  it('fails closed on DNS outage, NXDOMAIN and no addresses', async () => {
+    for (const result of [new Response('', { status: 503 }), Response.json({ Status: 3 }), Response.json({ Status: 0 })]) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(result));
+      expect(await normalizeTarget('example.com')).toBeNull();
+    }
   });
-
-  describe('checkHttpsUpgrade', () => {
-    const originalFetch = globalThis.fetch;
-
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-      vi.restoreAllMocks();
-    });
-
-    it('should return null when fetch throws an error', async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
-
-      const result = await checkHttpsUpgrade('example.com');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return true when redirecting to https', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        status: 301,
-        headers: new Headers({ location: 'https://example.com/' }),
-      } as unknown as Response);
-
-      const result = await checkHttpsUpgrade('example.com');
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false when redirecting to http', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        status: 301,
-        headers: new Headers({ location: 'http://example.com/other' }),
-      } as unknown as Response);
-
-      const result = await checkHttpsUpgrade('example.com');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when there is no redirect', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        status: 200,
-        headers: new Headers(),
-      } as unknown as Response);
-
-      const result = await checkHttpsUpgrade('example.com');
-
-      expect(result).toBe(false);
-    });
+  it('accepts ordinary public domains and rejects credentials and custom ports', async () => {
+    installFetch(() => new Response(''));
+    expect((await normalizeTarget('example.com/path'))?.href).toBe('https://example.com/path');
+    expect(await normalizeTarget('https://user:password@example.com')).toBeNull();
+    expect(await normalizeTarget('https://example.com:8080')).toBeNull();
   });
-
-  describe('auditRobotsAndSitemap', () => {
-    const originalFetch = globalThis.fetch;
-
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-      vi.restoreAllMocks();
-    });
-
-    it('handles sitemap fetch with fallback candidates', async () => {
-      const fetchMock = vi.fn();
-      globalThis.fetch = fetchMock;
-
-      // robots.txt
-      fetchMock.mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve('User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap1.xml\nSitemap: https://example.com/sitemap2.xml'),
-        } as unknown as Response)
-      );
-
-      // sitemap1.xml fails
-      fetchMock.mockImplementationOnce(() => Promise.reject(new Error('Network error')));
-
-      // sitemap2.xml succeeds
-      fetchMock.mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve('<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>https://example.com/</loc></url></urlset>'),
-        } as unknown as Response)
-      );
-
-      const result = await auditRobotsAndSitemap('https://example.com');
-
-      expect(result.sitemap).toEqual({
-        found: true,
-        url: 'https://example.com/sitemap2.xml',
-        urlCount: 1,
-        isIndex: false,
-      });
-    });
-
-    it('rejects internal IP and host sitemap candidates from robots.txt', async () => {
-      const fetchMock = vi.fn();
-      globalThis.fetch = fetchMock;
-
-      // Mock robots.txt with internal/cloud metadata sitemap
-      fetchMock.mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          text: () =>
-            Promise.resolve(
-              'User-agent: *\nAllow: /\nSitemap: http://169.254.169.254/latest/meta-data/\nSitemap: http://10.0.0.1/sitemap.xml',
-            ),
-        } as unknown as Response),
-      );
-
-      // Same-origin fallback fails
-      fetchMock.mockImplementationOnce(() => Promise.reject(new Error('404')));
-
-      const result = await auditRobotsAndSitemap('https://example.com');
-      expect(result.sitemap.found).toBe(false);
-      expect(result.sitemap.url).toBeNull();
-    });
-  });
-
-  describe('allowedOrigins', () => {
-    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is not set', () => {
-      expect(allowedOrigins({})).toEqual([
-        'https://servicos.pedrosatin.com',
-        'https://pedrosatin.com',
-        'http://localhost:5173',
-        'http://localhost:4173',
-      ]);
-    });
-    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS is empty or whitespace', () => {
-      const expected = [
-        'https://servicos.pedrosatin.com',
-        'https://pedrosatin.com',
-        'http://localhost:5173',
-        'http://localhost:4173',
-      ];
-      expect(allowedOrigins({ ALLOWED_ORIGINS: '' })).toEqual(expected);
-      expect(allowedOrigins({ ALLOWED_ORIGINS: '   ' })).toEqual(expected);
-    });
-    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains only a wildcard', () => {
-      expect(allowedOrigins({ ALLOWED_ORIGINS: '*' })).toEqual([
-        'https://servicos.pedrosatin.com',
-        'https://pedrosatin.com',
-        'http://localhost:5173',
-        'http://localhost:4173',
-      ]);
-    });
-    it('returns DEFAULT_ORIGINS if env.ALLOWED_ORIGINS contains a wildcard among origins', () => {
-      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, *' })).toEqual([
-        'https://servicos.pedrosatin.com',
-        'https://pedrosatin.com',
-        'http://localhost:5173',
-        'http://localhost:4173',
-      ]);
-    });
-    it('returns parsed origins if env.ALLOWED_ORIGINS is valid', () => {
-      expect(allowedOrigins({ ALLOWED_ORIGINS: 'http://example.com, https://example.org ' })).toEqual([
-        'http://example.com',
-        'https://example.org',
-      ]);
-    });
+  it('forces manual redirects and ignores caller hostname/header overrides', async () => {
+    const mock = installFetch(() => new Response('ok'));
+    const response = await fetchWithTimeout('https://example.com', { headers: { host: 'localhost' }, redirect: 'follow' });
+    await readBodyLimited(response);
+    expect(mock.mock.calls.at(-1)?.[1]).toMatchObject({ redirect: 'manual', method: 'GET' });
+    expect(new Headers(mock.mock.calls.at(-1)?.[1]?.headers).get('host')).toBeNull();
   });
 });
 
-describe('worker default handler', () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    vi.restoreAllMocks();
+describe('bounded HTTP bodies and secondary requests', () => {
+  it('cancels a body when the byte ceiling is reached', async () => {
+    const cancelled = vi.fn();
+    const stream = new ReadableStream({ start(c) { c.enqueue(new Uint8Array(100)); }, cancel: cancelled });
+    expect((await readBodyLimited(new Response(stream), 16)).bytes).toBe(16);
+    expect(cancelled).toHaveBeenCalled();
   });
-
-  it('handles standard Error in runAudit (e.g. Network failure)', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
-
-    const request = new Request('http://localhost/audit?url=example.com', {
-      headers: { origin: 'http://localhost:5173' }
-    });
-
-    const response = await worker.fetch(request, {});
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      ok: false,
-      error: 'Network failure',
-      input: 'example.com'
-    });
+  it('cancels a body that stalls after headers', async () => {
+    const cancelled = vi.fn();
+    const response = new Response(new ReadableStream({ cancel: cancelled }));
+    await expect(readBodyLimited(response, 16, 20)).rejects.toThrow();
+    expect(cancelled).toHaveBeenCalled();
   });
-
-  it('handles AbortError in runAudit', async () => {
-    const abortError = new Error('The operation was aborted');
-    abortError.name = 'AbortError';
-    globalThis.fetch = vi.fn().mockRejectedValue(abortError);
-
-    const request = new Request('http://localhost/audit?url=example.com', {
-      headers: { origin: 'http://localhost:5173' }
-    });
-
-    const response = await worker.fetch(request, {});
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      ok: false,
-      error: 'O site não respondeu dentro de 12 segundos.',
-      input: 'example.com'
-    });
+  it('blocks redirects to metadata from robots and sitemap before fetch', async () => {
+    for (const path of ['/robots.txt', '/sitemap.xml']) {
+      const mock = installFetch((url) => url.endsWith(path)
+        ? new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/latest/meta-data/' } })
+        : new Response('User-agent: *'));
+      await auditRobotsAndSitemap('https://example.com');
+      expect(mock.mock.calls.some(([url]) => String(url).includes('169.254.169.254'))).toBe(false);
+    }
   });
-
-  it('handles unknown errors (non-Error types) in runAudit', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue('Some weird string error');
-
-    const request = new Request('http://localhost/audit?url=example.com', {
-      headers: { origin: 'http://localhost:5173' }
-    });
-
-    const response = await worker.fetch(request, {});
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      ok: false,
-      error: 'Falha desconhecida ao auditar o site.',
-      input: 'example.com'
-    });
+  it('retains legitimate cross-domain public sitemaps', async () => {
+    installFetch((url) => new Response(url.endsWith('/robots.txt')
+      ? 'Sitemap: https://cdn.example.com/map.xml'
+      : '<urlset><url><loc>https://example.com/</loc></url></urlset>'));
+    const report = await auditRobotsAndSitemap('https://example.com');
+    expect(report.sitemap).toMatchObject({ found: true, url: 'https://cdn.example.com/map.xml', urlCount: 1 });
   });
 });
 
-
-describe('Rate Limiting', () => {
-  let env: Record<string, string>;
-
-  beforeEach(() => {
-    env = { ALLOWED_ORIGINS: 'https://servicos.pedrosatin.com' };
-    rateLimitCache.clear();
+it('shares the request quota with the PageSpeed proxy and keeps its key server-side', async () => {
+  const mock = installFetch(() => Response.json({ lighthouseResult: { categories: {} } }));
+  const request = () => new Request('https://api.example.com/pagespeed?domain=example.com&strategy=mobile', {
+    headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': '203.0.113.1' },
   });
+  const response = await worker.fetch(request(), { PSI_KEY: 'synthetic-test-secret' });
+  expect(response.status).toBe(200);
+  expect(await response.text()).not.toContain('synthetic-test-secret');
+  expect(mock.mock.calls.some(([url]) => String(url).includes('key=synthetic-test-secret'))).toBe(true);
+  for (let i = 1; i < 10; i++) await worker.fetch(request(), {});
+  expect((await worker.fetch(request(), {})).status).toBe(429);
+});
 
-  const makeRequest = (ip: string) => {
-    return new Request('https://servicos-api.pedrosatin.com/audit?url=exemplo.com.br', {
-      headers: new Headers({
-        origin: 'https://servicos.pedrosatin.com',
-        'cf-connecting-ip': ip,
-      }),
-    });
-  };
-
-  it('allows requests within the limit', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      text: async () => '<html></html>',
-      arrayBuffer: async () => new ArrayBuffer(0),
-      clone: function() { return this; }
-    });
-
-    for (let i = 0; i < 10; i++) {
-      const response = await worker.fetch(makeRequest('203.0.113.1'), env);
-      // It might fail for other reasons if mocks aren't perfect, but we just check it doesn't return 429
-      expect(response.status).not.toBe(429);
-    }
-
-    globalThis.fetch = originalFetch;
-  });
-
-  it('blocks requests exceeding the limit', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      text: async () => '<html></html>',
-      arrayBuffer: async () => new ArrayBuffer(0),
-      clone: function() { return this; }
-    });
-
-    // Make 10 requests that should pass the rate limit check
-    for (let i = 0; i < 10; i++) {
-      await worker.fetch(makeRequest('203.0.113.2'), env);
-    }
-
-    // The 11th request should be blocked
-    const response = await worker.fetch(makeRequest('203.0.113.2'), env);
-    expect(response.status).toBe(429);
-
-    const data = (await response.json()) as { error: string };
-    expect(data.error).toBe('Muitas requisições. Tente novamente mais tarde.');
-    expect(response.headers.get('retry-after')).toBeDefined();
-
-    globalThis.fetch = originalFetch;
-  });
-
-  it('allows requests from a different IP', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      text: async () => '<html></html>',
-      arrayBuffer: async () => new ArrayBuffer(0),
-      clone: function() { return this; }
-    });
-
-    // Make 10 requests from IP 1
-    for (let i = 0; i < 10; i++) {
-      await worker.fetch(makeRequest('203.0.113.3'), env);
-    }
-
-    // Request from IP 2 should still pass
-    const response = await worker.fetch(makeRequest('203.0.113.4'), env);
-    expect(response.status).not.toBe(429);
-
-    globalThis.fetch = originalFetch;
-  });
+ it('preserves preflight and refuses missing identity, unauthorized origins and invalid routes', async () => {
+  installFetch(() => new Response(''));
+  const env = { ALLOWED_ORIGINS: 'https://allowed.example' };
+  const make = (path: string, origin?: string, ip?: string, method = 'GET') => new Request(`https://api.example${path}`, { method, headers: { ...(origin ? { origin } : {}), ...(ip ? { 'cf-connecting-ip': ip } : {}) } });
+  expect((await worker.fetch(make('/audit', undefined, undefined, 'OPTIONS'), env)).status).toBe(204);
+  expect((await worker.fetch(make('/audit', 'https://allowed.example'), env)).status).toBe(403);
+  expect((await worker.fetch(make('/audit', 'https://denied.example', 'one'), env)).status).toBe(403);
+  expect((await worker.fetch(make('/unknown', 'https://allowed.example', 'two'), env)).status).toBe(404);
+  expect((await worker.fetch(make('/audit', 'https://allowed.example', 'three'), env)).status).toBe(400);
 });

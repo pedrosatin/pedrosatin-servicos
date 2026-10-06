@@ -32,7 +32,7 @@ if (!allowed) {
   throw new Error('ALLOWED_ORIGINS não encontrado em worker/wrangler.toml.');
 }
 
-const env = { ALLOWED_ORIGINS: allowed };
+const env = { ALLOWED_ORIGINS: allowed, PSI_KEY: process.env.PSI_KEY };
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
@@ -42,6 +42,8 @@ const server = createServer(async (req, res) => {
       value === undefined ? [] : [[key, Array.isArray(value) ? value.join(', ') : value]],
     ),
   });
+
+  request.headers.set('cf-connecting-ip', req.socket.remoteAddress ?? 'local');
 
   try {
     const response = await worker.fetch(request, env);
@@ -53,6 +55,6 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`Auditoria disponível em http://localhost:${PORT}/audit?url=exemplo.com.br`);
 });
