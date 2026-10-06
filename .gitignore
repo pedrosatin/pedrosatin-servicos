@@ -19,6 +19,7 @@ dist-ssr
 
 # Cloudflare
 .wrangler
+.dev.vars
 
 # Graphify
 graphify-out

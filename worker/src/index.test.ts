@@ -3,11 +3,16 @@ import worker, {
   allowedOrigins,
   auditRobotsAndSitemap,
   checkHttpsUpgrade,
+  createAuditDns,
   fetchWithTimeout,
   isInternalHost,
+  isSitemapHostAllowed,
   normalizeTarget,
+  pageSpeedCache,
   rateLimitCache,
+  rateLimitClient,
   RATE_LIMIT_MAX_ENTRIES,
+  RATE_LIMIT_OVERFLOW,
   readBodyLimited,
 } from './index';
 
@@ -47,7 +52,12 @@ const siteCalls = (mock: ReturnType<typeof installFetch>) =>
   mock.mock.calls.map(([url]) => String(url)).filter((url) => !url.includes('cloudflare-dns.com/'));
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-beforeEach(() => rateLimitCache.clear());
+beforeEach(() => {
+  rateLimitCache.clear();
+  pageSpeedCache.clear();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
 
 describe('isInternalHost', () => {
   beforeEach(() => { installFetch(() => new Response('')); });
@@ -230,18 +240,20 @@ describe('auditRobotsAndSitemap', () => {
       ? new Response('User-agent: *\nAllow: /\nSitemap: http://169.254.169.254/latest/meta-data/\nSitemap: http://10.0.0.1/sitemap.xml')
       : new Response('not found', { status: 404 }));
     const result = await auditRobotsAndSitemap('https://example.com');
-    expect(result.sitemap).toEqual({ found: false, url: null, urlCount: null, isIndex: false });
+    // Fora do host do site: não é buscado e o sitemap sai como não verificado.
+    expect(result.sitemap).toMatchObject({ found: false, url: null, urlCount: null, isIndex: false });
+    expect(result.sitemap.error).toMatch(/outro domínio/);
     expect(siteCalls(mock).filter((url) => /169\.254|10\.0\.0\.1/.test(url))).toEqual([]);
   });
 
   it('rejects sitemap candidates whose host resolves inside the network', async () => {
     const mock = installFetch((url) => url.endsWith('/robots.txt')
-      ? new Response('Sitemap: https://metadata.example.net/sitemap.xml')
-      : new Response('not found', { status: 404 }), { 'metadata.example.net': [{ type: 1, data: '169.254.169.254' }] });
+      ? new Response('Sitemap: https://www.example.com/sitemap.xml')
+      : new Response('not found', { status: 404 }), { 'www.example.com': [{ type: 1, data: '169.254.169.254' }] });
     const result = await auditRobotsAndSitemap('https://example.com');
     expect(result.sitemap.found).toBe(false);
     expect(result.sitemap.error).toBeUndefined();
-    expect(siteCalls(mock).some((url) => url.includes('metadata.example.net'))).toBe(false);
+    expect(siteCalls(mock).some((url) => url.includes('www.example.com'))).toBe(false);
   });
 
   it('falls back in order when the first candidate fails', async () => {
@@ -258,15 +270,15 @@ describe('auditRobotsAndSitemap', () => {
 
   it('prefers a robots.txt sitemap over /sitemap.xml even when both answer', async () => {
     installFetch((url) => new Response(url.endsWith('/robots.txt')
-      ? 'Sitemap: https://cdn.example.com/map.xml'
+      ? 'Sitemap: https://www.example.com/map.xml'
       : '<urlset><url><loc>https://example.com/</loc></url></urlset>'));
     const report = await auditRobotsAndSitemap('https://example.com');
-    expect(report.sitemap).toMatchObject({ found: true, url: 'https://cdn.example.com/map.xml', urlCount: 1 });
+    expect(report.sitemap).toMatchObject({ found: true, url: 'https://www.example.com/map.xml', urlCount: 1 });
   });
 
   it('reports an inconclusive sitemap when every lookup fails instead of calling it missing', async () => {
     installFetch((url) => {
-      if (url.endsWith('/robots.txt')) return new Response('Sitemap: https://cdn.example.com/map.xml');
+      if (url.endsWith('/robots.txt')) return new Response('Sitemap: https://www.example.com/map.xml');
       throw new Error('Too many subrequests.');
     });
     const report = await auditRobotsAndSitemap('https://example.com');
@@ -276,8 +288,8 @@ describe('auditRobotsAndSitemap', () => {
 
   it('reports an inconclusive sitemap when DNS for the candidate host fails', async () => {
     installFetch((url) => url.endsWith('/robots.txt')
-      ? new Response('Sitemap: https://cdn.example.com/map.xml')
-      : new Response('not found', { status: 404 }), { 'cdn.example.com': new Response('', { status: 503 }) });
+      ? new Response('Sitemap: https://www.example.com/map.xml')
+      : new Response('not found', { status: 404 }), { 'www.example.com': new Response('', { status: 503 }) });
     const report = await auditRobotsAndSitemap('https://example.com');
     expect(report.sitemap.error).toBeDefined();
   });
@@ -287,9 +299,11 @@ describe('allowedOrigins', () => {
   const defaults = [
     'https://servicos.pedrosatin.com',
     'https://pedrosatin.com',
-    'http://localhost:5173',
-    'http://localhost:4173',
   ];
+
+  it('keeps localhost out of the production defaults', () => {
+    expect(allowedOrigins({}).some((origin) => origin.includes('localhost'))).toBe(false);
+  });
 
   it('returns the defaults when ALLOWED_ORIGINS is not set', () => {
     expect(allowedOrigins({})).toEqual(defaults);
@@ -314,7 +328,7 @@ describe('allowedOrigins', () => {
 
 const auditRequest = (ip = '203.0.113.10', query = 'url=example.com') =>
   new Request(`https://api.example.com/audit?${query}`, {
-    headers: { origin: 'http://localhost:5173', 'cf-connecting-ip': ip },
+    headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': ip },
   });
 
 const pagespeedRequest = (ip = '203.0.113.20') =>
@@ -323,10 +337,30 @@ const pagespeedRequest = (ip = '203.0.113.20') =>
   });
 
 describe('audit handler', () => {
-  it('returns the message of an ordinary Error', async () => {
-    installFetch(() => { throw new Error('Network failure'); });
+  it('hides the message of unexpected errors and logs it instead', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    installFetch(() => { throw new Error('connect ECONNREFUSED 10.0.0.7:443'); });
     const body = await (await worker.fetch(auditRequest(), {})).json();
-    expect(body).toEqual({ ok: false, error: 'Network failure', input: 'example.com' });
+    expect(body).toEqual({
+      ok: false,
+      error: 'Não foi possível acessar o site. Confira o endereço e tente novamente.',
+      input: 'example.com',
+    });
+    expect(logged).toHaveBeenCalled();
+  });
+
+  it('keeps the message of errors written for the client', async () => {
+    installFetch((url) => new Response(null, { status: 302, headers: { location: `${url}x` } }));
+    const body = await (await worker.fetch(auditRequest(), {})).json();
+    expect(body).toEqual({ ok: false, error: 'Cadeia de redirecionamentos longa demais (possível laço).', input: 'example.com' });
+  });
+
+  it('refuses localhost origins with the production configuration', async () => {
+    installFetch(() => new Response(''));
+    const request = new Request('https://api.example.com/audit?url=example.com', {
+      headers: { origin: 'http://localhost:5173', 'cf-connecting-ip': '203.0.113.40' },
+    });
+    expect((await worker.fetch(request, {})).status).toBe(403);
   });
 
   it('translates AbortError and TimeoutError to the timeout message', async () => {
@@ -410,6 +444,28 @@ describe('PageSpeed proxy', () => {
     expect((await worker.fetch(pagespeedRequest(), {})).status).toBe(504);
   });
 
+  it('answers a repeated measurement from the cache without calling Google again', async () => {
+    const mock = installFetch(() => new Response('{"lighthouseResult":{}}', { headers: { 'content-type': 'application/json' } }));
+    const first = await worker.fetch(pagespeedRequest('203.0.113.21'), {});
+    const second = await worker.fetch(pagespeedRequest('203.0.113.22'), {});
+    expect(await first.text()).toBe('{"lighthouseResult":{}}');
+    expect(await second.text()).toBe('{"lighthouseResult":{}}');
+    expect(second.headers.get('access-control-allow-origin')).toBe('https://servicos.pedrosatin.com');
+    expect(mock.mock.calls.filter(([url]) => String(url).includes('pagespeedonline'))).toHaveLength(1);
+    const desktop = new Request('https://api.example.com/pagespeed?domain=example.com&strategy=desktop', {
+      headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': '203.0.113.23' },
+    });
+    await worker.fetch(desktop, {});
+    expect(mock.mock.calls.filter(([url]) => String(url).includes('pagespeedonline'))).toHaveLength(2);
+  });
+
+  it('does not cache Google errors', async () => {
+    const mock = installFetch(() => Response.json({ error: { code: 500 } }, { status: 500 }));
+    await worker.fetch(pagespeedRequest('203.0.113.24'), {});
+    await worker.fetch(pagespeedRequest('203.0.113.25'), {});
+    expect(mock.mock.calls.filter(([url]) => String(url).includes('pagespeedonline'))).toHaveLength(2);
+  });
+
   it('rejects internal targets and unknown strategies', async () => {
     installFetch(() => new Response('{}'));
     const make = (query: string) => new Request(`https://api.example.com/pagespeed?${query}`, {
@@ -449,18 +505,121 @@ describe('rate limiting', () => {
     expect(await blocked.json()).toMatchObject({ code: 'rate_limited' });
   });
 
-  it('evicts the oldest window instead of refusing new visitors when full', async () => {
+  it('never evicts active windows when full and sends new clients to a shared counter', async () => {
     const expiresAt = Date.now() + 60_000;
-    for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES; i++) rateLimitCache.set(`audit:filler-${i}`, { count: 1, expiresAt });
-    expect((await worker.fetch(auditRequest('203.0.113.6'), {})).status).not.toBe(429);
-    expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);
-    expect(rateLimitCache.has('audit:filler-0')).toBe(false);
-    expect(rateLimitCache.has('audit:203.0.113.6')).toBe(true);
+    rateLimitCache.set('audit:198.51.100.9', { count: 10, expiresAt });
+    for (let i = 1; i < RATE_LIMIT_MAX_ENTRIES; i++) rateLimitCache.set(`audit:filler-${i}`, { count: 1, expiresAt });
+    // Endereços novos em sequência não podem zerar o contador de quem já estourou.
+    for (let i = 0; i < 10; i++) {
+      expect((await worker.fetch(auditRequest(`203.0.113.${100 + i}`), {})).status).not.toBe(429);
+    }
+    expect((await worker.fetch(auditRequest('203.0.113.200'), {})).status).toBe(429);
+    expect((await worker.fetch(auditRequest('198.51.100.9'), {})).status).toBe(429);
+    expect(rateLimitCache.get(`audit:${RATE_LIMIT_OVERFLOW}`)?.count).toBe(10);
+    expect(rateLimitCache.has('audit:203.0.113.100')).toBe(false);
+  });
+
+  it('frees expired windows before falling back to the shared counter', async () => {
+    const expired = Date.now() - 1;
+    for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES; i++) rateLimitCache.set(`audit:old-${i}`, { count: 10, expiresAt: expired });
+    await worker.fetch(auditRequest('203.0.113.8'), {});
+    expect(rateLimitCache.has('audit:203.0.113.8')).toBe(true);
+    expect(rateLimitCache.has(`audit:${RATE_LIMIT_OVERFLOW}`)).toBe(false);
+    expect(rateLimitCache.size).toBe(1);
+  });
+
+  it('counts IPv6 clients by /64 prefix', async () => {
+    for (let i = 0; i < 10; i++) await worker.fetch(auditRequest(`2001:db8:1:2::${i + 1}`), {});
+    expect((await worker.fetch(auditRequest('2001:db8:1:2:ffff::1'), {})).status).toBe(429);
+    expect((await worker.fetch(auditRequest('2001:db8:1:3::1'), {})).status).not.toBe(429);
   });
 
   it('drops expired windows before counting', async () => {
     rateLimitCache.set('audit:old', { count: 10, expiresAt: Date.now() - 1 });
     await worker.fetch(auditRequest('203.0.113.7'), {});
     expect(rateLimitCache.has('audit:old')).toBe(false);
+  });
+});
+
+describe('rateLimitClient', () => {
+  it('groups IPv6 by /64 and keeps IPv4 as is', () => {
+    expect(rateLimitClient('2001:db8:abcd:12:1:2:3:4')).toBe('2001:db8:abcd:12::/64');
+    expect(rateLimitClient('2001:DB8:ABCD:12::99')).toBe('2001:db8:abcd:12::/64');
+    expect(rateLimitClient('203.0.113.9')).toBe('203.0.113.9');
+    expect(rateLimitClient('::ffff:203.0.113.9')).toBe('203.0.113.9');
+  });
+});
+
+describe('sitemap scope', () => {
+  it('accepts only the site host and its www variant', () => {
+    expect(isSitemapHostAllowed('example.com', 'example.com')).toBe(true);
+    expect(isSitemapHostAllowed('www.example.com', 'example.com')).toBe(true);
+    expect(isSitemapHostAllowed('example.com', 'www.example.com')).toBe(true);
+    expect(isSitemapHostAllowed('WWW.Example.com.', 'example.com')).toBe(true);
+    expect(isSitemapHostAllowed('cdn.example.com', 'example.com')).toBe(false);
+    expect(isSitemapHostAllowed('victim.github.io', 'attacker.github.io')).toBe(false);
+    expect(isSitemapHostAllowed('other.pages.dev', 'evil.pages.dev')).toBe(false);
+    expect(isSitemapHostAllowed('pages.dev', 'www.pages.dev')).toBe(true);
+    expect(isSitemapHostAllowed('1.2.3.4', '1.2.3.4')).toBe(true);
+    expect(isSitemapHostAllowed('9.2.3.4', '1.2.3.4')).toBe(false);
+    expect(isSitemapHostAllowed('www.1.2.3.4', '1.2.3.4')).toBe(false);
+  });
+
+  it('does not fetch sitemaps from other hosts and reports them as unverified', async () => {
+    const mock = installFetch((url) => url.endsWith('/robots.txt')
+      ? new Response('Sitemap: https://victim.example.org/sitemap.xml\nSitemap: https://cdn.example.com/map.xml')
+      : new Response('not found', { status: 404 }));
+    const report = await auditRobotsAndSitemap('https://example.com');
+    expect(report.sitemap.found).toBe(false);
+    expect(report.sitemap.error).toMatch(/outro domínio/);
+    expect(siteCalls(mock).some((url) => /victim\.example\.org|cdn\.example\.com/.test(url))).toBe(false);
+  });
+
+  it('still prefers an in-scope sitemap when another one is out of scope', async () => {
+    installFetch((url) => url.endsWith('/robots.txt')
+      ? new Response('Sitemap: https://victim.example.org/sitemap.xml\nSitemap: https://www.example.com/map.xml')
+      : new Response('<urlset><url><loc>https://example.com/</loc></url></urlset>'));
+    const report = await auditRobotsAndSitemap('https://example.com');
+    expect(report.sitemap).toMatchObject({ found: true, url: 'https://www.example.com/map.xml' });
+  });
+
+  it('does not follow a sitemap redirect to another host', async () => {
+    const mock = installFetch((url) => {
+      if (url.endsWith('/robots.txt')) return new Response('Sitemap: https://example.com/map.xml');
+      if (url.endsWith('/map.xml')) return new Response(null, { status: 302, headers: { location: 'https://victim.example.org/x' } });
+      return new Response('not found', { status: 404 });
+    });
+    const report = await auditRobotsAndSitemap('https://example.com');
+    expect(report.sitemap.found).toBe(false);
+    expect(report.sitemap.error).toBeDefined();
+    expect(siteCalls(mock).some((url) => url.includes('victim.example.org'))).toBe(false);
+  });
+});
+
+describe('subrequest budget', () => {
+  it('reports the sitemap as unverified when the budget runs out', async () => {
+    const mock = installFetch((url) => {
+      if (url.endsWith('/robots.txt')) return new Response('Sitemap: https://example.com/a.xml\nSitemap: https://www.example.com/b.xml');
+      return new Response(null, { status: 302, headers: { location: `${url}x` } });
+    });
+    const report = await auditRobotsAndSitemap('https://example.com', createAuditDns(6));
+    expect(report.sitemap.found).toBe(false);
+    expect(report.sitemap.error).toMatch(/limite de \d+ requisições/);
+    expect(mock.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+
+  it('fails the audit with an explicit message when the page itself exceeds the budget', async () => {
+    let hop = 0;
+    installFetch(() => {
+      hop += 1;
+      return new Response(null, { status: 302, headers: { location: `https://h${hop}.example.com/` } });
+    });
+    await expect(
+      (async () => {
+        const dns = createAuditDns(5);
+        await fetchWithTimeout('https://example.com/', { dns });
+        await fetchWithTimeout('https://h1.example.com/', { dns });
+      })(),
+    ).rejects.toThrow(/limite de 5 requisições/);
   });
 });

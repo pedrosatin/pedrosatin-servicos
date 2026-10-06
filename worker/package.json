@@ -7,8 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --env dev",
+    "deploy": "wrangler deploy --env=\"\"",
     "tail": "wrangler tail",
     "test": "vitest run",
     "test:watch": "vitest"

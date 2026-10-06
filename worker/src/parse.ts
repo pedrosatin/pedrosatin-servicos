@@ -60,9 +60,127 @@ const attr = (tag: string, name: string): string | null => {
 
 
 
-// A flag 'g' aqui é segura de cachear: String.prototype.match com regex global
-// zera lastIndex antes de varrer, então o estado não vaza entre chamadas.
-const ALL_TAGS_RE = /<(?:meta|img|script|link|html)\b[^>]*>/gi;
+/*
+ * Varredura linear.
+ *
+ * O HTML vem do site auditado, ou seja, de quem quiser. Regex como
+ * `<meta\b[^>]*>` ou `<script\b[^>]*>[\s\S]*?<\/script>` aplicadas com a flag
+ * `g` recomeçam a busca a cada posição: num documento de `<meta` repetido sem
+ * `>`, cada tentativa varre até o fim e o custo vira quadrático (100 KB já
+ * custavam segundos de CPU). As funções abaixo procuram só o começo da tag
+ * com regex (custo constante por posição) e o resto com `indexOf`. Quando um
+ * `>` ou um fechamento não existe a partir de um ponto, também não existe a
+ * partir de nenhum ponto posterior, então a varredura para ali em vez de
+ * tentar de novo. O resultado é o mesmo das regex originais.
+ */
+
+/** Primeira ocorrência de `pattern` (regex com flag `g`) a partir de `from`. */
+const searchFrom = (text: string, pattern: RegExp, from: number): RegExpExecArray | null => {
+  pattern.lastIndex = from;
+  return pattern.exec(text);
+};
+
+interface RawElement {
+  /** Índice do `<` de abertura. */
+  start: number;
+  /** Índice logo depois do fechamento. */
+  end: number;
+  /** Tag de abertura completa, de `<` a `>`. */
+  openTag: string;
+  /** Conteúdo entre a abertura e o fechamento. */
+  content: string;
+}
+
+/**
+ * Equivale a `/<nome\b[^>]*>([\s\S]*?)<fechamento>/gi`, em ordem. `accept`
+ * recusa uma abertura como a regex recusaria (atributo exigido ausente); as
+ * aberturas que caem dentro dela compartilham o mesmo `>` e, por terem só um
+ * pedaço do mesmo texto, também seriam recusadas, então são puladas juntas.
+ */
+function* rawElements(
+  html: string,
+  open: RegExp,
+  close: RegExp,
+  accept?: (openTag: string) => boolean,
+): Generator<RawElement> {
+  let from = 0;
+  for (let match = searchFrom(html, open, from); match; match = searchFrom(html, open, from)) {
+    const start = match.index;
+    const gt = html.indexOf('>', start);
+    if (gt === -1) return;
+    const openTag = html.slice(start, gt + 1);
+    if (accept && !accept(openTag)) {
+      from = gt + 1;
+      continue;
+    }
+    const closing = searchFrom(html, close, gt + 1);
+    if (!closing) return;
+    const end = closing.index + closing[0].length;
+    yield { start, end, openTag, content: html.slice(gt + 1, closing.index) };
+    from = end;
+  }
+}
+
+/** Troca cada elemento encontrado por um espaço, como `replace(regex, ' ')`. */
+const removeElements = (html: string, open: RegExp, close: RegExp): string => {
+  const parts: string[] = [];
+  let last = 0;
+  for (const element of rawElements(html, open, close)) {
+    parts.push(html.slice(last, element.start), ' ');
+    last = element.end;
+  }
+  if (last === 0) return html;
+  parts.push(html.slice(last));
+  return parts.join('');
+};
+
+/** Equivale a `text.replace(/<[^>]+>/g, ' ')`. */
+const replaceTags = (text: string): string => {
+  const parts: string[] = [];
+  let last = 0;
+  let lt = text.indexOf('<');
+  while (lt !== -1) {
+    const gt = text.indexOf('>', lt + 1);
+    if (gt === -1) break;
+    // `<>` não casa com `[^>]+`: o `<` fica e a busca segue.
+    if (gt === lt + 1) {
+      lt = text.indexOf('<', lt + 1);
+      continue;
+    }
+    parts.push(text.slice(last, lt), ' ');
+    last = gt + 1;
+    lt = text.indexOf('<', last);
+  }
+  if (last === 0) return text;
+  parts.push(text.slice(last));
+  return parts.join('');
+};
+
+const SCRIPT_OPEN = /<script\b/gi;
+const STYLE_OPEN = /<style\b/gi;
+const NOSCRIPT_OPEN = /<noscript\b/gi;
+const TITLE_OPEN = /<title\b/gi;
+const H1_OPEN = /<h1\b/gi;
+const META_OPEN = /<meta\b/gi;
+const SCRIPT_CLOSE = /<\/script>/gi;
+const STYLE_CLOSE = /<\/style>/gi;
+const NOSCRIPT_CLOSE = /<\/noscript>/gi;
+const TITLE_CLOSE = /<\/title>/gi;
+const H1_CLOSE = /<\/h1>/gi;
+
+/** Equivale a `html.match(/<(?:meta|img|script|link|html)\b[^>]*>/gi)`. */
+const TAG_OPEN = /<(?:meta|img|script|link|html)\b/gi;
+const collectTags = (html: string): string[] => {
+  const tags: string[] = [];
+  let from = 0;
+  for (let match = searchFrom(html, TAG_OPEN, from); match; match = searchFrom(html, TAG_OPEN, from)) {
+    const gt = html.indexOf('>', match.index);
+    if (gt === -1) break;
+    tags.push(html.slice(match.index, gt + 1));
+    from = gt + 1;
+  }
+  return tags;
+};
 
 const parseMetaTags = (tags: string[]): Map<string, string> => {
   const dict = new Map<string, string>();
@@ -89,15 +207,19 @@ const parseMetaTags = (tags: string[]): Map<string, string> => {
 };
 
 /**
- * Casa, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
- * junto ao seu conteúdo completo) OU um comentário HTML — fechado ou não.
+ * Acha, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
+ * junto ao seu conteúdo completo) OU um comentário HTML, fechado ou não.
  *
  * A ordem das alternativas é o que faz o `<!--` que aparece dentro de um
  * JavaScript embutido (`var s = "<!--"`) não ser confundido com comentário: ao
  * chegar no `<script`, a primeira alternativa consome o bloco inteiro antes de
  * a segunda ter chance de olhar para dentro dele.
  */
-const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<!--[\s\S]*$/gi;
+const RAW_TEXT_OR_COMMENT_OPEN = /<(script|style)\b|<!--/gi;
+const RAW_TEXT_CLOSE: Record<string, RegExp> = {
+  script: /<\/script\s*>/gi,
+  style: /<\/style\s*>/gi,
+};
 
 /**
  * Remove apenas comentários HTML, preservando o restante do documento.
@@ -111,15 +233,73 @@ const COMMENT_OR_RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]
  * O `<!--` sem fechamento consome o resto do documento, que é como o navegador
  * também se comporta: nada depois dele chega a virar elemento.
  */
-const stripComments = (html: string): string =>
-  html.replace(COMMENT_OR_RAW_TEXT, (match) => (match.startsWith('<!--') ? ' ' : match));
+const stripComments = (html: string): string => {
+  const parts: string[] = [];
+  let last = 0;
+  let from = 0;
+  // Depois que um `>` ou um fechamento não aparece a partir de um ponto, ele
+  // também não aparece adiante: lembrar disso evita buscas repetidas até o fim.
+  let noGt = false;
+  const noClose: Record<string, boolean> = {};
 
-const stripNonContent = (html: string): string =>
-  html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ');
+  for (
+    let match = searchFrom(html, RAW_TEXT_OR_COMMENT_OPEN, from);
+    match;
+    match = searchFrom(html, RAW_TEXT_OR_COMMENT_OPEN, from)
+  ) {
+    const start = match.index;
+    const rawName = match[1]?.toLowerCase();
+
+    if (rawName) {
+      from = start + 1;
+      if (noGt || noClose[rawName]) continue;
+      const gt = html.indexOf('>', start);
+      if (gt === -1) {
+        noGt = true;
+        continue;
+      }
+      const closing = searchFrom(html, RAW_TEXT_CLOSE[rawName]!, gt + 1);
+      if (!closing) {
+        noClose[rawName] = true;
+        continue;
+      }
+      // O bloco fica como está; a busca recomeça depois do fechamento.
+      from = closing.index + closing[0].length;
+      continue;
+    }
+
+    const commentEnd = html.indexOf('-->', start + 4);
+    parts.push(html.slice(last, start), ' ');
+    if (commentEnd === -1) {
+      last = html.length;
+      break;
+    }
+    last = commentEnd + 3;
+    from = last;
+  }
+
+  if (last === 0) return html;
+  parts.push(html.slice(last));
+  return parts.join('');
+};
+
+const stripNonContent = (html: string): string => {
+  let text = removeElements(html, SCRIPT_OPEN, SCRIPT_CLOSE);
+  text = removeElements(text, STYLE_OPEN, STYLE_CLOSE);
+  text = removeElements(text, NOSCRIPT_OPEN, NOSCRIPT_CLOSE);
+  // Equivale a `replace(/<!--[\s\S]*?-->/g, ' ')`: comentário sem fechamento fica.
+  const parts: string[] = [];
+  let last = 0;
+  for (let start = text.indexOf('<!--'); start !== -1; start = text.indexOf('<!--', last)) {
+    const end = text.indexOf('-->', start + 4);
+    if (end === -1) break;
+    parts.push(text.slice(last, start), ' ');
+    last = end + 3;
+  }
+  if (last === 0) return text;
+  parts.push(text.slice(last));
+  return parts.join('');
+};
 
 /**
  * Única leitura que continua usando o HTML cru, comentários inclusive.
@@ -152,15 +332,33 @@ const detectPlatform = (html: string, generator: string | null): string | null =
   return null;
 };
 
+/**
+ * Equivale a `/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(html)?.[1]`.
+ * A regex é aplicada só no início de cada `<meta` (flag `y`). Se uma tag não
+ * declara charset, as aberturas de `<meta` dentro dela, que terminam no mesmo
+ * `>`, também não declaram, então a busca pula direto para depois dele.
+ */
+const CHARSET_AT_RE = /<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/iy;
+const findCharset = (html: string): string | null => {
+  let from = 0;
+  for (let match = searchFrom(html, META_OPEN, from); match; match = searchFrom(html, META_OPEN, from)) {
+    CHARSET_AT_RE.lastIndex = match.index;
+    const charset = CHARSET_AT_RE.exec(html);
+    if (charset) return charset[1] ?? null;
+    const gt = html.indexOf('>', match.index);
+    if (gt === -1) return null;
+    from = gt + 1;
+  }
+  return null;
+};
+
+const JSON_LD_TYPE_RE = /type\s*=\s*["']application\/ld\+json["']/i;
+
 const collectJsonLdTypes = (html: string): string[] => {
   const types = new Set<string>();
-  const blocks = html.match(
-    /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-  );
-  if (!blocks) return [];
+  const isJsonLd = (openTag: string): boolean => JSON_LD_TYPE_RE.test(openTag);
 
-  for (const block of blocks) {
-    const body = block.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '');
+  for (const { content: body } of rawElements(html, SCRIPT_OPEN, SCRIPT_CLOSE, isJsonLd)) {
     try {
       const parsed: unknown = JSON.parse(body);
       const walk = (node: unknown): void => {
@@ -207,26 +405,22 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   const linkTags: string[] = [];
   let htmlTag = '';
 
-  const matches = markup.match(ALL_TAGS_RE);
-  if (matches) {
-    for (let i = 0; i < matches.length; i++) {
-      const tag = matches[i];
-      const char = tag.charCodeAt(1) | 32;
-      if (char === 109) metaTags.push(tag);
-      else if (char === 105) imageTags.push(tag);
-      else if (char === 115) scriptTags.push(tag);
-      else if (char === 108) linkTags.push(tag);
-      else if (char === 104 && !htmlTag) htmlTag = tag;
-    }
+  for (const tag of collectTags(markup)) {
+    const char = tag.charCodeAt(1) | 32;
+    if (char === 109) metaTags.push(tag);
+    else if (char === 105) imageTags.push(tag);
+    else if (char === 115) scriptTags.push(tag);
+    else if (char === 108) linkTags.push(tag);
+    else if (char === 104 && !htmlTag) htmlTag = tag;
   }
 
-  const title = clean(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(markup)?.[1] ?? null);
+  const title = clean(rawElements(markup, TITLE_OPEN, TITLE_CLOSE).next().value?.content ?? null);
   const metaDict = parseMetaTags(metaTags);
   const getMeta = (keyAttr: 'name' | 'property', key: string) => metaDict.get(`${keyAttr}:${key.toLowerCase()}`) ?? null;
   const metaDescription = getMeta('name', 'description');
 
-  const h1 = [...markup.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
-    .map((m) => clean(m[1].replace(/<[^>]+>/g, ' ')))
+  const h1 = [...rawElements(markup, H1_OPEN, H1_CLOSE)]
+    .map((element) => clean(replaceTags(element.content)))
     .filter((value): value is string => value !== null);
 
   const images: ImageStats = {
@@ -291,13 +485,11 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     }
   }
 
-  const inlineStyleBytes = [...markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
-    (total, match) => total + match[1].length,
-    0,
-  );
+  let inlineStyleBytes = 0;
+  for (const element of rawElements(markup, STYLE_OPEN, STYLE_CLOSE)) inlineStyleBytes += element.content.length;
 
   const generator = getMeta('name', 'generator');
-  const textContent = stripNonContent(markup).replace(/<[^>]+>/g, ' ');
+  const textContent = replaceTags(stripNonContent(markup));
   const decodedText = decodeEntities(textContent);
   let wordCount = 0;
   while (WORD_RE.test(decodedText)) {
@@ -307,8 +499,7 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
   return {
     bytes,
     lang: clean(attr(htmlTag, 'lang')),
-    charset:
-      clean(/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(markup)?.[1] ?? null) ?? null,
+    charset: clean(findCharset(markup)),
     title,
     titleLength: title?.length ?? 0,
     metaDescription,

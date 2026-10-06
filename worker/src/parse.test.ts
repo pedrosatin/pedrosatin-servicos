@@ -123,4 +123,56 @@ describe('worker parse', () => {
     expect(report.images.total).toBe(1);
   });
 
+  // O HTML vem do site auditado. Com as regex anteriores, 100 KB destes padrões
+  // custavam segundos de CPU e o tempo crescia com o quadrado do tamanho.
+  describe('custo linear com HTML hostil', () => {
+    const SIZE = 300_000;
+    const hostile = (unit: string) => unit.repeat(Math.ceil(SIZE / unit.length)).slice(0, SIZE);
+
+    for (const unit of ['<', '<meta', '<script>', '<style>', '<title>', '<h1>', '<h1><', '<!--', '<noscript>',
+      '<script type="application/ld+json">', '<meta charset', '<<>']) {
+      it(`processa 300 KB de ${JSON.stringify(unit)} em menos de 200 ms`, () => {
+        const html = hostile(unit);
+        // Melhor de três, para que a carga da máquina de CI não derrube o teste.
+        // A versão quadrática levava segundos em cada rodada.
+        let best = Infinity;
+        for (let round = 0; round < 3; round++) {
+          const start = performance.now();
+          expect(parseHtml(html, html.length).bytes).toBe(SIZE);
+          best = Math.min(best, performance.now() - start);
+        }
+        expect(best).toBeLessThan(200);
+      });
+    }
+  });
+
+  it('keeps the regex semantics for unclosed and nested markup', () => {
+    const html = [
+      '<html lang="pt"><head><META CHARSET="utf-8">',
+      '<title>Primeiro</title><title>Segundo</title>',
+      '<script>var s = "<!-- não é comentário";</script >',
+      '<!-- <img src="comentada.jpg"> -->',
+      '<style>a{}</style><style>b{}</STYLE>',
+      '<script type="text/plain"><script type="application/ld+json">{"@type":"Inner"}</script>',
+      '</head><body><h1>Um <b>título</b></h1><h1><>x</h1>',
+      '<noscript><p>escondido</p></noscript><p>texto visível</p>',
+      '<h1>sem fechamento <img src="x.jpg"',
+    ].join('');
+    const report = parseHtml(html, html.length);
+    expect(report.lang).toBe('pt');
+    expect(report.charset).toBe('utf-8');
+    expect(report.title).toBe('Primeiro');
+    expect(report.h1).toEqual(['Um título', '<>x']);
+    expect(report.images.total).toBe(0);
+    expect(report.inlineStyleBytes).toBe(6);
+    expect(report.jsonLdTypes).toEqual(['Inner']);
+    expect(report.scripts.total).toBe(3);
+  });
+
+  it('drops everything after an unclosed comment', () => {
+    const report = parseHtml('<title>ok</title><!-- <h1>fora</h1><img src="a.jpg">', 10);
+    expect(report.title).toBe('ok');
+    expect(report.h1).toEqual([]);
+    expect(report.images.total).toBe(0);
+  });
 });

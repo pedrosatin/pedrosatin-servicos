@@ -87,20 +87,23 @@ jobs:
 
       # O Worker sobe antes do Pages: o front novo chama /pagespeed, que só
       # existe no Worker novo. O Worker novo continua compatível com o front antigo.
+      # Só o secret PSI_KEY. A chave antiga (VITE_PSI_KEY) foi publicada no
+      # pacote do navegador e não pode voltar para o Worker. `--env=""` fixa o
+      # ambiente de topo do wrangler.toml (produção), não o `dev`.
       - name: Sync PageSpeed key to Worker
         run: |
           if [ -z "$PSI_KEY" ]; then
-            echo "Nenhum secret PSI_KEY ou VITE_PSI_KEY no repositório; o Worker mantém o secret já cadastrado."
+            echo "Nenhum secret PSI_KEY no repositório; o Worker mantém o secret já cadastrado."
             exit 0
           fi
-          printf '%s' "$PSI_KEY" | npm --prefix worker exec wrangler -- secret put PSI_KEY --config worker/wrangler.toml
+          printf '%s' "$PSI_KEY" | npm --prefix worker exec wrangler -- secret put PSI_KEY --config worker/wrangler.toml --env=""
         env:
-          PSI_KEY: ${{ secrets.PSI_KEY || secrets.VITE_PSI_KEY }}
+          PSI_KEY: ${{ secrets.PSI_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '47584a1cc0e6303cda1f64c39ee59c73' }}
 
       - name: Deploy Worker
-        run: npm --prefix worker exec wrangler -- deploy --config worker/wrangler.toml
+        run: npm --prefix worker exec wrangler -- deploy --config worker/wrangler.toml --env=""
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '47584a1cc0e6303cda1f64c39ee59c73' }}

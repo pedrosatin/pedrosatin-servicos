@@ -23,13 +23,16 @@ const PORT = Number(process.env.PORT ?? 8787);
 /**
  * A lista de origens é lida do `wrangler.toml`, e não copiada para cá. Uma
  * segunda cópia acabaria divergindo, e o sintoma seria o pior possível: a
- * análise funcionando em desenvolvimento e recusada em produção.
+ * análise funcionando em desenvolvimento e recusada em produção. Vale a seção
+ * `[env.dev.vars]`, a mesma do `wrangler dev --env dev`; a de produção não
+ * aceita localhost.
  */
 const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
-const allowed = /^\s*ALLOWED_ORIGINS\s*=\s*"([^"]*)"/m.exec(wrangler)?.[1];
+const devVars = /^\[env\.dev\.vars\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(wrangler)?.[1] ?? '';
+const allowed = /^\s*ALLOWED_ORIGINS\s*=\s*"([^"]*)"/m.exec(devVars)?.[1];
 
 if (!allowed) {
-  throw new Error('ALLOWED_ORIGINS não encontrado em worker/wrangler.toml.');
+  throw new Error('ALLOWED_ORIGINS não encontrado em [env.dev.vars] no worker/wrangler.toml.');
 }
 
 const env = { ALLOWED_ORIGINS: allowed, PSI_KEY: process.env.PSI_KEY };
