@@ -533,14 +533,23 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
   if (!target || !['mobile', 'desktop'].includes(strategy)) return json({ error: 'Destino inválido.' }, 400, headers);
   const params = new URLSearchParams({ url: target.toString(), strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) params.append('category', category);
-  if (env.PSI_KEY) params.set('key', env.PSI_KEY);
+  // A chave vai no header, fora da URL que aparece em logs e traces. O Referer
+  // do site mantém funcionando chaves restritas por referrer, que eram usadas
+  // quando a consulta saía do navegador.
+  const googleHeaders: Record<string, string> = { referer: `${allowedOrigins(env)[0]}/` };
+  if (env.PSI_KEY) googleHeaders['x-goog-api-key'] = env.PSI_KEY;
   try {
     const response = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {
+      headers: googleHeaders,
       redirect: 'manual',
       signal: AbortSignal.timeout(PAGESPEED_TIMEOUT_MS),
     });
     if (!response.ok) {
-      await response.body?.cancel();
+      // O motivo do Google (cota, chave restrita, API desativada) fica só no log.
+      const reason = await readBodyLimited(response, 4_000)
+        .then(({ text }) => (JSON.parse(text) as { error?: { status?: string; message?: string } }).error)
+        .catch(() => undefined);
+      console.warn('pagespeed upstream error', response.status, reason?.status, reason?.message);
       const status = response.status >= 400 && response.status < 600 ? response.status : 502;
       return json({ error: 'PageSpeed indisponível.' }, status, headers);
     }
