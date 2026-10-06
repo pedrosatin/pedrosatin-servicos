@@ -93,26 +93,32 @@ searchable part of the page, didn't exist for crawlers at all.
 
 ## Deploying
 
-1. **Worker first.** Set `ALLOWED_ORIGINS` in `worker/wrangler.toml` to the
-   final origins and run `npm run worker:deploy`. Note the generated URL.
+1. **Worker first.** Set `ALLOWED_ORIGINS` under `[vars]` in
+   `worker/wrangler.toml` to the final origins and run `npm run worker:deploy`
+   (it passes `--env=""`, the top-level production environment). Production
+   origins don't include localhost; local development reads `[env.dev.vars]`.
    CI also publishes the Worker before Pages, because the site calls the
    Worker's `/pagespeed` route.
 2. **PageSpeed key.** `PSI_KEY` is required in production. The deploy
-   workflow copies the repository secret `PSI_KEY` (falling back to the old
-   `VITE_PSI_KEY`) into the Worker before publishing it; by hand, run
-   `cd worker && npx wrangler secret put PSI_KEY`. Without a key the Worker
-   falls back to Google's anonymous quota, shared across Cloudflare egress IPs,
-   which usually answers 429. The previous key shipped in browser bundles:
-   create a new one restricted to the PageSpeed Insights API with a quota,
-   store it as `PSI_KEY`, revoke the old one, and remove `VITE_PSI_KEY` from
-   GitHub secrets and Pages variables.
+   workflow copies only the repository secret `PSI_KEY` into the Worker before
+   publishing it; if that secret is empty, the Worker keeps the value it
+   already has. By hand, run
+   `cd worker && npx wrangler secret put PSI_KEY --env=""`. Without a key the
+   Worker falls back to Google's anonymous quota, shared across Cloudflare
+   egress IPs, which usually answers 429. The old
+   `VITE_PSI_KEY` shipped in browser bundles and must be revoked: create a new
+   key restricted to the PageSpeed Insights API with a quota, store it as
+   `PSI_KEY`, revoke the old one in Google Cloud, and remove `VITE_PSI_KEY`
+   from GitHub secrets and Pages variables.
 3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker URL.
 4. **Build and publish.** Command `npm run build`, output directory `dist`.
 5. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,
-   and cache rules. When the Worker moves to its own domain, swap
-   `https://*.workers.dev` for the final address in the `connect-src`
-   directive.
-6. **After deploying**, run the audit tool against
+   and cache rules. `connect-src` names the Worker's own domain
+   (`servicos-api.pedrosatin.com`); if the Worker moves, update it there.
+6. **Rate limiting.** The Worker's per-client limit lives in each isolate's
+   memory. For an edge-wide limit, add the Cloudflare WAF rate limiting rule
+   described in `worker/README.md`.
+7. **After deploying**, run the audit tool against
    `servicos.pedrosatin.com` itself. That's the test that matters, since the
    tool and the site hosting it get judged by the same standard.
 

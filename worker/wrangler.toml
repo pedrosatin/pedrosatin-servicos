@@ -9,8 +9,19 @@ routes = [
 ]
 
 [vars]
-# Origens autorizadas a chamar o endpoint, separadas por vírgula.
-ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev,http://localhost:5173,http://localhost:4173"
+# Origens autorizadas a chamar o endpoint em produção, separadas por vírgula.
+ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev"
 
 [observability]
 enabled = true
+
+# Desenvolvimento local: `npm run dev` (wrangler dev --env dev) e o servidor
+# Node (`npm run worker:dev` na raiz) leem as origens daqui. Repete as de
+# produção e acrescenta o Vite (5173) e o preview (4173). Nunca publique este
+# ambiente; o deploy usa `--env=""`, o ambiente de topo.
+[env.dev]
+workers_dev = false
+routes = []
+
+[env.dev.vars]
+ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev,http://localhost:5173,http://localhost:4173"

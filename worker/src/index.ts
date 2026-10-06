@@ -19,11 +19,11 @@ interface Env {
   PSI_KEY?: string;
 }
 
+// Só origens de produção. O desenvolvimento local declara as suas no
+// `[env.dev.vars]` do wrangler.toml.
 const DEFAULT_ORIGINS = [
   'https://servicos.pedrosatin.com',
   'https://pedrosatin.com',
-  'http://localhost:5173',
-  'http://localhost:4173',
 ];
 
 const USER_AGENT =
@@ -31,6 +31,26 @@ const USER_AGENT =
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 3_000_000;
+
+/**
+ * Teto de subrequests (fetch ao site e consultas DoH) por auditoria. Uma
+ * auditoria comum gasta perto de 12; o teto fica abaixo do limite de 50 do
+ * plano gratuito dos Workers para que a falha seja nossa e explicada, e não um
+ * erro genérico do runtime no meio da cadeia.
+ */
+export const MAX_SUBREQUESTS_PER_AUDIT = 40;
+
+/** Erro com mensagem própria, escrita para o cliente. Outros erros não saem do Worker. */
+export class AuditError extends Error {}
+
+/** Destino recusado pela política: endereço interno, inexistente ou URL fora do formato. */
+export class BlockedTargetError extends AuditError {}
+
+/** Destino fora do host do site auditado (sitemap citado em outro domínio). */
+export class OutOfScopeError extends AuditError {}
+
+/** A auditoria passou de `MAX_SUBREQUESTS_PER_AUDIT`. */
+export class SubrequestLimitError extends AuditError {}
 
 export const allowedOrigins = (env: Env): string[] => {
   if (!env.ALLOWED_ORIGINS || env.ALLOWED_ORIGINS.trim() === '') return DEFAULT_ORIGINS;
@@ -207,10 +227,38 @@ const classifyHost = async (host: string): Promise<HostStatus> => {
   return results.some((r) => r.status === 'rejected') ? 'unresolved' : 'blocked';
 };
 
+/**
+ * Orçamento de subrequests de uma auditoria, preso ao cache de DNS dela. O
+ * cache já acompanha toda chamada que sai para a rede, então não é preciso
+ * passar mais um parâmetro por todas as funções. Sem orçamento registrado
+ * (chamadas avulsas e testes), nada é contado.
+ */
+const subrequestBudgets = new WeakMap<DnsCache, { used: number; max: number }>();
+
+/** Cache de DNS de uma auditoria, com o orçamento de subrequests registrado. */
+export const createAuditDns = (max = MAX_SUBREQUESTS_PER_AUDIT): DnsCache => {
+  const dns: DnsCache = new Map();
+  subrequestBudgets.set(dns, { used: 0, max });
+  return dns;
+};
+
+const spendSubrequests = (dns: DnsCache, count: number): void => {
+  const budget = subrequestBudgets.get(dns);
+  if (!budget) return;
+  if (budget.used + count > budget.max) {
+    throw new SubrequestLimitError(
+      `A auditoria passou do limite de ${budget.max} requisições. O site tem redirecionamentos ou sitemaps demais para analisar.`,
+    );
+  }
+  budget.used += count;
+};
+
 const lookupHost = (hostname: string, dns: DnsCache): Promise<HostStatus> => {
   const host = canonicalHost(hostname);
   let pending = dns.get(host);
   if (!pending) {
+    // Nome que precisa de DNS custa duas consultas (A e AAAA).
+    if (!isInternalName(host) && ipVerdict(host) === null) spendSubrequests(dns, 2);
     pending = classifyHost(host);
     dns.set(host, pending);
   }
@@ -220,15 +268,12 @@ const lookupHost = (hostname: string, dns: DnsCache): Promise<HostStatus> => {
 export const isInternalHost = async (hostname: string, dns: DnsCache = new Map()): Promise<boolean> =>
   (await lookupHost(hostname, dns)) !== 'public';
 
-/** Destino recusado pela política: endereço interno, inexistente ou URL fora do formato. */
-export class BlockedTargetError extends Error {}
-
 const validateTarget = async (url: URL, dns: DnsCache): Promise<void> => {
   const shapeOk = ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
     !url.port && url.hostname.includes('.');
   const status = shapeOk ? await lookupHost(url.hostname, dns) : 'blocked';
   if (status === 'blocked') throw new BlockedTargetError('Destino público HTTP inválido.');
-  if (status === 'unresolved') throw new Error('Não foi possível confirmar o DNS do destino.');
+  if (status === 'unresolved') throw new AuditError('Não foi possível confirmar o DNS do destino.');
 };
 
 /** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
@@ -250,6 +295,7 @@ export const fetchWithTimeout = async (
   { signal, dns = new Map() }: { signal?: AbortSignal; dns?: DnsCache } = {},
 ): Promise<Response> => {
   await validateTarget(new URL(url), dns);
+  spendSubrequests(dns, 1);
   // O mesmo sinal cobre cabeçalhos e corpo. O runtime do Worker bloqueia saída
   // para redes privadas; a checagem de DNS sozinha não fixa o IP que o fetch usa.
   return fetch(url, {
@@ -264,23 +310,36 @@ export const fetchWithTimeout = async (
   });
 };
 
+interface RedirectPolicy {
+  /** Quantas requisições a cadeia pode fazer, contando a primeira. */
+  maxHops?: number;
+  /** Recusa destinos fora do escopo antes do DNS e do fetch. */
+  allowUrl?: (url: URL) => boolean;
+}
+
 /** Segue redirects manualmente para expor a cadeia inteira ao cliente. */
 const followRedirects = async (
   start: URL,
   dns: DnsCache,
+  { maxHops = 6, allowUrl }: RedirectPolicy = {},
 ): Promise<{ response: Response; hops: RedirectHop[]; finalUrl: string; elapsedMs: number }> => {
   const hops: RedirectHop[] = [];
   let current = start.toString();
   const began = Date.now();
   const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+  const checkScope = (url: URL) => {
+    if (allowUrl && !allowUrl(url)) throw new OutOfScopeError('Destino fora do host do site auditado.');
+  };
+  checkScope(start);
 
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < maxHops; i += 1) {
     const response = await fetchWithTimeout(current, { signal, dns });
     const location = response.headers.get('location');
 
     if (response.status >= 300 && response.status < 400 && location) {
       await response.body?.cancel();
       const next = new URL(location, current);
+      checkScope(next);
       // O destino de um redirecionamento é escolhido pelo site auditado, não
       // por quem pediu a análise. Sem revalidar aqui, um site poderia mandar o
       // Worker buscar um endereço da rede interna. O cache evita repetir o DNS
@@ -294,7 +353,7 @@ const followRedirects = async (
     return { response, hops, finalUrl: current, elapsedMs: Date.now() - began };
   }
 
-  throw new Error('Cadeia de redirecionamentos longa demais (possível laço).');
+  throw new AuditError('Cadeia de redirecionamentos longa demais (possível laço).');
 };
 
 /** Verifica se a versão http:// do domínio força HTTPS. */
@@ -348,30 +407,59 @@ export const readBodyLimited = async (
 
 const SITEMAP_NOT_FOUND: SitemapReport = { found: false, url: null, urlCount: null, isIndex: false };
 
+/**
+ * Hosts de onde a auditoria aceita buscar sitemap: o host do site e a variante
+ * com ou sem `www.`. Subdomínios ficam de fora de propósito. Sem a Public
+ * Suffix List não há como separar `cdn.exemplo.com.br` de `outro-cliente.pages.dev`,
+ * e aceitar o segundo deixaria um site usar a auditoria contra vizinhos da
+ * mesma plataforma. IP literal só aceita a si mesmo.
+ */
+export const isSitemapHostAllowed = (hostname: string, siteHostname: string): boolean => {
+  const host = canonicalHost(hostname);
+  const site = canonicalHost(siteHostname);
+  if (host === site) return true;
+  if (ipVerdict(site) !== null) return false;
+  return host === `www.${site}` || `www.${host}` === site;
+};
+
+/** robots.txt e sitemaps não precisam da cadeia longa da página principal. */
+const AUX_MAX_HOPS = 3;
+
 export const auditRobotsAndSitemap = async (
   origin: string,
   dns: DnsCache = new Map(),
 ): Promise<{ robots: RobotsReport | null; sitemap: SitemapReport }> => {
   let robots: RobotsReport | null = null;
+  let limitReached = false;
 
   try {
-    const { response } = await followRedirects(new URL(`${origin}/robots.txt`), dns);
+    const { response } = await followRedirects(new URL(`${origin}/robots.txt`), dns, { maxHops: AUX_MAX_HOPS });
     const body = (await readBodyLimited(response, 128_000)).text;
     // Muitos servidores devolvem a home com status 200 no lugar de um 404.
     const looksLikeRobots = response.ok && !/<html/i.test(body.slice(0, 200));
     robots = looksLikeRobots ? parseRobots(body) : { found: false, blocksAll: false, sitemaps: [] };
-  } catch {
+  } catch (error) {
+    if (error instanceof SubrequestLimitError) limitReached = true;
     robots = null;
   }
 
+  // O robots.txt é escrito pelo site auditado e pode citar sitemaps em qualquer
+  // host. Buscar só os do próprio host impede que um site use a auditoria para
+  // disparar requisições contra terceiros.
+  const siteHost = new URL(origin).hostname;
+  const sitemapPolicy: RedirectPolicy = {
+    maxHops: AUX_MAX_HOPS,
+    allowUrl: (url) => isSitemapHostAllowed(url.hostname, siteHost),
+  };
   const candidates = [...(robots?.sitemaps ?? []), `${origin}/sitemap.xml`];
   // Os candidatos são buscados em paralelo porque cada tentativa custa um
   // round-trip inteiro, mas a escolha continua respeitando a ordem original:
   // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
   // presumido, mesmo que o presumido responda primeiro.
-  const promises = candidates.slice(0, 3).map(async (candidate): Promise<SitemapReport | 'falha' | null> => {
+  type Attempt = SitemapReport | 'falha' | 'limite' | 'fora' | null;
+  const promises = candidates.slice(0, 3).map(async (candidate): Promise<Attempt> => {
     try {
-      const { response } = await followRedirects(new URL(candidate), dns);
+      const { response } = await followRedirects(new URL(candidate), dns, sitemapPolicy);
       if (!response.ok) { await response.body?.cancel(); return null; }
       const xml = (await readBodyLimited(response, 1_000_000)).text;
       if (!/<(urlset|sitemapindex)/i.test(xml)) return null;
@@ -382,25 +470,38 @@ export const auditRobotsAndSitemap = async (
         isIndex: isSitemapIndex(xml),
       };
     } catch (error) {
-      // Destino recusado pela política conta como ausente. Falha de rede, DNS
-      // ou limite de subrequests deixa o resultado inconclusivo.
+      // Destino interno recusado pela política conta como ausente. Sitemap em
+      // outro host, falha de rede, DNS ou limite de subrequests deixa o
+      // resultado inconclusivo.
+      if (error instanceof SubrequestLimitError) return 'limite';
+      if (error instanceof OutOfScopeError) return 'fora';
       return error instanceof BlockedTargetError ? null : 'falha';
     }
   });
 
   let failed = false;
+  let outOfScope = false;
   for (const promise of promises) {
     const entry = await promise;
-    if (entry === 'falha') failed = true;
+    if (entry === 'limite') limitReached = true;
+    else if (entry === 'fora') outOfScope = true;
+    else if (entry === 'falha') failed = true;
     else if (entry !== null) return { robots, sitemap: entry };
   }
 
-  return {
-    robots,
-    sitemap: failed
-      ? { ...SITEMAP_NOT_FOUND, error: 'Não foi possível consultar o sitemap. A ausência não foi confirmada.' }
-      : SITEMAP_NOT_FOUND,
-  };
+  const unverified = (error: string): { robots: RobotsReport | null; sitemap: SitemapReport } =>
+    ({ robots, sitemap: { ...SITEMAP_NOT_FOUND, error } });
+  if (limitReached) {
+    return unverified(
+      `O limite de ${MAX_SUBREQUESTS_PER_AUDIT} requisições por auditoria acabou durante a verificação de robots.txt e sitemap. A ausência do sitemap não foi confirmada.`,
+    );
+  }
+  if (outOfScope) {
+    return unverified('O robots.txt cita sitemap em outro domínio, que a auditoria não consulta. A ausência não foi confirmada.');
+  }
+  return failed
+    ? unverified('Não foi possível consultar o sitemap. A ausência não foi confirmada.')
+    : { robots, sitemap: SITEMAP_NOT_FOUND };
 };
 
 const createErrorAuditResponse = (
@@ -488,7 +589,7 @@ const createSuccessAuditResponse = (
 
 
 const runAudit = async (input: string): Promise<AuditResponse> => {
-  const dns: DnsCache = new Map();
+  const dns = createAuditDns();
   const target = await normalizeTarget(input, dns);
   const checkedAt = new Date().toISOString();
 
@@ -527,10 +628,67 @@ const isTimeout = (error: unknown): boolean =>
 const PAGESPEED_TIMEOUT_MS = 45_000;
 const MAX_PAGESPEED_BYTES = 12_000_000;
 
+/**
+ * Medições recentes do PageSpeed, por destino e estratégia, na memória do
+ * isolate. A mesma medição pedida de novo em poucos minutos (retentativa do
+ * front, visitante que repete a análise, chamadas repetidas ao endpoint) não
+ * gasta outra chamada da cota do Google. É um cache por isolate, sem garantia
+ * de acerto; o teto em caracteres segura a memória, já que cada resposta tem
+ * centenas de KB.
+ */
+const PAGESPEED_CACHE_TTL_MS = 10 * 60 * 1000;
+const PAGESPEED_CACHE_MAX_CHARS = 8_000_000;
+
+class PageSpeedCache {
+  private entries = new Map<string, { body: string; expiresAt: number }>();
+  private chars = 0;
+
+  get(key: string, now: number): string | null {
+    const entry = this.entries.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt > now) return entry.body;
+    this.delete(key);
+    return null;
+  }
+
+  set(key: string, body: string, now: number): void {
+    if (body.length > PAGESPEED_CACHE_MAX_CHARS) return;
+    this.delete(key);
+    // As entradas entram em ordem de validade: as primeiras vencem antes.
+    for (const [oldKey, entry] of this.entries) {
+      if (entry.expiresAt > now && this.chars + body.length <= PAGESPEED_CACHE_MAX_CHARS) break;
+      this.delete(oldKey);
+    }
+    this.entries.set(key, { body, expiresAt: now + PAGESPEED_CACHE_TTL_MS });
+    this.chars += body.length;
+  }
+
+  clear(): void {
+    this.entries.clear();
+    this.chars = 0;
+  }
+
+  private delete(key: string): void {
+    const entry = this.entries.get(key);
+    if (!entry) return;
+    this.chars -= entry.body.length;
+    this.entries.delete(key);
+  }
+}
+
+export const pageSpeedCache = new PageSpeedCache();
+
 const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string>): Promise<Response> => {
   const target = await normalizeTarget(url.searchParams.get('domain') ?? '');
   const strategy = url.searchParams.get('strategy') ?? 'mobile';
   if (!target || !['mobile', 'desktop'].includes(strategy)) return json({ error: 'Destino inválido.' }, 400, headers);
+  const cacheKey = `${strategy}:${target.href}`;
+  const pageSpeedResponse = (body: string) => new Response(body, {
+    status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', ...headers, 'cache-control': 'no-store' },
+  });
+  const cached = pageSpeedCache.get(cacheKey, Date.now());
+  if (cached !== null) return pageSpeedResponse(cached);
   const params = new URLSearchParams({ url: target.toString(), strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) params.append('category', category);
   // A chave vai no header, fora da URL que aparece em logs e traces. O Referer
@@ -557,10 +715,8 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
     // Corpo cortado no teto não é JSON válido; melhor recusar aqui.
     if (bytes >= MAX_PAGESPEED_BYTES) return json({ error: 'Resposta do PageSpeed grande demais.' }, 502, headers);
     // O destino é fixo, então o corpo segue como texto, sem parse nem nova serialização.
-    return new Response(text, {
-      status: 200,
-      headers: { 'content-type': 'application/json; charset=utf-8', ...headers, 'cache-control': 'no-store' },
-    });
+    pageSpeedCache.set(cacheKey, text, Date.now());
+    return pageSpeedResponse(text);
   } catch (error) {
     return isTimeout(error)
       ? json({ error: 'O PageSpeed demorou demais para responder.' }, 504, headers)
@@ -569,43 +725,96 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
 };
 
 /**
- * Limite por IP, em janelas de um minuto, com orçamento separado por rota.
+ * Limite por cliente, em janelas de um minuto, com orçamento separado por rota.
+ *
+ * O contador vive na memória do isolate: cada isolate e cada data center da
+ * Cloudflare contam à parte, então o limite real fica acima do nominal. Ele
+ * segura repetição casual. A proteção forte é a regra de Rate Limiting do WAF
+ * da Cloudflare descrita no README do Worker.
+ *
  * Uma auditoria completa faz uma chamada a /audit e duas a /pagespeed
  * (celular e computador), e o front repete cada medição até três vezes. Com
  * 30 chamadas ao PageSpeed por minuto cabem as 10 auditorias do /audit mesmo
  * com uma retentativa em cada medição.
  *
- * Chave: "<rota>:<ip>" -> { count, expiresAt }. O Map mantém a ordem de
- * inserção e toda janela nova vai para o fim, então as primeiras entradas são
- * sempre as que expiram antes.
+ * Chave: "<rota>:<cliente>" -> { count, expiresAt }, com o cliente de
+ * `rateLimitClient`. O Map mantém a ordem de inserção e toda janela nova vai
+ * para o fim, então as primeiras entradas são sempre as que expiram antes.
  */
 export const rateLimitCache = new Map<string, { count: number; expiresAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 export const RATE_LIMITS = { audit: 10, pagespeed: 30 } as const;
 export const RATE_LIMIT_MAX_ENTRIES = 5000;
+type RateLimitBucket = keyof typeof RATE_LIMITS;
+
+/** Cliente sem vaga própria quando a tabela está cheia de janelas ativas. */
+export const RATE_LIMIT_OVERFLOW = 'overflow';
+
+/**
+ * Identidade do cliente no limitador. Um provedor entrega a cada assinante
+ * IPv6 um /64 inteiro, então contar por endereço deixaria qualquer um trocar
+ * de endereço a cada requisição. IPv6 conta pelo /64; IPv4, pelo endereço.
+ */
+export const rateLimitClient = (ip: string): string => {
+  const groups = parseIpv6(canonicalHost(ip));
+  if (!groups) return ip;
+  if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) {
+    return [groups[6]! >> 8, groups[6]! & 0xff, groups[7]! >> 8, groups[7]! & 0xff].join('.');
+  }
+  return `${groups.slice(0, 4).map((g) => g.toString(16)).join(':')}::/64`;
+};
 
 /** Devolve os segundos até a próxima janela quando o limite estourou, ou null. */
-const consumeRateLimit = (key: string, max: number, now: number): number | null => {
-  const record = rateLimitCache.get(key);
-  if (record && record.expiresAt > now) {
+const consumeRateLimit = (bucket: RateLimitBucket, client: string, now: number): number | null => {
+  const max = RATE_LIMITS[bucket];
+  let key = `${bucket}:${client}`;
+  let record = rateLimitCache.get(key);
+
+  if (!record || record.expiresAt <= now) {
+    rateLimitCache.delete(key);
+    // Janelas vencidas saem primeiro. O Map mantém a ordem de inserção e toda
+    // janela nova vai para o fim, então as vencidas estão sempre no começo.
+    for (const [entry, value] of rateLimitCache) {
+      if (value.expiresAt > now) break;
+      rateLimitCache.delete(entry);
+    }
+    record = undefined;
+    // Cheia de janelas ativas, a tabela não descarta ninguém: descartar
+    // deixaria quem gira endereços zerar o contador de outro cliente. O cliente
+    // novo divide um contador comum até alguma janela vencer.
+    if (rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
+      key = `${bucket}:${RATE_LIMIT_OVERFLOW}`;
+      record = rateLimitCache.get(key);
+      if (record && record.expiresAt <= now) {
+        rateLimitCache.delete(key);
+        record = undefined;
+      }
+    }
+  }
+
+  if (record) {
     if (record.count >= max) return Math.ceil((record.expiresAt - now) / 1000);
     record.count += 1;
     return null;
   }
-
-  rateLimitCache.delete(key);
-  for (const [entry, value] of rateLimitCache) {
-    if (value.expiresAt > now) break;
-    rateLimitCache.delete(entry);
-  }
-  // Com o cache cheio de janelas ativas, descarta a mais antiga. Recusar todo
-  // IP novo deixaria qualquer um com muitos endereços travar o serviço.
-  if (rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
-    const oldest = rateLimitCache.keys().next().value;
-    if (oldest !== undefined) rateLimitCache.delete(oldest);
-  }
   rateLimitCache.set(key, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
   return null;
+};
+
+/**
+ * Mensagem de falha da auditoria para o cliente. Só os erros escritos para o
+ * cliente (`AuditError`) saem com o próprio texto; o resto pode trazer detalhe
+ * do runtime ou da rede interna da plataforma, então vai para o log e o
+ * cliente recebe uma frase fixa.
+ */
+const auditErrorMessage = (error: unknown): string => {
+  // `AbortSignal.timeout` aborta com TimeoutError; um AbortController, com AbortError.
+  if (isTimeout(error)) return 'O site não respondeu dentro de 12 segundos.';
+  if (error instanceof AuditError) return error.message;
+  console.error('audit failed', error);
+  return error instanceof Error
+    ? 'Não foi possível acessar o site. Confira o endereço e tente novamente.'
+    : 'Falha desconhecida ao auditar o site.';
 };
 
 export default {
@@ -621,7 +830,7 @@ export default {
 
     const url = new URL(request.url);
     const bucket = url.pathname === '/pagespeed' ? 'pagespeed' : 'audit';
-    const retryAfter = consumeRateLimit(`${bucket}:${clientIp}`, RATE_LIMITS[bucket], Date.now());
+    const retryAfter = consumeRateLimit(bucket, rateLimitClient(clientIp), Date.now());
     if (retryAfter !== null) {
       // `code` separa este limite do 429 repassado pelo Google no /pagespeed.
       return json({ error: 'Muitas requisições. Tente novamente mais tarde.', code: 'rate_limited' }, 429, {
@@ -653,13 +862,7 @@ export default {
         'cache-control': 'public, max-age=120',
       });
     } catch (error) {
-      // `AbortSignal.timeout` aborta com TimeoutError; um AbortController, com AbortError.
-      const message = isTimeout(error)
-        ? 'O site não respondeu dentro de 12 segundos.'
-        : error instanceof Error
-          ? error.message
-          : 'Falha desconhecida ao auditar o site.';
-      return json({ ok: false, error: message, input }, 200, headers);
+      return json({ ok: false, error: auditErrorMessage(error), input }, 200, headers);
     }
   },
 };
