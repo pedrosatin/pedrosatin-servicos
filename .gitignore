@@ -39,3 +39,6 @@ graphify-out
 CONTEXT.md
 LANDING_FINAL.md
 graphify-out/
+.scratch/
+.fallowrc.json
+fallow.md

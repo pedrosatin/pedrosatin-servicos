@@ -16,7 +16,8 @@
     "worker:dev": "node worker/dev-server.mjs",
     "worker:deploy": "npm --prefix worker run deploy",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
     "react": "^19.3.0",
