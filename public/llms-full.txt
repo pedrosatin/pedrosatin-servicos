@@ -69,5 +69,6 @@ O trabalho abrange principalmente TypeScript e o ecossistema web moderno: React,
 - servicos.pedrosatin.com: Landing page com nota máxima de desempenho, zero scripts de terceiros bloqueantes e renderização estática.
 - pedrosatin.com: Portfólio de engenharia em Astro, HTML estático servido por CDN e indexado no Google e Bing.
 - silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, responsivo e presente na busca.
+- trincaconstrutora.com.br: Landing page de construtora em Maringá-PR, com simulador de financiamento Caixa (Minha Casa Minha Vida e SBPE) e HTML pré-renderizado.
 - palpitae.com.br: Plataforma web de bolões de futebol desenvolvida em Vite e Cloudflare.
 - https://kpopquiz.online: site bilíngue de jogos diários e perguntas em Astro e Preact com domínio próprio.

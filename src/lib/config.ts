@@ -63,6 +63,12 @@ export const CASE_STUDIES: CaseStudy[] = [
     summary: 'Site institucional com domínio .adv.br próprio, 100% responsivo e indexado na busca.',
   },
   {
+    domain: 'trincaconstrutora.com.br',
+    name: 'Trinca Engenharia',
+    segment: 'Landing page de construtora',
+    summary: 'Construtora de Maringá com simulador de financiamento Caixa (MCMV e SBPE) e página pré-renderizada.',
+  },
+  {
     domain: 'palpitae.com.br',
     name: 'Palpitaê',
     segment: 'Aplicação web',
