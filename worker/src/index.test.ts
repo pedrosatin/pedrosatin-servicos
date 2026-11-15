@@ -361,6 +361,49 @@ describe('audit handler', () => {
     expect(body).toEqual({ ok: false, error: 'Cadeia de redirecionamentos longa demais (possível laço).', input: 'example.com' });
   });
 
+  it('answers errors, 404 and 405 with no-store', async () => {
+    installFetch(() => new Response(''));
+    const env = { ALLOWED_ORIGINS: 'https://allowed.example' };
+    const make = (path: string, ip: string, method = 'GET') => new Request(`https://servicos-api.pedrosatin.com${path}`, {
+      method, headers: { origin: 'https://allowed.example', 'cf-connecting-ip': ip },
+    });
+    const cases: [string, Response][] = [
+      ['404 de rota', await worker.fetch(make('/unknown', 'ns-1'), env)],
+      ['405', await worker.fetch(make('/audit?url=example.com', 'ns-2', 'POST'), env)],
+      ['400 do /audit', await worker.fetch(make('/audit', 'ns-3'), env)],
+      ['403 de origem', await worker.fetch(new Request('https://servicos-api.pedrosatin.com/audit?url=example.com', {
+        headers: { origin: 'https://denied.example', 'cf-connecting-ip': 'ns-4' },
+      }), env)],
+    ];
+    expect(cases.map(([, response]) => response.status)).toEqual([404, 405, 400, 403]);
+    for (const [name, response] of cases) expect(response.headers.get('cache-control'), name).toBe('no-store');
+  });
+
+  it('answers a failed audit and a rate limit with no-store', async () => {
+    installFetch(() => { throw new Error('boom'); });
+    const failed = await worker.fetch(auditRequest('203.0.113.60'), {});
+    expect(failed.status).toBe(200);
+    expect(failed.headers.get('cache-control')).toBe('no-store');
+    let limited = failed;
+    for (let i = 0; i < 100 && limited.status !== 429; i++) limited = await worker.fetch(auditRequest('203.0.113.60'), {});
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('answers an invalid domain with no-store', async () => {
+    const response = await worker.fetch(auditRequest('203.0.113.62', 'url=localhost'), {});
+    expect(response.status).toBe(200);
+    expect(((await response.clone().json()) as { error?: string }).error).toBeTruthy();
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('keeps the cache of a successful audit', async () => {
+    installFetch(() => new Response('<title>ok</title>', { headers: { 'content-type': 'text/html' } }));
+    const response = await worker.fetch(auditRequest('203.0.113.61'), {});
+    expect(((await response.clone().json()) as { ok?: boolean }).ok).not.toBe(false);
+    expect(response.headers.get('cache-control')).toBe('public, max-age=120');
+  });
+
   it('refuses localhost origins with the production configuration', async () => {
     installFetch(() => new Response(''));
     const request = new Request('https://servicos-api.pedrosatin.com/audit?url=example.com', {
@@ -463,6 +506,7 @@ describe('host allowlist', () => {
       for (const [i, base] of hosts.entries()) {
         const response = await worker.fetch(request(base, `198.51.100.${i + 1}`), env);
         expect(response.status).toBe(404);
+        expect(response.headers.get('cache-control')).toBe('no-store');
         expect(response.headers.get('access-control-allow-origin')).toBeNull();
       }
     }
@@ -490,6 +534,35 @@ describe('host allowlist', () => {
 });
 
 describe('PageSpeed proxy', () => {
+  it('logs only the status codes of a Google error, never its message', async () => {
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const errored = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const message = 'Quota exceeded for example.com with key AIza-synthetic';
+    installFetch(() => Response.json({
+      error: { code: 429, status: 'RESOURCE_EXHAUSTED', message, errors: [{ reason: 'rateLimitExceeded', message }] },
+    }, { status: 429 }));
+    await worker.fetch(pagespeedRequest(), {});
+    const logged = JSON.stringify([...warned.mock.calls, ...errored.mock.calls]);
+    expect(warned).toHaveBeenCalledWith('pagespeed upstream error', 429, 'RESOURCE_EXHAUSTED', 'rateLimitExceeded');
+    expect(logged).not.toContain('Quota exceeded');
+    expect(logged).not.toContain('AIza-synthetic');
+    expect(logged).not.toContain('example.com');
+  });
+
+  it('drops status and reason that are not structured codes', async () => {
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    installFetch(() => Response.json({
+      error: { status: 'texto livre com espaços do Google', errors: [{ reason: 42 }] },
+    }, { status: 500 }));
+    await worker.fetch(pagespeedRequest(), {});
+    expect(warned).toHaveBeenCalledWith('pagespeed upstream error', 500, undefined, undefined);
+  });
+
+  it('answers Google errors with no-store', async () => {
+    installFetch(() => Response.json({ error: { code: 500 } }, { status: 500 }));
+    expect((await worker.fetch(pagespeedRequest(), {})).headers.get('cache-control')).toBe('no-store');
+  });
+
   it('keeps the key server-side and forwards the body as received', async () => {
     const psiBody = '{"lighthouseResult":{"categories":{}},  "kept":"as-is"}';
     const mock = installFetch(() => new Response(psiBody, { headers: { 'content-type': 'application/json' } }));

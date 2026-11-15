@@ -1,7 +1,7 @@
 import type React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import type { AuditResult } from '../../lib/types';
+import type { AuditResult, PageSpeedReport } from '../../lib/types';
 import type { AuditPhase } from '../../lib/useAudit';
 import { HeroAnalysisSection } from './HeroAnalysisSection';
 
@@ -138,5 +138,41 @@ describe('HeroAnalysisSection: terminal', () => {
     expect(linhas[1]?.querySelector('.lp-log-detail')).toBeNull();
     // As linhas não entram no anúncio; só o início da análise é lido.
     expect(screen.getByRole('status')).toHaveTextContent('Análise de exemplo.com.br iniciada.');
+  });
+});
+
+describe('HeroAnalysisSection: screenshot do celular', () => {
+  const captura = (screenshot: string | null): PageSpeedReport =>
+    ({ screenshot, screenshotSize: null, fetchedAt: '2026-11-14T12:00:00.000Z' }) as PageSpeedReport;
+  const placeholder = 'A captura do seu site aparece aqui';
+
+  test.each(['data:image/jpeg;base64,/9j/4AAQ', 'data:image/webp;base64,UklGRg=='])(
+    'renderiza %s',
+    (screenshot) => {
+      const { container } = renderizar('done', resultado({}), null, { mobile: captura(screenshot) });
+
+      expect(container.querySelector('.lp-device-screen img')).toHaveAttribute('src', screenshot);
+    },
+  );
+
+  test.each([
+    'javascript:alert(1)',
+    'data:image/svg+xml;base64,PHN2Zy8+',
+    'data:text/html;base64,PHNjcmlwdD4=',
+    'https://exemplo.com.br/captura.jpg',
+    'DATA:IMAGE/JPEG;base64,AAAA',
+    ' data:image/jpeg;base64,AAAA',
+  ])('não renderiza %s e mantém o placeholder', (screenshot) => {
+    const { container } = renderizar('done', resultado({}), null, { mobile: captura(screenshot) });
+
+    expect(container.querySelector('.lp-device-screen img')).toBeNull();
+    expect(screen.getByText(placeholder)).toBeInTheDocument();
+  });
+
+  test('sem screenshot, mantém o placeholder', () => {
+    const { container } = renderizar('done', resultado({}), null, { mobile: captura(null) });
+
+    expect(container.querySelector('.lp-device-screen img')).toBeNull();
+    expect(screen.getByText(placeholder)).toBeInTheDocument();
   });
 });

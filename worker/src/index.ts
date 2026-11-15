@@ -88,10 +88,19 @@ const corsHeaders = (origin: string | null, env: Env): Record<string, string> =>
   };
 };
 
+/**
+ * Resposta de erro não vai para cache de navegador nem de CDN. Um 429 ou um 403
+ * guardado seguiria valendo depois que a condição passou. Quem precisa de outro
+ * valor passa o `cache-control` em `headers`, que vem depois e prevalece.
+ */
 const json = (data: unknown, status: number, headers: Record<string, string>): Response =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      ...(status >= 400 ? { 'cache-control': 'no-store' } : {}),
+      ...headers,
+    },
   });
 
 /**
@@ -821,12 +830,23 @@ const fetchPageSpeed = (target: URL, strategy: string, env: Env): Promise<Respon
   });
 };
 
-/** Erro do Google. O motivo, como cota, chave restrita ou API desativada, fica só no log. */
+/** Código estruturado do Google, como `RESOURCE_EXHAUSTED`; texto fora desse formato é descartado. */
+const upstreamCode = (value: unknown): string | undefined =>
+  typeof value === 'string' && /^[A-Za-z_]{1,64}$/.test(value) ? value : undefined;
+
+/**
+ * Erro do Google. O log guarda só os códigos: o status HTTP e o `status` e o
+ * `reason` estruturados, como cota esgotada ou API desativada. O `message` é texto livre
+ * do provedor e pode repetir o domínio consultado ou trechos da chave, então
+ * não é registrado.
+ */
 const pageSpeedUpstreamError = async (response: Response, headers: Record<string, string>): Promise<Response> => {
   const reason = await readBodyLimited(response, 4_000)
-    .then(({ text }) => (JSON.parse(text) as { error?: { status?: string; message?: string } }).error)
+    .then(({ text }) => (JSON.parse(text) as { error?: { status?: unknown; errors?: { reason?: unknown }[] } }).error)
     .catch(() => undefined);
-  console.warn('pagespeed upstream error', response.status, reason?.status, reason?.message);
+  console.warn(
+    'pagespeed upstream error', response.status, upstreamCode(reason?.status), upstreamCode(reason?.errors?.[0]?.reason),
+  );
   return pageSpeedUnavailable(response.status >= 400 && response.status < 600 ? response.status : 502, headers);
 };
 
@@ -1074,12 +1094,17 @@ export default {
 
     try {
       const report = await runAudit(input);
+      // Domínio inválido ou DNS que falhou voltam com `error`. Sem `no-store`,
+      // uma falha passageira ficaria dois minutos em cache. Um site que
+      // respondeu 404 ou 500 é resultado da auditoria e entra no cache.
       return json(report, 200, {
         ...headers,
-        'cache-control': 'public, max-age=120',
+        'cache-control': report.error ? 'no-store' : 'public, max-age=120',
       });
     } catch (error) {
-      return json({ ok: false, error: auditErrorMessage(error), input }, 200, headers);
+      // Falha da auditoria sai com 200 para o SPA ler o corpo; sem `no-store`, o
+      // erro ficaria em cache como se fosse resultado.
+      return json({ ok: false, error: auditErrorMessage(error), input }, 200, { ...headers, 'cache-control': 'no-store' });
     }
   },
 };
