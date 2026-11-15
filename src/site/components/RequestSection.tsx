@@ -67,13 +67,21 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
             <div className="lp-field-step">
               <span className="lp-step-badge">2</span>
               <div className="lp-step-body">
-                <h3>Do que você precisa</h3>
-                <div className="lp-needs">
+                <h3 id="atendimento-necessidade">Do que você precisa</h3>
+                {/* Escolha única com `aria-pressed`: cada opção continua
+                    sendo uma parada do Tab, como as demais da página, e o
+                    leitor de tela diz qual está marcada. */}
+                <div
+                  className="lp-needs"
+                  role="group"
+                  aria-labelledby="atendimento-necessidade"
+                >
                   {NEEDS.map((item) => (
                     <button
                       key={item}
                       type="button"
                       className={`lp-need ${briefing.need === item ? 'active' : ''}`}
+                      aria-pressed={briefing.need === item}
                       onClick={() => onChange({ ...briefing, need: item })}
                     >
                       {item}

@@ -223,6 +223,48 @@ describe('useAnaliseDaLanding', () => {
     secao.remove();
   });
 
+  test('o link de pular leva a página até a análise e põe o foco no campo', () => {
+    const secao = document.createElement('section');
+    secao.id = 'analise';
+    secao.scrollIntoView = vi.fn();
+    document.body.appendChild(secao);
+    const campo = document.createElement('input');
+    const focar = vi.spyOn(campo, 'focus');
+    const clique = { preventDefault: vi.fn() } as unknown as React.MouseEvent;
+
+    const { result } = renderHook(() => useAnaliseDaLanding());
+    result.current.inputRef.current = campo;
+
+    act(() => result.current.pularParaAnalise(clique));
+
+    expect(clique.preventDefault).toHaveBeenCalled();
+    expect(secao.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(focar).toHaveBeenCalledWith({ preventScroll: true });
+    expect(iniciadas).toEqual([]);
+    secao.remove();
+  });
+
+  test('com o campo desabilitado, o link de pular foca o bloco da análise', () => {
+    const secao = document.createElement('section');
+    secao.id = 'analise';
+    secao.scrollIntoView = vi.fn();
+    const focarSecao = vi.spyOn(secao, 'focus');
+    document.body.appendChild(secao);
+    const campo = document.createElement('input');
+    campo.disabled = true;
+    const focarCampo = vi.spyOn(campo, 'focus');
+    const clique = { preventDefault: vi.fn() } as unknown as React.MouseEvent;
+
+    const { result } = renderHook(() => useAnaliseDaLanding());
+    result.current.inputRef.current = campo;
+
+    act(() => result.current.pularParaAnalise(clique));
+
+    expect(focarCampo).not.toHaveBeenCalled();
+    expect(focarSecao).toHaveBeenCalledWith({ preventScroll: true });
+    secao.remove();
+  });
+
   test('rola o registro da análise até a última linha', async () => {
     const registro = document.createElement('div');
     vi.spyOn(registro, 'scrollHeight', 'get').mockReturnValue(480);

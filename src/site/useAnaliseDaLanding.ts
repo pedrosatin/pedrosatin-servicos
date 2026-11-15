@@ -22,6 +22,22 @@ const medirComputador = (domain: string): Promise<PageSpeedReport> | null => {
   return medicao;
 };
 
+const rolarAteAnalise = (): void => {
+  document.getElementById('analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+/**
+ * Leva o foco ao campo do domínio. Durante uma análise o campo fica
+ * desabilitado e recusa o foco; aí o foco vai para o bloco da análise, para o
+ * próximo Tab continuar dali e não do topo da página.
+ */
+const focarCampo = (campo: HTMLInputElement | null): void => {
+  // Sem `preventScroll`, o foco interrompe a rolagem suave e deixa o campo no
+  // meio da tela, em vez de logo abaixo do cabeçalho.
+  const alvo = campo && !campo.disabled ? campo : document.getElementById('analise');
+  alvo?.focus({ preventScroll: true });
+};
+
 /**
  * Estado da análise da página: o campo do domínio, a auditoria, a medição em
  * computador que roda junto dela e a fila do domínio pedido por um card
@@ -89,15 +105,20 @@ export const useAnaliseDaLanding = () => {
   const runFor = (value: string): void => {
     const target = normalizeDomain(value);
     setInput(target);
-    document.getElementById('analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    rolarAteAnalise();
     if (phase === 'running') {
       queuedPresetRef.current = target;
       return;
     }
     void run(target);
-    // Sem `preventScroll`, o foco interrompe a rolagem suave acima e deixa o
-    // campo no meio da tela, em vez de logo abaixo do cabeçalho.
-    inputRef.current?.focus({ preventScroll: true });
+    focarCampo(inputRef.current);
+  };
+
+  /** Destino do link "Pular para a análise": rola e põe o foco no campo. */
+  const pularParaAnalise = (event: React.MouseEvent): void => {
+    event.preventDefault();
+    rolarAteAnalise();
+    focarCampo(inputRef.current);
   };
 
   runRef.current = run;
@@ -119,6 +140,7 @@ export const useAnaliseDaLanding = () => {
     setInput,
     submit,
     runFor,
+    pularParaAnalise,
     inputRef,
     logRef,
     mobile: result?.pagespeed ?? null,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { expect, describe, test, vi, beforeEach } from 'vitest';
 import LandingPage from './LandingPage';
 import * as sources from '../lib/sources';
@@ -117,4 +118,28 @@ describe('LandingPage', () => {
       { timeout: 10_000 },
     );
   }, 15_000);
+
+  test('o primeiro elemento focável é o link de pular, e ele põe o foco no campo', () => {
+    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
+    Element.prototype.scrollIntoView = vi.fn();
+    const { container } = render(<LandingPage />);
+
+    const primeiro = container.querySelector('a[href], button, input, textarea, summary');
+    expect(primeiro).toHaveTextContent('Pular para a análise');
+    expect(primeiro).toHaveAttribute('href', '#analise');
+
+    // Enter num link dispara o clique; o jsdom não simula essa tecla.
+    fireEvent.click(primeiro as HTMLElement);
+
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: /Endereço do site a analisar/i }),
+    );
+  });
+
+  test('o HTML pré-renderizado já traz as regiões de status e de alerta, vazias', () => {
+    const html = renderToString(<LandingPage />);
+
+    expect(html).toMatch(/<p role="status" class="lp-sr-only"><\/p>/);
+    expect(html).toMatch(/<p class="lp-error" role="alert"><\/p>/);
+  });
 });

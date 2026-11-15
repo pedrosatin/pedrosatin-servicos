@@ -5,6 +5,7 @@ import { auditWhatsAppUrl } from '../../lib/message';
 import { googleIndexUrl } from '../../lib/dominio';
 import type { AuditResult, AuditStep, PageSpeedReport } from '../../lib/types';
 import type { AuditPhase } from '../../lib/useAudit';
+import { AnuncioDaAuditoria } from './AnuncioDaAuditoria';
 import { DeviceStatusBar } from './DeviceStatusBar';
 import { StatusGlyph } from './StatusGlyph';
 
@@ -91,7 +92,10 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
         </a>
       </div>
 
-      <div className="lp-analysis" id="analise">
+      {/* `tabIndex={-1}` deixa o link "Pular para a análise" pôr o foco aqui
+          quando o campo está desabilitado por uma análise em andamento. */}
+      <div className="lp-analysis" id="analise" tabIndex={-1}>
+        <AnuncioDaAuditoria phase={phase} domain={domain} result={result} />
         <div className="lp-terminal">
           <div className="lp-terminal-bar">
             <div className="lp-terminal-dots" aria-hidden="true">
@@ -166,7 +170,11 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
               </p>
             )}
 
-            {error && <p className="lp-error">{error}</p>}
+            {/* Fica no DOM desde o início, vazio, pelo mesmo motivo da região
+                de status: o alerta só é lido se a região já existir. */}
+            <p className="lp-error" role="alert">
+              {error}
+            </p>
           </div>
         </div>
 
