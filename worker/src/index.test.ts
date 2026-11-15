@@ -10,7 +10,9 @@ import worker, {
   isInternalHost,
   isSitemapHostAllowed,
   normalizeTarget,
+  PAGESPEED_UPSTREAM_LIMITS,
   pageSpeedCache,
+  pageSpeedUpstream,
   rateLimitCache,
   rateLimitClient,
   rateLimitPrefix,
@@ -58,6 +60,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 beforeEach(() => {
   rateLimitCache.clear();
   pageSpeedCache.clear();
+  pageSpeedUpstream.clear();
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -547,6 +550,145 @@ describe('PageSpeed proxy', () => {
     });
     expect((await worker.fetch(make('domain=127.0.0.1'), {})).status).toBe(400);
     expect((await worker.fetch(make('domain=example.com&strategy=tablet'), {})).status).toBe(400);
+  });
+});
+
+const googleCalls = (mock: ReturnType<typeof installFetch>) =>
+  mock.mock.calls.filter(([url]) => String(url).includes('pagespeedonline')).length;
+
+const pagespeedFor = (ip: string, domain: string) =>
+  new Request(`https://servicos-api.pedrosatin.com/pagespeed?${new URLSearchParams({ domain, strategy: 'mobile' })}`, {
+    headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': ip },
+  });
+
+const tally = async (responses: Response[]) => {
+  const counts: Record<number, number> = {};
+  for (const response of responses) counts[response.status] = (counts[response.status] ?? 0) + 1;
+  return counts;
+};
+
+describe('PageSpeed upstream caps', () => {
+  const { perBlockPerMinute, perIsolatePerMinute } = PAGESPEED_UPSTREAM_LIMITS;
+  const installPsi = () => installFetch(() => new Response('{"lighthouseResult":{}}', { headers: { 'content-type': 'application/json' } }));
+
+  it('keeps 32 /64s of one /56 within one upstream budget', async () => {
+    // Fixture do security audit com 32 /64 de 2001:db8:aa:100::/56 e 31
+    // requisições cada, usando query única para escapar do cache. Antes do teto, 960 chamadas.
+    const mock = installPsi();
+    const responses: Response[] = [];
+    for (let k = 0; k < 32; k++) {
+      const ip = `2001:db8:aa:${(0x100 + k).toString(16)}::1`;
+      for (let i = 0; i < 31; i++) responses.push(await worker.fetch(pagespeedFor(ip, `example.com/?n=${k}-${i}`), {}));
+    }
+    expect(googleCalls(mock)).toBe(perBlockPerMinute);
+    expect(googleCalls(mock)).toBeLessThanOrEqual(perIsolatePerMinute);
+    expect(await tally(responses)).toEqual({ 200: perBlockPerMinute, 429: 32 * 31 - perBlockPerMinute });
+  });
+
+  it('answers an exhausted cap exactly like the Google quota error, without calling Google', async () => {
+    const quota = installFetch(() => Response.json({ error: { code: 429, message: 'Quota exceeded' } }, { status: 429 }));
+    const fromGoogle = await worker.fetch(pagespeedFor('203.0.113.60', 'google-quota.example.com'), {});
+    expect(googleCalls(quota)).toBe(1);
+    pageSpeedUpstream.clear();
+
+    const mock = installPsi();
+    for (let i = 0; i < perBlockPerMinute; i++) await worker.fetch(pagespeedFor(`203.0.113.${i + 1}`, `s${i}.example.com`), {});
+    const capped = await worker.fetch(pagespeedFor('203.0.113.99', 'other.example.com'), {});
+    expect(googleCalls(mock)).toBe(perBlockPerMinute);
+    expect(capped.status).toBe(fromGoogle.status);
+    expect(await capped.json()).toEqual(await fromGoogle.json());
+    expect(capped.headers.get('access-control-allow-origin')).toBe('https://servicos.pedrosatin.com');
+    expect(capped.headers.get('retry-after')).toBeNull();
+  });
+
+  it('gives each block its own budget while the isolate cap has room', async () => {
+    const mock = installPsi();
+    for (let i = 0; i < perBlockPerMinute + 1; i++) await worker.fetch(pagespeedFor(`203.0.113.${i + 1}`, `a${i}.example.com`), {});
+    expect(googleCalls(mock)).toBe(perBlockPerMinute);
+    expect((await worker.fetch(pagespeedFor('198.51.100.1', 'b.example.com'), {})).status).toBe(200);
+    expect((await worker.fetch(pagespeedFor('2001:db8:cc:1::1', 'c.example.com'), {})).status).toBe(200);
+    expect(googleCalls(mock)).toBe(perBlockPerMinute + 2);
+  });
+
+  it('caps the whole isolate across blocks', async () => {
+    const mock = installPsi();
+    const blocks = Math.ceil(perIsolatePerMinute / perBlockPerMinute) + 1;
+    for (let b = 0; b < blocks; b++) {
+      for (let i = 0; i < perBlockPerMinute; i++) {
+        await worker.fetch(pagespeedFor(`2001:db8:${(0x100 + b).toString(16)}:${i.toString(16)}::1`, `b${b}-${i}.example.com`), {});
+      }
+    }
+    expect(googleCalls(mock)).toBe(perIsolatePerMinute);
+  });
+
+  it('does not spend any cap on cache hits', async () => {
+    const mock = installPsi();
+    // Primeira medição de example.com sai para o Google; as 29 seguintes do
+    // mesmo cliente e as de 40 outros /24 vêm do cache.
+    await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {});
+    for (let i = 0; i < 29; i++) expect((await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {})).status).toBe(200);
+    for (let i = 0; i < 40; i++) expect((await worker.fetch(pagespeedFor(`198.51.${i}.1`, 'example.com'), {})).status).toBe(200);
+    expect(googleCalls(mock)).toBe(1);
+    // O bloco 203.0.113.0/24 ainda tem as outras 29 chamadas.
+    const block = await Promise.all(Array.from({ length: perBlockPerMinute }, (_, i) =>
+      worker.fetch(pagespeedFor('203.0.113.2', `a${i}.example.com`), {})));
+    expect(await tally(block)).toEqual({ 200: perBlockPerMinute - 1, 429: 1 });
+    // E o isolate, as que faltam para o teto por minuto.
+    const remaining = perIsolatePerMinute - perBlockPerMinute;
+    for (let i = 0; i < remaining; i++) {
+      expect((await worker.fetch(pagespeedFor(`2001:db8:dd:${i.toString(16)}::1`, `d${i}.example.com`), {})).status).toBe(200);
+    }
+    expect(googleCalls(mock)).toBe(perIsolatePerMinute);
+    // Com o isolate esgotado, o Worker recusa a medição nova e continua respondendo pelo cache.
+    expect((await worker.fetch(pagespeedFor('192.0.2.1', 'new.example.com'), {})).status).toBe(429);
+    expect((await worker.fetch(pagespeedFor('192.0.2.1', 'example.com'), {})).status).toBe(200);
+    expect(googleCalls(mock)).toBe(perIsolatePerMinute);
+  });
+
+  it('renews the block budget in the next minute', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const mock = installPsi();
+      for (let i = 0; i < perBlockPerMinute + 1; i++) await worker.fetch(pagespeedFor(`203.0.113.${i + 1}`, `a${i}.example.com`), {});
+      expect(googleCalls(mock)).toBe(perBlockPerMinute);
+      vi.setSystemTime(new Date('2026-01-01T00:01:00Z'));
+      expect((await worker.fetch(pagespeedFor('203.0.113.200', 'next.example.com'), {})).status).toBe(200);
+      expect(googleCalls(mock)).toBe(perBlockPerMinute + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('pageSpeedUpstream', () => {
+  const { perBlockPerMinute, perIsolatePerMinute, perIsolatePerHour } = PAGESPEED_UPSTREAM_LIMITS;
+  const start = Date.parse('2026-01-01T00:00:00Z');
+  const spend = (count: number, now: number, block = (i: number) => `block-${now}-${i}`) => {
+    for (let i = 0; i < count; i++) expect(pageSpeedUpstream.reserve(block(i), now)).toBeNull();
+  };
+
+  it('names the exhausted cap and does not count a refused call', () => {
+    spend(perBlockPerMinute, start, () => 'a');
+    expect(pageSpeedUpstream.reserve('a', start)).toBe('bloco');
+    expect(pageSpeedUpstream.reserve('a', start)).toBe('bloco');
+    spend(perIsolatePerMinute - perBlockPerMinute, start);
+    expect(pageSpeedUpstream.reserve('b', start)).toBe('minuto');
+  });
+
+  it('renews the minute cap and keeps the hourly cap across minutes', () => {
+    let now = start;
+    let spent = 0;
+    while (spent + perIsolatePerMinute <= perIsolatePerHour) {
+      spend(perIsolatePerMinute, now);
+      expect(pageSpeedUpstream.reserve('x', now)).toBe('minuto');
+      spent += perIsolatePerMinute;
+      now += 60_000;
+    }
+    spend(perIsolatePerHour - spent, now);
+    expect(pageSpeedUpstream.reserve('y', now)).toBe('hora');
+    expect(pageSpeedUpstream.reserve('y', start + 60 * 60_000 - 1)).toBe('hora');
+    expect(pageSpeedUpstream.reserve('y', start + 60 * 60_000)).toBeNull();
   });
 });
 
