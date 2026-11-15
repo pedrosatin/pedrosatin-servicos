@@ -1,3 +1,5 @@
+import { PRAZO_DEPLOY } from './prazos';
+
 /**
  * As perguntas frequentes, em texto puro.
  *
@@ -60,7 +62,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Em quanto tempo o projeto fica pronto?',
     a: [
-      'Publicações com domínio próprio e deploy levam de 1 a 3 dias úteis. Correções de bugs ou integrações de banco de dados e pagamentos costumam levar poucos dias. O prazo exato é informado junto com o orçamento antes do início.',
+      `Publicações com domínio próprio e deploy levam de ${PRAZO_DEPLOY}. Correções de bugs ou integrações de banco de dados e pagamentos costumam levar poucos dias. O prazo exato é informado junto com o orçamento antes do início.`,
     ],
   },
   {
