@@ -740,15 +740,61 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
  * Chave: "<rota>:<cliente>" -> { count, expiresAt }, com o cliente de
  * `rateLimitClient`. O Map mantém a ordem de inserção e toda janela nova vai
  * para o fim, então as primeiras entradas são sempre as que expiram antes.
+ *
+ * Cada prefixo grosso (/48 no IPv6, /24 no IPv4, de `rateLimitPrefix`) ocupa
+ * no máximo `RATE_LIMIT_PREFIX_SLOTS` janelas de cliente por rota. Acima
+ * disso, os clientes novos do prefixo dividem o contador "<rota>:<prefixo>".
+ * Quem gira endereços dentro do próprio bloco gasta só o orçamento do bloco
+ * e não enche a tabela.
  */
-export const rateLimitCache = new Map<string, { count: number; expiresAt: number }>();
+type RateLimitRecord = {
+  count: number;
+  expiresAt: number;
+  /** Chave do contador do prefixo; só nas janelas de cliente, que ocupam vaga do prefixo. */
+  prefixKey?: string;
+};
+
+/**
+ * Map das janelas que também conta quantas janelas de cliente cada prefixo
+ * ocupa, sem varrer a tabela. `set`, `delete` e `clear` mantêm essa contagem,
+ * então ela continua certa mesmo quando a tabela é mexida de fora (testes).
+ * `prefixSlots` tem no máximo uma entrada por janela de cliente, então também
+ * fica abaixo do teto da tabela.
+ */
+class RateLimitTable extends Map<string, RateLimitRecord> {
+  readonly prefixSlots = new Map<string, number>();
+
+  override set(key: string, value: RateLimitRecord): this {
+    this.release(super.get(key));
+    if (value.prefixKey) this.prefixSlots.set(value.prefixKey, (this.prefixSlots.get(value.prefixKey) ?? 0) + 1);
+    return super.set(key, value);
+  }
+
+  override delete(key: string): boolean {
+    this.release(super.get(key));
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    this.prefixSlots.clear();
+    super.clear();
+  }
+
+  private release(record: RateLimitRecord | undefined): void {
+    if (!record?.prefixKey) return;
+    const slots = (this.prefixSlots.get(record.prefixKey) ?? 0) - 1;
+    if (slots > 0) this.prefixSlots.set(record.prefixKey, slots);
+    else this.prefixSlots.delete(record.prefixKey);
+  }
+}
+
+export const rateLimitCache = new RateLimitTable();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 export const RATE_LIMITS = { audit: 10, pagespeed: 30 } as const;
 export const RATE_LIMIT_MAX_ENTRIES = 5000;
+/** Janelas de cliente que um mesmo /48 ou /24 pode abrir em cada rota. */
+export const RATE_LIMIT_PREFIX_SLOTS = 32;
 type RateLimitBucket = keyof typeof RATE_LIMITS;
-
-/** Cliente sem vaga própria quando a tabela está cheia de janelas ativas. */
-export const RATE_LIMIT_OVERFLOW = 'overflow';
 
 /**
  * Identidade do cliente no limitador. Um provedor entrega a cada assinante
@@ -764,9 +810,21 @@ export const rateLimitClient = (ip: string): string => {
   return `${groups.slice(0, 4).map((g) => g.toString(16)).join(':')}::/64`;
 };
 
+/**
+ * Prefixo grosso de um cliente de `rateLimitClient`: o /48 de um /64 ou o /24
+ * de um IPv4. Um /48 é o bloco que um provedor ou túnel entrega a um único
+ * cliente, com 65536 /64. Texto que não é IP vira o próprio prefixo.
+ */
+export const rateLimitPrefix = (client: string): string => {
+  if (client.endsWith('::/64')) return `${client.split(':').slice(0, 3).join(':')}::/48`;
+  const octets = parseIpv4(client);
+  return octets ? `${octets.slice(0, 3).join('.')}.0/24` : client;
+};
+
 /** Devolve os segundos até a próxima janela quando o limite estourou, ou null. */
-const consumeRateLimit = (bucket: RateLimitBucket, client: string, now: number): number | null => {
+const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: string, now: number): number | null => {
   const max = RATE_LIMITS[bucket];
+  const prefixKey = `${bucket}:${prefix}`;
   let key = `${bucket}:${client}`;
   let record = rateLimitCache.get(key);
 
@@ -779,15 +837,27 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, now: number):
       rateLimitCache.delete(entry);
     }
     record = undefined;
-    // Cheia de janelas ativas, a tabela não descarta ninguém: descartar
-    // deixaria quem gira endereços zerar o contador de outro cliente. O cliente
-    // novo divide um contador comum até alguma janela vencer.
-    if (rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
-      key = `${bucket}:${RATE_LIMIT_OVERFLOW}`;
+    // O cliente sem janela própria divide o contador do prefixo quando o
+    // prefixo já ocupa todas as suas vagas ou quando a tabela está cheia de
+    // janelas ativas. O contador comum fica restrito ao prefixo: um bloco que
+    // gira endereços não leva visitantes de outros blocos junto.
+    const full = rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES;
+    if (full || (rateLimitCache.prefixSlots.get(prefixKey) ?? 0) >= RATE_LIMIT_PREFIX_SLOTS) {
+      key = prefixKey;
       record = rateLimitCache.get(key);
       if (record && record.expiresAt <= now) {
         rateLimitCache.delete(key);
         record = undefined;
+      }
+      // Tabela cheia e prefixo ainda sem contador: a janela mais antiga sai
+      // para abrir a vaga, mesmo que esteja ativa, e o teto de memória se
+      // mantém. Com no máximo `RATE_LIMIT_PREFIX_SLOTS` vagas por prefixo e
+      // rota, encher a tabela exige entradas de dezenas de /48 ou /24. Com ela
+      // cheia, uma requisição de um prefixo sem contador basta para renovar
+      // antes da hora a janela de outro cliente, sem bloquear ninguém.
+      if (!record && rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
+        const oldest = rateLimitCache.keys().next().value;
+        if (oldest !== undefined) rateLimitCache.delete(oldest);
       }
     }
   }
@@ -797,7 +867,8 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, now: number):
     record.count += 1;
     return null;
   }
-  rateLimitCache.set(key, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
+  const expiresAt = now + RATE_LIMIT_WINDOW_MS;
+  rateLimitCache.set(key, key === prefixKey ? { count: 1, expiresAt } : { count: 1, expiresAt, prefixKey });
   return null;
 };
 
@@ -830,7 +901,8 @@ export default {
 
     const url = new URL(request.url);
     const bucket = url.pathname === '/pagespeed' ? 'pagespeed' : 'audit';
-    const retryAfter = consumeRateLimit(bucket, rateLimitClient(clientIp), Date.now());
+    const client = rateLimitClient(clientIp);
+    const retryAfter = consumeRateLimit(bucket, client, rateLimitPrefix(client), Date.now());
     if (retryAfter !== null) {
       // `code` separa este limite do 429 repassado pelo Google no /pagespeed.
       return json({ error: 'Muitas requisições. Tente novamente mais tarde.', code: 'rate_limited' }, 429, {
