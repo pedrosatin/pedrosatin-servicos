@@ -89,7 +89,7 @@ describe('RequestSection: o que acontece depois', () => {
     expect(within(item).getByText('Você faz').nextElementSibling).toHaveTextContent(voceFaz);
   });
 
-  test('rótulos e valores são termo e definição, lidos como par', () => {
+  test('renderiza dois termos e duas definições no primeiro passo', () => {
     const item = etapas()[0]!;
 
     expect(item.querySelectorAll('dt')).toHaveLength(2);
