@@ -697,15 +697,15 @@ export const pageSpeedCache = new PageSpeedCache();
 
 /**
  * Tetos de chamadas do Worker à PageSpeed Insights API, além do limite por
- * cliente do handler. Só a requisição que sai para o Google conta: resposta
+ * cliente do handler. Só a requisição que sai para o Google conta. Resposta
  * do cache não gasta nenhum deles.
  *
- * - `perBlockPerMinute`: um /48 (IPv6) ou /24 (IPv4) de `rateLimitPrefix`
+ * - `perBlockPerMinute`: um /48 no IPv6 ou /24 no IPv4, de `rateLimitPrefix`,
  *   divide 30 chamadas por minuto, o mesmo que um cliente sozinho recebe do
  *   limitador. Girar /64 dentro do bloco não rende cota extra.
  * - `perIsolatePerMinute` e `perIsolatePerHour`: teto do isolate inteiro,
  *   somando todos os blocos e destinos. A cota padrão de uma chave da PSI API
- *   é de 25.000 consultas por dia e 400 a cada 100 segundos (240 por minuto).
+ *   é de 25.000 consultas por dia e 400 a cada 100 segundos, ou 240 por minuto.
  *   Contando com até quatro isolates ativos ao mesmo tempo, 60 por minuto
  *   cabem nos 240 do Google e 250 por hora somam 24.000 por dia, abaixo dos
  *   25.000. A conta e a fonte estão no README do Worker.
@@ -719,7 +719,7 @@ export const PAGESPEED_UPSTREAM_LIMITS = {
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
-/** Contador de janela fixa: zera quando a janela vence. */
+/** Contador de janela fixa, zerado quando a janela vence. */
 class FixedWindow {
   private count = 0;
   private resetAt = 0;
@@ -750,7 +750,7 @@ class FixedWindow {
 }
 
 /**
- * Orçamento de chamadas ao Google por bloco e por isolate. A contagem por
+ * Tetos de chamadas ao Google por bloco e por isolate. A contagem por
  * bloco só ganha entrada quando uma chamada sai, e toda chamada também passa
  * pelo teto por hora, então a tabela de blocos tem no máximo
  * `perIsolatePerHour` entradas. Toda entrada nova vai para o fim do Map com a
@@ -821,7 +821,7 @@ const fetchPageSpeed = (target: URL, strategy: string, env: Env): Promise<Respon
   });
 };
 
-/** Erro do Google: o motivo (cota, chave restrita, API desativada) fica só no log. */
+/** Erro do Google. O motivo, como cota, chave restrita ou API desativada, fica só no log. */
 const pageSpeedUpstreamError = async (response: Response, headers: Record<string, string>): Promise<Response> => {
   const reason = await readBodyLimited(response, 4_000)
     .then(({ text }) => (JSON.parse(text) as { error?: { status?: string; message?: string } }).error)
@@ -840,7 +840,7 @@ const proxyPageSpeed = async (
   const cacheKey = `${strategy}:${target.href}`;
   const cached = pageSpeedCache.get(cacheKey, Date.now());
   if (cached !== null) return pageSpeedResponse(cached, headers);
-  // Teto esgotado responde como a cota esgotada do Google (429), sem chamar o Google.
+  // Teto esgotado devolve o mesmo 429 da cota esgotada do Google, sem chamá-lo.
   const exhausted = pageSpeedUpstream.reserve(block, Date.now());
   if (exhausted) {
     console.warn('pagespeed upstream cap reached', exhausted);

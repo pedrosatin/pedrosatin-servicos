@@ -109,15 +109,15 @@ A cota padrão de uma chave da PageSpeed Insights API é de 25.000 consultas por
 dia e 400 a cada 100 segundos, o que dá 240 por minuto. Fonte: [Monitoring
 Performance with the PageSpeed Insights
 API](https://dev.to/addyosmani/monitoring-performance-with-the-pagespeed-insights-api-33k7),
-de Addy Osmani, da equipe do Chrome no Google. As páginas da API em
-developers.google.com ([Get Started](https://developers.google.com/speed/docs/insights/v5/get-started),
-[referência REST](https://developers.google.com/speed/docs/insights/rest),
-[FAQ](https://developers.google.com/speed/docs/insights/faq)) não publicam os
-números. O valor que vale para a chave do projeto aparece no Google Cloud
+de Addy Osmani, da equipe do Chrome no Google. As páginas
+[Get Started](https://developers.google.com/speed/docs/insights/v5/get-started),
+[referência REST](https://developers.google.com/speed/docs/insights/rest) e
+[FAQ](https://developers.google.com/speed/docs/insights/faq) da API não
+publicam os números. O valor que vale para a chave do projeto aparece no Google Cloud
 Console, em **APIs e serviços** > **PageSpeed Insights API** > **Cotas**.
 
-O Worker limita as chamadas que saem para o Google
-(`PAGESPEED_UPSTREAM_LIMITS` em `src/index.ts`), além do limite por cliente:
+Além do limite por cliente, o Worker limita as chamadas que saem para o
+Google. Os valores ficam em `PAGESPEED_UPSTREAM_LIMITS`, em `src/index.ts`:
 
 | Teto | Valor | Conta |
 | :--- | :--- | :--- |
@@ -125,22 +125,35 @@ O Worker limita as chamadas que saem para o Google
 | Por isolate | 60 por minuto | 4 isolates × 60 = 240, a janela curta do Google |
 | Por isolate | 250 por hora | 4 isolates × 250 × 24 h = 24.000, abaixo das 25.000 diárias |
 
-A conta supõe até quatro isolates recebendo medições ao mesmo tempo: o público
-do site está no Brasil e passa por poucos data centers da Cloudflare. Com mais
+A conta supõe até quatro isolates recebendo medições ao mesmo tempo, porque o
+público do site está no Brasil e passa por poucos data centers da Cloudflare. Com mais
 isolates, o teto real cresce na mesma proporção, e a regra do WAF e o alerta de
 cota no Google Cloud ficam como as proteções seguintes.
 
-O teto por bloco fecha o caminho do security audit: 32 /64 de um mesmo /56,
-cada um com 30 medições por minuto e query única para escapar do cache, faziam
-960 chamadas ao Google. Agora fazem 30.
+O teto por bloco fecha o caminho do security audit. Antes, 32 /64 de um mesmo
+/56, cada um com 30 medições por minuto e query única para escapar do cache,
+faziam 960 chamadas ao Google. Agora fazem 30.
+
+Os tetos são aproximações, com dois limites conhecidos:
+
+- As janelas são fixas, como as do limite por cliente. Na virada do minuto, um
+  isolate pode soltar até 60 chamadas no fim de uma janela e mais 60 no começo
+  da seguinte, então quatro isolates em rajada passam das 400 a cada 100
+  segundos. Nesse caso o Google devolve 429 e o visitante recebe a mesma
+  resposta de indisponível, sem custo extra na chave.
+- O teto do isolate é dividido entre todos os blocos. Dois blocos esgotam o
+  minuto, e um bloco esgota a hora em cerca de 9 minutos. Enquanto isso durar,
+  outros visitantes que caírem no mesmo isolate só recebem medições que já
+  estejam no cache. A troca é proposital: o teto protege a cota da chave, e a
+  regra do WAF limita quem tenta esgotá-lo.
 
 Só a chamada que sai para o Google conta. Resposta do cache não gasta nenhum
 dos tetos. Quando um deles acaba, o visitante recebe a mesma resposta da cota
 esgotada no Google, 429 com `{"error":"PageSpeed indisponível."}`, e o Google
 não é chamado. O front trata como limite de uso do Google e espera mais entre
 as tentativas, que também não saem do Worker enquanto o teto durar. O log
-registra `pagespeed upstream cap reached` com o teto que acabou (`bloco`,
-`minuto` ou `hora`).
+registra `pagespeed upstream cap reached` com o nome do teto esgotado: `bloco`,
+`minuto` ou `hora`.
 
 ## Destinos aceitos
 

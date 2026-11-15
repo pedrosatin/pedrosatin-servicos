@@ -572,8 +572,8 @@ describe('PageSpeed upstream caps', () => {
   const installPsi = () => installFetch(() => new Response('{"lighthouseResult":{}}', { headers: { 'content-type': 'application/json' } }));
 
   it('keeps 32 /64s of one /56 within one upstream budget', async () => {
-    // Fixture do security audit: 32 /64 de 2001:db8:aa:100::/56, 31 requisições
-    // cada, com query única para escapar do cache. Antes do teto, 960 chamadas.
+    // Fixture do security audit com 32 /64 de 2001:db8:aa:100::/56 e 31
+    // requisições cada, usando query única para escapar do cache. Antes do teto, 960 chamadas.
     const mock = installPsi();
     const responses: Response[] = [];
     for (let k = 0; k < 32; k++) {
@@ -639,7 +639,7 @@ describe('PageSpeed upstream caps', () => {
       expect((await worker.fetch(pagespeedFor(`2001:db8:dd:${i.toString(16)}::1`, `d${i}.example.com`), {})).status).toBe(200);
     }
     expect(googleCalls(mock)).toBe(perIsolatePerMinute);
-    // Com o isolate esgotado, uma medição nova recusa e a do cache continua saindo.
+    // Com o isolate esgotado, o Worker recusa a medição nova e continua respondendo pelo cache.
     expect((await worker.fetch(pagespeedFor('192.0.2.1', 'new.example.com'), {})).status).toBe(429);
     expect((await worker.fetch(pagespeedFor('192.0.2.1', 'example.com'), {})).status).toBe(200);
     expect(googleCalls(mock)).toBe(perIsolatePerMinute);
