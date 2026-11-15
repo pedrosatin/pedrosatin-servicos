@@ -1,6 +1,7 @@
 import React from 'react';
 import { auditWhatsAppUrl } from '../../lib/message';
 import type { AuditResult } from '../../lib/types';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 interface CtaSectionProps {
   result: AuditResult | null;
@@ -11,6 +12,7 @@ export const CtaSection: React.FC<CtaSectionProps> = ({ result, domain }) => (
   <section className="lp-cta">
     <div className="lp-wrap lp-cta-inner">
       <div>
+        <RotuloDaSecao id="contato" />
         <h2>Pronto para colocar seu projeto no ar?</h2>
         <p>
           Seja para publicar do zero, corrigir bugs ou integrar banco de dados e pagamentos: fale comigo no WhatsApp.

@@ -4,6 +4,7 @@ import { briefingWhatsAppUrl, type Briefing } from '../../lib/message';
 import { ETAPAS_DEPOIS } from '../../lib/prazos';
 import { NEED_OPTIONS } from '../../lib/services';
 import type { AuditResult } from '../../lib/types';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 /** Campo que recebe o foco quando um card de serviço leva até o formulário. */
 export const ID_CAMPO_NOME = 'atendimento-nome';
@@ -32,6 +33,7 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
   return (
     <section className="lp-request" id="atendimento">
       <div className="lp-wrap">
+        <RotuloDaSecao id="atendimento" />
         <h2 className="lp-h2">Solicitar orçamento em 3 passos</h2>
         <p className="lp-h2-sub">
           Preencha o essencial abaixo. O botão gera a mensagem pronta no WhatsApp com o diagnóstico da análise se você tiver rodado.

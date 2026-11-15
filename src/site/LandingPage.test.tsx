@@ -8,6 +8,7 @@ import * as useAudit from '../lib/useAudit';
 import type { AuditResult, AuditStep } from '../lib/types';
 import type { AuditPhase } from '../lib/useAudit';
 import { SERVICES } from '../lib/services';
+import { SECOES_DA_PAGINA, rotuloDaSecao } from './secoesDaPagina';
 
 vi.mock('../lib/sources', () => ({
   fetchPageSpeed: vi.fn(),
@@ -174,5 +175,24 @@ describe('LandingPage', () => {
     expect(
       screen.getByRole('button', { name: 'Quero que meu site apareça no Google' }),
     ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('as seções com h2 exibem rótulos em sequência sem lacuna na ordem da página', () => {
+    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
+    const { container } = render(<LandingPage />);
+
+    const secoesComH2 = Array.from(container.querySelectorAll('main > section')).filter(
+      (secao) => secao.querySelector('h2') !== null,
+    );
+    const rotulos = Array.from(container.querySelectorAll('main .lp-section-label'));
+
+    expect(rotulos).toHaveLength(secoesComH2.length);
+    expect(rotulos.map((el) => el.textContent)).toEqual(
+      SECOES_DA_PAGINA.map((secao) => rotuloDaSecao(secao.id)),
+    );
+    rotulos.forEach((el) => {
+      expect(el).toHaveAttribute('aria-hidden', 'true');
+      expect(el.nextElementSibling?.tagName).toBe('H2');
+    });
   });
 });
