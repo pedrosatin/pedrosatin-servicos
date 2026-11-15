@@ -309,28 +309,40 @@ const stripNonContent = (html: string): string => {
  * ou blocos de cache citando `/wp-content/`. Filtrar comentários aqui não
  * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
  */
-const detectPlatform = (html: string, generator: string | null): string | null => {
-  if (generator) {
-    const g = generator.toLowerCase();
-    if (g.includes('wordpress')) return 'WordPress';
-    if (g.includes('wix')) return 'Wix';
-    if (g.includes('joomla')) return 'Joomla';
-    if (g.includes('drupal')) return 'Drupal';
-    if (g.includes('astro')) return 'Astro';
-    if (g.includes('hugo')) return 'Hugo';
-    if (g.includes('gatsby')) return 'Gatsby';
-  }
-  if (/\/wp-content\/|\/wp-includes\//i.test(html)) return 'WordPress';
-  if (/static\.parastorage\.com|wix\.com/i.test(html)) return 'Wix';
-  if (/cdn\.shopify\.com/i.test(html)) return 'Shopify';
-  if (/squarespace\.com/i.test(html)) return 'Squarespace';
-  if (/webflow\.com/i.test(html)) return 'Webflow';
-  if (/_next\/static/i.test(html)) return 'Next.js';
-  if (/\/_astro\//i.test(html)) return 'Astro';
-  if (/lojaintegrada/i.test(html)) return 'Loja Integrada';
-  if (/rdstation/i.test(html)) return 'RD Station';
-  return null;
+// Assinaturas conferidas em ordem: a primeira que casa decide a plataforma.
+const GENERATOR_PLATFORMS: readonly (readonly [string, string])[] = [
+  ['wordpress', 'WordPress'],
+  ['wix', 'Wix'],
+  ['joomla', 'Joomla'],
+  ['drupal', 'Drupal'],
+  ['astro', 'Astro'],
+  ['hugo', 'Hugo'],
+  ['gatsby', 'Gatsby'],
+];
+
+const CONTENT_PLATFORMS: readonly (readonly [RegExp, string])[] = [
+  [/\/wp-content\/|\/wp-includes\//i, 'WordPress'],
+  [/static\.parastorage\.com|wix\.com/i, 'Wix'],
+  [/cdn\.shopify\.com/i, 'Shopify'],
+  [/squarespace\.com/i, 'Squarespace'],
+  [/webflow\.com/i, 'Webflow'],
+  [/_next\/static/i, 'Next.js'],
+  [/\/_astro\//i, 'Astro'],
+  [/lojaintegrada/i, 'Loja Integrada'],
+  [/rdstation/i, 'RD Station'],
+];
+
+const platformFromGenerator = (generator: string | null): string | null => {
+  if (!generator) return null;
+  const lower = generator.toLowerCase();
+  return GENERATOR_PLATFORMS.find(([needle]) => lower.includes(needle))?.[1] ?? null;
 };
+
+const platformFromContent = (html: string): string | null =>
+  CONTENT_PLATFORMS.find(([pattern]) => pattern.test(html))?.[1] ?? null;
+
+const detectPlatform = (html: string, generator: string | null): string | null =>
+  platformFromGenerator(generator) ?? platformFromContent(html);
 
 /**
  * Equivale a `/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(html)?.[1]`.
@@ -448,47 +460,33 @@ const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
 const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
 const WORD_RE = /\S{2,}/g;
 
-export const parseHtml = (html: string, bytes: number): HtmlReport => {
-  // O que está dentro de comentário não é elemento da página: o navegador não
-  // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
-  // leituras de estrutura passam a partir daqui pelo `markup` sem comentários,
-  // e não pelo `html` cru — a única exceção é `detectPlatform`, pelos motivos
-  // documentados nela.
-  const markup = stripComments(html);
+/** Separa as tags de abertura que importam por tipo, em uma passada. */
+interface TagGroups {
+  metaTags: string[];
+  imageTags: string[];
+  scriptTags: string[];
+  linkTags: string[];
+  /** Primeira `<html>` do documento, ou vazio. */
+  htmlTag: string;
+}
 
-  const metaTags: string[] = [];
-  const imageTags: string[] = [];
-  const scriptTags: string[] = [];
-  const linkTags: string[] = [];
-  let htmlTag = '';
-
+const groupTags = (markup: string): TagGroups => {
+  const groups: TagGroups = { metaTags: [], imageTags: [], scriptTags: [], linkTags: [], htmlTag: '' };
   for (const tag of collectTags(markup)) {
     const char = tag.charCodeAt(1) | 32;
-    if (char === 109) metaTags.push(tag);
-    else if (char === 105) imageTags.push(tag);
-    else if (char === 115) scriptTags.push(tag);
-    else if (char === 108) linkTags.push(tag);
-    else if (char === 104 && !htmlTag) htmlTag = tag;
+    if (char === 109) groups.metaTags.push(tag);
+    else if (char === 105) groups.imageTags.push(tag);
+    else if (char === 115) groups.scriptTags.push(tag);
+    else if (char === 108) groups.linkTags.push(tag);
+    else if (char === 104 && !groups.htmlTag) groups.htmlTag = tag;
   }
+  return groups;
+};
 
-  const title = clean(rawElements(markup, TITLE_OPEN, TITLE_CLOSE).next().value?.content ?? null);
-  const metaDict = parseMetaTags(metaTags);
-  const getMeta = (keyAttr: 'name' | 'property', key: string) => metaDict.get(`${keyAttr}:${key.toLowerCase()}`) ?? null;
-  const metaDescription = getMeta('name', 'description');
+const ATTRS_FAST_RE = /\b(?:alt\s*=|width\s*=|height\s*=|loading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w))/gi;
 
-  const h1 = [...rawElements(markup, H1_OPEN, H1_CLOSE)]
-    .map((element) => clean(replaceTags(element.content)))
-    .filter((value): value is string => value !== null);
-
-  const images: ImageStats = {
-    total: imageTags.length,
-    withoutAlt: 0,
-    withoutDimensions: 0,
-    lazy: 0,
-  };
-
-
-  const ATTRS_FAST_RE = /\b(?:alt\s*=|width\s*=|height\s*=|loading\s*=\s*(?:"lazy"|'lazy'|lazy)(?!\w))/gi;
+const countImages = (imageTags: string[]): ImageStats => {
+  const images: ImageStats = { total: imageTags.length, withoutAlt: 0, withoutDimensions: 0, lazy: 0 };
 
   for (const tag of imageTags) {
     let hasAlt = false, hasWidth = false, hasHeight = false, hasLazy = false;
@@ -507,51 +505,75 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     if (!hasWidth || !hasHeight) images.withoutDimensions++;
     if (hasLazy) images.lazy++;
   }
+  return images;
+};
 
-  const scripts: ScriptStats = {
-    total: scriptTags.length,
-    external: 0,
-    blocking: 0,
-  };
+const countScripts = (scriptTags: string[]): ScriptStats => {
+  const scripts: ScriptStats = { total: scriptTags.length, external: 0, blocking: 0 };
   for (const tag of scriptTags) {
-    if (SRC_RE.test(tag)) {
-      scripts.external++;
-      if (!ASYNC_DEFER_RE.test(tag) && !TYPE_MODULE_RE.test(tag)) {
-        scripts.blocking++;
-      }
-    }
+    if (!SRC_RE.test(tag)) continue;
+    scripts.external++;
+    if (!ASYNC_DEFER_RE.test(tag) && !TYPE_MODULE_RE.test(tag)) scripts.blocking++;
   }
+  return scripts;
+};
 
-  const relOf = (tag: string): string => (attr(tag, 'rel') ?? '').toLowerCase();
+interface LinkInfo {
+  canonical: string | null;
+  favicon: boolean;
+  stylesheets: number;
+  hreflang: string[];
+}
 
-  let canonical: string | null = null;
-  let favicon = false;
-  let stylesheets = 0;
-  const hreflang: string[] = [];
+const readLinks = (linkTags: string[]): LinkInfo => {
+  const info: LinkInfo = { canonical: null, favicon: false, stylesheets: 0, hreflang: [] };
 
   for (const tag of linkTags) {
-    const rel = relOf(tag);
-    if (rel === 'canonical' && canonical === null) {
-      canonical = clean(attr(tag, 'href'));
-    }
-    if (rel.includes('icon')) favicon = true;
-    if (rel.includes('stylesheet')) stylesheets++;
+    const rel = (attr(tag, 'rel') ?? '').toLowerCase();
+    if (rel === 'canonical' && info.canonical === null) info.canonical = clean(attr(tag, 'href'));
+    if (rel.includes('icon')) info.favicon = true;
+    if (rel.includes('stylesheet')) info.stylesheets++;
     if (rel === 'alternate') {
       const hlang = attr(tag, 'hreflang');
-      if (hlang !== null) hreflang.push(hlang);
+      if (hlang !== null) info.hreflang.push(hlang);
     }
   }
+  return info;
+};
 
-  let inlineStyleBytes = 0;
-  for (const element of rawElements(markup, STYLE_OPEN, STYLE_CLOSE)) inlineStyleBytes += element.content.length;
+const readH1 = (markup: string): string[] =>
+  [...rawElements(markup, H1_OPEN, H1_CLOSE)]
+    .map((element) => clean(replaceTags(element.content)))
+    .filter((value): value is string => value !== null);
 
+const sumInlineStyleBytes = (markup: string): number => {
+  let bytes = 0;
+  for (const element of rawElements(markup, STYLE_OPEN, STYLE_CLOSE)) bytes += element.content.length;
+  return bytes;
+};
+
+const countWords = (markup: string): number => {
+  const text = decodeEntities(replaceTags(stripNonContent(markup)));
+  let words = 0;
+  while (WORD_RE.test(text)) words++;
+  return words;
+};
+
+export const parseHtml = (html: string, bytes: number): HtmlReport => {
+  // O que está dentro de comentário não é elemento da página: o navegador não
+  // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
+  // leituras de estrutura passam a partir daqui pelo `markup` sem comentários,
+  // e não pelo `html` cru — a única exceção é `detectPlatform`, pelos motivos
+  // documentados nela.
+  const markup = stripComments(html);
+  const { metaTags, imageTags, scriptTags, linkTags, htmlTag } = groupTags(markup);
+
+  const title = clean(rawElements(markup, TITLE_OPEN, TITLE_CLOSE).next().value?.content ?? null);
+  const metaDict = parseMetaTags(metaTags);
+  const getMeta = (keyAttr: 'name' | 'property', key: string) => metaDict.get(`${keyAttr}:${key.toLowerCase()}`) ?? null;
+  const metaDescription = getMeta('name', 'description');
   const generator = getMeta('name', 'generator');
-  const textContent = replaceTags(stripNonContent(markup));
-  const decodedText = decodeEntities(textContent);
-  let wordCount = 0;
-  while (WORD_RE.test(decodedText)) {
-    wordCount++;
-  }
+  const { canonical, favicon, stylesheets, hreflang } = readLinks(linkTags);
 
   return {
     bytes,
@@ -564,9 +586,9 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     canonical,
     robotsMeta: getMeta('name', 'robots'),
     viewport: getMeta('name', 'viewport'),
-    h1,
+    h1: readH1(markup),
     h2Count: (markup.match(/<h2\b/gi) ?? []).length,
-    images,
+    images: countImages(imageTags),
     openGraph: {
       title: getMeta('property', 'og:title'),
       description: getMeta('property', 'og:description'),
@@ -575,12 +597,12 @@ export const parseHtml = (html: string, bytes: number): HtmlReport => {
     twitterCard: getMeta('name', 'twitter:card'),
     jsonLdTypes: collectJsonLdTypes(markup),
     favicon,
-    scripts,
+    scripts: countScripts(scriptTags),
     stylesheets,
-    inlineStyleBytes,
+    inlineStyleBytes: sumInlineStyleBytes(markup),
     generator,
     hreflang,
-    wordCount,
+    wordCount: countWords(markup),
     platform: detectPlatform(html, generator),
   };
 };

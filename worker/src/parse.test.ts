@@ -227,3 +227,110 @@ describe('worker parse', () => {
     });
   });
 });
+
+describe('detecção de plataforma', () => {
+  const platformOf = (html: string) => parseHtml(html, html.length).platform;
+  const withGenerator = (generator: string) => `<meta name="generator" content="${generator}">`;
+
+  it.each([
+    ['WordPress 6.5', 'WordPress'],
+    ['Wix.com Website Builder', 'Wix'],
+    ['Joomla! - Open Source', 'Joomla'],
+    ['Drupal 10', 'Drupal'],
+    ['Astro v4.0', 'Astro'],
+    ['Hugo 0.120', 'Hugo'],
+    ['Gatsby 5.0', 'Gatsby'],
+  ])('reconhece pelo generator "%s"', (generator, platform) => {
+    expect(platformOf(withGenerator(generator))).toBe(platform);
+  });
+
+  it.each([
+    ['<link href="/wp-content/themes/a.css">', 'WordPress'],
+    ['<script src="/wp-includes/js/a.js"></script>', 'WordPress'],
+    ['<script src="https://static.parastorage.com/a.js"></script>', 'Wix'],
+    ['<link href="https://static.wixstatic.com/a.css"> wix.com', 'Wix'],
+    ['<script src="https://cdn.shopify.com/s/a.js"></script>', 'Shopify'],
+    ['<script src="https://static1.squarespace.com/a.js"></script>', 'Squarespace'],
+    ['<script src="https://assets.webflow.com/a.js"></script>', 'Webflow'],
+    ['<script src="/_next/static/chunks/a.js"></script>', 'Next.js'],
+    ['<script type="module" src="/_astro/a.js"></script>', 'Astro'],
+    ['<img src="https://cdn.lojaintegrada.com.br/a.png">', 'Loja Integrada'],
+    ['<script src="https://d335luupugsy2.cloudfront.net/rdstation.js"></script>', 'RD Station'],
+  ])('reconhece pelo conteúdo %s', (html, platform) => {
+    expect(platformOf(html)).toBe(platform);
+  });
+
+  it('devolve null sem generator conhecido nem assinatura', () => {
+    expect(platformOf('<p>Site comum</p>')).toBeNull();
+    expect(platformOf(withGenerator('Editor Próprio 1.0'))).toBeNull();
+  });
+
+  it('prefere o generator às assinaturas do conteúdo', () => {
+    expect(platformOf(`${withGenerator('Hugo 0.120')}<script src="/wp-content/a.js"></script>`)).toBe('Hugo');
+  });
+
+  it('lê assinatura dentro de comentário, que o resto da análise ignora', () => {
+    expect(platformOf('<!-- cache em /wp-content/cache/ --><p>oi</p>')).toBe('WordPress');
+  });
+});
+
+describe('relatório completo', () => {
+  it('fixa o resultado de um documento com todos os grupos de campos', () => {
+    const html = `<!-- <h2>fora</h2> -->
+<html lang=" pt-BR ">
+<head>
+<meta charset="utf-8">
+<title> A &amp; B </title>
+<meta name="description" content="Descrição">
+<meta name="Robots" content="noindex">
+<meta name="viewport" content="width=device-width">
+<meta name="twitter:card" content="summary">
+<meta property="og:title" content="OG T">
+<meta property="og:description" content="OG D">
+<meta property="og:image" content="/og.png">
+<meta name="generator" content="Hugo 0.1">
+<link rel="canonical" href=" https://x.com/ ">
+<link rel="canonical" href="https://outra.com/">
+<link rel="shortcut icon" href="/f.ico">
+<link rel="stylesheet" href="/a.css">
+<link rel="alternate" hreflang="en" href="/en">
+<link rel="alternate" href="/feed">
+<style>body{margin:0}</style>
+<script type="application/ld+json">{"@type":["Organization","WebSite"]}</script>
+<script src="/a.js"></script><script async src="/b.js"></script><script type="module" src="/c.js"></script>
+</head>
+<body>
+<h1>Um <b>título</b></h1><h1> </h1><h2>a</h2><h2>b</h2>
+<img src="/1.png" alt="" width="1" height="1" loading="lazy"><img src="/2.png" width="1">
+<noscript>nao conta</noscript>
+<p>Duas palavras &amp; mais x</p>
+</body></html>`;
+
+    expect(parseHtml(html, 1234)).toEqual({
+      bytes: 1234,
+      lang: 'pt-BR',
+      charset: 'utf-8',
+      title: 'A & B',
+      titleLength: 5,
+      metaDescription: 'Descrição',
+      metaDescriptionLength: 9,
+      canonical: 'https://x.com/',
+      robotsMeta: 'noindex',
+      viewport: 'width=device-width',
+      h1: ['Um título'],
+      h2Count: 2,
+      images: { total: 2, withoutAlt: 1, withoutDimensions: 1, lazy: 1 },
+      openGraph: { title: 'OG T', description: 'OG D', image: '/og.png' },
+      twitterCard: 'summary',
+      jsonLdTypes: ['Organization', 'WebSite'],
+      favicon: true,
+      scripts: { total: 4, external: 3, blocking: 1 },
+      stylesheets: 1,
+      inlineStyleBytes: 14,
+      generator: 'Hugo 0.1',
+      hreflang: ['en'],
+      wordCount: 5,
+      platform: 'Hugo',
+    });
+  });
+});
