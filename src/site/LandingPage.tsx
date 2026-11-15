@@ -30,6 +30,7 @@ export const LandingPage: React.FC = () => {
     setInput,
     submit,
     runFor,
+    pularParaAnalise,
     inputRef,
     logRef,
     mobile,
@@ -43,6 +44,12 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="lp">
+      {/* Primeiro elemento focável da página. Sem JavaScript, o `href` ainda
+          rola até a análise; com ele, o foco vai direto para o campo. */}
+      <a className="lp-skip" href="#analise" onClick={pularParaAnalise}>
+        Pular para a análise
+      </a>
+
       <SiteHeader result={result} domain={domain} />
 
       {/* O conteúdo fica em <main> para que leitores de tela e o "pular para o
