@@ -11,8 +11,9 @@ import worker, {
   pageSpeedCache,
   rateLimitCache,
   rateLimitClient,
+  rateLimitPrefix,
   RATE_LIMIT_MAX_ENTRIES,
-  RATE_LIMIT_OVERFLOW,
+  RATE_LIMIT_PREFIX_SLOTS,
   readBodyLimited,
 } from './index';
 
@@ -505,26 +506,84 @@ describe('rate limiting', () => {
     expect(await blocked.json()).toMatchObject({ code: 'rate_limited' });
   });
 
-  it('never evicts active windows when full and sends new clients to a shared counter', async () => {
-    const expiresAt = Date.now() + 60_000;
-    rateLimitCache.set('audit:198.51.100.9', { count: 10, expiresAt });
-    for (let i = 1; i < RATE_LIMIT_MAX_ENTRIES; i++) rateLimitCache.set(`audit:filler-${i}`, { count: 1, expiresAt });
-    // Endereços novos em sequência não podem zerar o contador de quem já estourou.
+  it('sends clients above the prefix slot limit to a counter of their own /24', async () => {
+    for (let i = 0; i < RATE_LIMIT_PREFIX_SLOTS; i++) {
+      expect((await worker.fetch(auditRequest(`203.0.113.${i + 1}`), {})).status).not.toBe(429);
+    }
+    expect(rateLimitCache.prefixSlots.get('audit:203.0.113.0/24')).toBe(RATE_LIMIT_PREFIX_SLOTS);
+    // Os endereços seguintes do mesmo /24 dividem 10 requisições.
     for (let i = 0; i < 10; i++) {
       expect((await worker.fetch(auditRequest(`203.0.113.${100 + i}`), {})).status).not.toBe(429);
     }
     expect((await worker.fetch(auditRequest('203.0.113.200'), {})).status).toBe(429);
-    expect((await worker.fetch(auditRequest('198.51.100.9'), {})).status).toBe(429);
-    expect(rateLimitCache.get(`audit:${RATE_LIMIT_OVERFLOW}`)?.count).toBe(10);
+    expect(rateLimitCache.get('audit:203.0.113.0/24')?.count).toBe(10);
     expect(rateLimitCache.has('audit:203.0.113.100')).toBe(false);
+    // Quem já tinha janela própria segue com o próprio orçamento, e outro /24 não é afetado.
+    expect((await worker.fetch(auditRequest('203.0.113.1'), {})).status).not.toBe(429);
+    expect((await worker.fetch(auditRequest('203.0.114.1'), {})).status).not.toBe(429);
+    // A rota /pagespeed tem vagas próprias para o mesmo /24.
+    installFetch(() => Response.json({ lighthouseResult: { categories: {} } }));
+    expect((await worker.fetch(pagespeedRequest('203.0.113.201'), {})).status).toBe(200);
   });
 
-  it('frees expired windows before falling back to the shared counter', async () => {
+  it('groups IPv6 /64s of the same /48 into one prefix counter above the slot limit', async () => {
+    for (let i = 0; i < RATE_LIMIT_PREFIX_SLOTS + 10; i++) {
+      expect((await worker.fetch(auditRequest(`2001:db8:aaaa:${i.toString(16)}::1`), {})).status).not.toBe(429);
+    }
+    expect((await worker.fetch(auditRequest('2001:db8:aaaa:ffff::1'), {})).status).toBe(429);
+    expect(rateLimitCache.get('audit:2001:db8:aaaa::/48')?.count).toBe(10);
+    expect((await worker.fetch(auditRequest('2001:db8:aaab:1::1'), {})).status).not.toBe(429);
+  });
+
+  it('keeps one /48 from locking out new visitors after 5000 unique requests', async () => {
+    const noOrigin = (ip: string) =>
+      new Request('https://api.example.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } });
+    const preAttack = await worker.fetch(auditRequest('203.0.113.7'), {});
+    expect(preAttack.status).toBe(200);
+    // Cenário do security audit: cada requisição vem de um /64 diferente do
+    // mesmo /48, metade sem Origin (o 403 vem depois do limitador e não faz
+    // subrequest), seguidas de mais 10.
+    for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES + 10; i++) {
+      const ip = `2001:db8:bbbb:${i.toString(16)}::1`;
+      await worker.fetch(i % 2 === 0 ? noOrigin(ip) : auditRequest(ip), {});
+    }
+    expect(rateLimitCache.size).toBeLessThanOrEqual(RATE_LIMIT_PREFIX_SLOTS + 2);
+    expect(rateLimitCache.get('audit:2001:db8:bbbb::/48')?.count).toBe(10);
+    const visitor = await worker.fetch(auditRequest('198.51.100.1'), {});
+    expect(visitor.status).toBe(200);
+    expect((await worker.fetch(auditRequest('203.0.113.7'), {})).status).toBe(200);
+  });
+
+  it('keeps the table under its memory limit when many prefixes fill it', async () => {
+    const expiresAt = Date.now() + 60_000;
+    rateLimitCache.set('audit:198.51.100.9', { count: 10, expiresAt });
+    // Cada /48 abre todas as suas vagas até a tabela encher; as requisições
+    // seguintes passam por prefixos que ainda não têm contador.
+    const total = RATE_LIMIT_MAX_ENTRIES + 3 * RATE_LIMIT_PREFIX_SLOTS;
+    for (let i = 0; i < total; i++) {
+      const ip = `2001:db8:${Math.floor(i / RATE_LIMIT_PREFIX_SLOTS).toString(16)}:${(i % RATE_LIMIT_PREFIX_SLOTS).toString(16)}::1`;
+      await worker.fetch(new Request('https://api.example.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } }), {});
+      expect(rateLimitCache.size).toBeLessThanOrEqual(RATE_LIMIT_MAX_ENTRIES);
+    }
+    expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);
+    // Com a tabela cheia, o visitante novo divide só o contador do próprio /24.
+    expect((await worker.fetch(auditRequest('203.0.113.50'), {})).status).toBe(200);
+    expect((await worker.fetch(auditRequest('203.0.113.51'), {})).status).toBe(200);
+    expect(rateLimitCache.get('audit:203.0.113.0/24')?.count).toBe(2);
+    expect(rateLimitCache.has('audit:203.0.113.50')).toBe(false);
+    expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);
+    // A contagem de vagas acompanha as janelas que saíram da tabela.
+    const slots = [...rateLimitCache.prefixSlots.values()].reduce((sum, n) => sum + n, 0);
+    const clientWindows = [...rateLimitCache.values()].filter((record) => record.prefixKey).length;
+    expect(slots).toBe(clientWindows);
+  });
+
+  it('frees expired windows before falling back to the prefix counter', async () => {
     const expired = Date.now() - 1;
     for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES; i++) rateLimitCache.set(`audit:old-${i}`, { count: 10, expiresAt: expired });
     await worker.fetch(auditRequest('203.0.113.8'), {});
     expect(rateLimitCache.has('audit:203.0.113.8')).toBe(true);
-    expect(rateLimitCache.has(`audit:${RATE_LIMIT_OVERFLOW}`)).toBe(false);
+    expect(rateLimitCache.has('audit:203.0.113.0/24')).toBe(false);
     expect(rateLimitCache.size).toBe(1);
   });
 
@@ -547,6 +606,16 @@ describe('rateLimitClient', () => {
     expect(rateLimitClient('2001:DB8:ABCD:12::99')).toBe('2001:db8:abcd:12::/64');
     expect(rateLimitClient('203.0.113.9')).toBe('203.0.113.9');
     expect(rateLimitClient('::ffff:203.0.113.9')).toBe('203.0.113.9');
+  });
+});
+
+describe('rateLimitPrefix', () => {
+  it('groups /64 clients by /48 and IPv4 clients by /24', () => {
+    expect(rateLimitPrefix('2001:db8:abcd:12::/64')).toBe('2001:db8:abcd::/48');
+    expect(rateLimitPrefix(rateLimitClient('2001:db8:0:ffff::1'))).toBe('2001:db8:0::/48');
+    expect(rateLimitPrefix('203.0.113.9')).toBe('203.0.113.0/24');
+    expect(rateLimitPrefix(rateLimitClient('::ffff:203.0.113.9'))).toBe('203.0.113.0/24');
+    expect(rateLimitPrefix('local')).toBe('local');
   });
 });
 

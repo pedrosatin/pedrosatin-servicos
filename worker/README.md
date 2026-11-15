@@ -146,10 +146,18 @@ orçamento separado evita que as medições consumam o limite da auditoria. O 42
 do limitador traz `code: "rate_limited"`, e o front mostra uma mensagem própria
 em vez de culpar o Google.
 
+Um bloco grosso, o /48 no IPv6 e o /24 no IPv4, abre no máximo 32 contadores
+de cliente em cada rota. Os clientes novos do bloco que passam disso dividem um
+contador do próprio bloco, com o mesmo limite de um cliente (10 `/audit` e 30
+`/pagespeed` por minuto). Quem gira /64 dentro de um /48 gasta só o orçamento
+desse /48 e ocupa no máximo 33 entradas por rota.
+
 O contador vive na memória de cada isolate e guarda até 5000 entradas. Quando
-enche, as janelas vencidas saem primeiro; se todas estiverem ativas, nenhuma é
-descartada e os clientes novos dividem um contador comum até alguma vencer.
-Assim, quem gira endereços não consegue zerar o contador de outro cliente.
+enche, as janelas vencidas saem primeiro. Se todas estiverem ativas, o cliente
+novo divide o contador do próprio bloco. Se o bloco ainda não tem contador, a
+janela mais antiga sai para abrir a vaga, e a tabela não passa de 5000. Um
+bloco ocupa no máximo 66 entradas somando as duas rotas, então encher a tabela
+exige pelo menos 76 blocos. Nenhum contador é dividido entre blocos.
 
 Esse limite é por isolate: cada data center e cada isolate da Cloudflare
 contam à parte, então o limite efetivo fica acima do nominal. Origens HTTP
