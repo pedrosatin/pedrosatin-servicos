@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { SECOES_DO_MENU } from '../secoesDoMenu';
@@ -103,23 +103,49 @@ describe('SiteHeader', () => {
     expect(document.body.style.overflow).toBe('');
   });
 
-  test('fecha ao redimensionar para largura de computador', () => {
-    let matches = false;
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn(() => ({ matches })),
-    );
+  test('fecha quando a largura passa do limite do celular', () => {
+    let aoMudar: () => void = () => undefined;
+    const consulta = {
+      matches: true,
+      addEventListener: vi.fn((_tipo: string, ouvinte: () => void) => {
+        aoMudar = ouvinte;
+      }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal('matchMedia', vi.fn(() => consulta));
 
     render(<SiteHeader result={null} domain="" />);
     const botao = obterBotaoMenu();
 
     fireEvent.click(botao);
-    fireEvent(window, new Event('resize'));
+    aoMudar();
     expect(botao).toHaveAttribute('aria-expanded', 'true');
 
-    matches = true;
-    fireEvent(window, new Event('resize'));
+    consulta.matches = false;
+    act(() => aoMudar());
     expect(botao).toHaveAttribute('aria-expanded', 'false');
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  test('fecha quando o foco sai do cabeçalho com o menu aberto', () => {
+    const { container } = render(
+      <>
+        <SiteHeader result={null} domain="" />
+        <a href="#foto" data-testid="fora">
+          foto
+        </a>
+      </>,
+    );
+    const botao = obterBotaoMenu();
+    const painel = obterPainelMovel(container);
+
+    fireEvent.click(botao);
+    within(painel).getByRole('link', { name: 'GitHub' }).focus();
+    expect(botao).toHaveAttribute('aria-expanded', 'true');
+
+    act(() => screen.getByTestId('fora').focus());
+    expect(botao).toHaveAttribute('aria-expanded', 'false');
+    expect(document.body.style.overflow).toBe('');
   });
 
   test('exibe todas as seções e Orçamento nos dois menus a partir da mesma lista', () => {

@@ -2293,8 +2293,7 @@
     color: var(--green);
   }
 
-  .lp-mobile-nav-link.is-featured::after {
-    content: 'ir para o formulário';
+  .lp-mobile-nav-dica {
     margin-left: auto;
     font-family: var(--mono);
     font-size: 0.7rem;
@@ -2482,7 +2481,38 @@
   }
 }
 
-/* Sem JavaScript, o botão Menu não responde; o cabeçalho deixa de fixar e a
+/* Marca, CTA e botão Menu somam 344 px de conteúdo no mínimo. Abaixo de 400 px
+   o CTA perde o prefixo "Falar no" (o nome acessível passa a ser "WhatsApp",
+   igual ao texto visível) e a marca pode encolher com reticências. */
+@media (max-width: 400px) {
+  .lp-cta-prefixo {
+    display: none;
+  }
+
+  .lp-brand,
+  .lp-brand-text {
+    min-width: 0;
+  }
+
+  .lp-brand-mark {
+    flex-shrink: 0;
+  }
+
+  .lp-brand-name {
+    flex-shrink: 0;
+  }
+
+  .lp-header-actions .lp-btn {
+    padding-inline: 0.6rem;
+  }
+
+  .lp-brand-role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Sem JavaScript, o botão Menu não responde; o cabeçalho deixa de ser fixo e a
    lista de seções aparece logo abaixo da marca. */
 @media (max-width: 900px) and (scripting: none) {
   .lp-header {

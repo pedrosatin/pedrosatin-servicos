@@ -67,7 +67,7 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ result, domain }) => {
               rel="noopener noreferrer"
               onClick={aberto ? fechar : undefined}
             >
-              Falar no WhatsApp
+              <span className="lp-cta-prefixo">Falar no </span>WhatsApp
             </a>
             <button
               ref={botaoRef}
@@ -102,6 +102,11 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ result, domain }) => {
                         {String(indice + 1).padStart(2, '0')}
                       </span>
                       <span className="lp-mobile-nav-label">{secao.label}</span>
+                      {secao.destaque && (
+                        <span className="lp-mobile-nav-dica" aria-hidden="true">
+                          ir para o formulário
+                        </span>
+                      )}
                     </a>
                   </li>
                 ))}
