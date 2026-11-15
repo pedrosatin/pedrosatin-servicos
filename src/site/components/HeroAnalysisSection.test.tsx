@@ -176,3 +176,108 @@ describe('HeroAnalysisSection: screenshot do celular', () => {
     expect(screen.getByText(placeholder)).toBeInTheDocument();
   });
 });
+
+describe('HeroAnalysisSection: resumo ao concluir', () => {
+  test.each(['idle', 'running', 'error'] as AuditPhase[])(
+    'não aparece na fase %s',
+    (phase) => {
+      const { container } = renderizar(phase);
+
+      expect(container.querySelector('.lp-terminal-summary')).toBeNull();
+      expect(screen.queryByRole('link', { name: 'ver resultado' })).toBeNull();
+    },
+  );
+
+  test('mostra a nota ao concluir com score e oferece o link para o veredito', () => {
+    const { container } = renderizar(
+      'done',
+      resultado({ score: { value: 92, label: 'Bem resolvido' } }),
+    );
+
+    const resumo = container.querySelector('.lp-terminal-summary');
+    expect(resumo).not.toBeNull();
+    expect(resumo).toHaveTextContent('Nota 92 de 100: bem resolvido');
+    expect(screen.getByText('Nota 92 de 100: bem resolvido')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    expect(screen.getByRole('link', { name: 'ver resultado' })).toHaveAttribute(
+      'href',
+      '#resultado',
+    );
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  test('mostra "sem nota" e nenhum dígito quando a cobertura é incompleta', () => {
+    const { container } = renderizar(
+      'done',
+      resultado({
+        score: null,
+        coverage: { complete: false, missing: ['medição do Google (PageSpeed)'] },
+      }),
+    );
+
+    const resumo = container.querySelector('.lp-terminal-summary');
+    expect(resumo).not.toBeNull();
+    expect(resumo).toHaveClass('no-score');
+    expect(resumo).toHaveTextContent('Sem nota: cobertura incompleta');
+    expect(resumo?.textContent).not.toMatch(/\d/);
+  });
+
+  test('some quando uma nova análise começa', () => {
+    const propsBase: Props = {
+      phase: 'done',
+      steps: [],
+      result: resultado({ score: { value: 88, label: 'Bem resolvido' } }),
+      error: null,
+      domain: 'exemplo.com.br',
+      input: 'exemplo.com.br',
+      onInputChange: vi.fn(),
+      onSubmit: vi.fn(),
+      onAnalyze: vi.fn(),
+      inputRef: { current: null },
+      logRef: { current: null },
+      mobile: null,
+      deviceTime: '--:--',
+      counts: { critical: 0, warning: 0, info: 0, good: 0 },
+    };
+    const { container, rerender } = render(<HeroAnalysisSection {...propsBase} />);
+
+    expect(container.querySelector('.lp-terminal-summary')).not.toBeNull();
+
+    rerender(<HeroAnalysisSection {...propsBase} phase="running" result={null} counts={null} />);
+
+    expect(container.querySelector('.lp-terminal-summary')).toBeNull();
+  });
+
+  test('clicar em "ver resultado" rola suave até o veredito e põe o foco nele', () => {
+    const { container } = renderizar(
+      'done',
+      resultado({ score: { value: 92, label: 'Bem resolvido' } }),
+    );
+    const veredito = container.querySelector('#resultado') as HTMLElement;
+    expect(veredito).not.toBeNull();
+    expect(veredito).toHaveAttribute('tabindex', '-1');
+
+    const rolar = vi.fn();
+    veredito.scrollIntoView = rolar;
+    const focar = vi.spyOn(veredito, 'focus');
+
+    const link = screen.getByRole('link', { name: 'ver resultado' });
+    const seguiuHref = fireEvent.click(link);
+
+    expect(seguiuHref).toBe(false);
+    expect(rolar).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(focar).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(veredito);
+  });
+
+  test('clicar em "ver resultado" quando o veredito não está no DOM não lança erro', () => {
+    renderizar('done', resultado({ score: { value: 92, label: 'Bem resolvido' } }), null, {
+      counts: null,
+    });
+
+    const link = screen.getByRole('link', { name: 'ver resultado' });
+    expect(() => fireEvent.click(link)).not.toThrow();
+  });
+});

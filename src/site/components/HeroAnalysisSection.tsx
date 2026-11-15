@@ -7,6 +7,7 @@ import type { AuditResult, AuditStep, PageSpeedReport } from '../../lib/types';
 import type { AuditPhase } from '../../lib/useAudit';
 import { AnuncioDaAuditoria } from './AnuncioDaAuditoria';
 import { DeviceStatusBar } from './DeviceStatusBar';
+import { ID_RESULTADO, ResumoDoTerminal } from './ResumoDoTerminal';
 import { StatusGlyph } from './StatusGlyph';
 
 /**
@@ -180,6 +181,8 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
               </p>
             )}
 
+            <ResumoDoTerminal phase={phase} result={result} />
+
             {/* Fica no DOM desde o início, vazio, pelo mesmo motivo da região
                 de status. O alerta só é lido se a região já existir. */}
             <p className="lp-error" role="alert">
@@ -237,7 +240,11 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
       )}
 
       {result && counts && (
-        <div className={`lp-verdict ${result.score ? '' : 'no-score'}`}>
+        <div
+          className={`lp-verdict ${result.score ? '' : 'no-score'}`}
+          id={ID_RESULTADO}
+          tabIndex={-1}
+        >
           {result.score && (
             <div className="lp-verdict-score">
               <span className="lp-verdict-value">{result.score.value}</span>

@@ -56,7 +56,7 @@ export const useAnaliseDaLanding = () => {
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [steps, phase]);
+  }, [steps, phase, result]);
 
   const counts = useMemo(
     () => (result ? countBySeverity(result.findings) : null),
