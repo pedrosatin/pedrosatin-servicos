@@ -11,15 +11,13 @@ export const CONTACT = {
 /** Endereço público da página, usado nas metatags e no sitemap. */
 export const SITE_URL = 'https://servicos.pedrosatin.com';
 
-/**
- * Dados pessoais exibidos na página. `retrato.webp` é o recorte vertical de
- * `pedrosatin.webp`, já no tamanho em que aparece na tela: assim o navegador
- * não baixa 171 KB para desenhar 300 px de largura.
- */
+/** Dados pessoais e variantes das fotos, limitadas à resolução da fonte. */
 export const PROFILE = {
   photo: '/imagens/pedro-satin-linkedin.webp',
   /** Recorte fechado no rosto, para a miniatura em telas estreitas. */
   photoSquare: '/imagens/pedro-satin-linkedin-quadrado.webp',
+  photoSmall: '/imagens/pedro-satin-linkedin-298.webp',
+  photoSquareSmall: '/imagens/pedro-satin-linkedin-quadrado-168.webp',
   photoAlt: 'Pedro Satin, engenheiro de software e professor',
   linkedin: 'https://www.linkedin.com/in/pedro-satin',
   github: 'https://www.github.com/pedrosatin',

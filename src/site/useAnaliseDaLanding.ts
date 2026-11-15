@@ -4,6 +4,7 @@ import { countBySeverity, groupByArea } from '../lib/achados';
 import { isValidDomain, normalizeDomain } from '../lib/dominio';
 import type { PageSpeedReport } from '../lib/types';
 import { useAudit } from '../lib/useAudit';
+import { preloadSecoesDaAnalise } from './deferredSections';
 
 export type DesktopState = 'idle' | 'loading' | 'failed';
 
@@ -70,6 +71,7 @@ export const useAnaliseDaLanding = () => {
 
     setDesktop(null);
     setDesktopState('idle');
+    preloadSecoesDaAnalise();
 
     // As duas medições são independentes e cada uma leva de 15 a 40 segundos.
     // Encadeá-las custava a soma das duas ao visitante; disparadas juntas, a

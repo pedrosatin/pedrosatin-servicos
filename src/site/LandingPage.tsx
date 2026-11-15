@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { buildStructuredData } from '../lib/structuredData';
 import './LandingPage.css';
+import { CompareSection, FindingsSection } from './deferredSections';
+import { LazySection } from './components/LazySection';
 import { AboutSection } from './components/AboutSection';
-import { CompareSection } from './components/CompareSection';
 import { CtaSection } from './components/CtaSection';
 import { DomainSection } from './components/DomainSection';
 import { FaqSection } from './components/FaqSection';
-import { FindingsSection } from './components/FindingsSection';
 import { Footer } from './components/Footer';
 import { GoogleSection } from './components/GoogleSection';
 import { HeroAnalysisSection } from './components/HeroAnalysisSection';
@@ -86,17 +86,21 @@ export const LandingPage: React.FC = () => {
 
           {/* ---------- celular contra computador ---------- */}
           {mobile && (
-            <CompareSection
-              mobile={mobile}
-              desktop={desktop}
-              desktopState={desktopState}
-              result={result}
-            />
+            <LazySection>
+              <CompareSection
+                mobile={mobile}
+                desktop={desktop}
+                desktopState={desktopState}
+                result={result}
+              />
+            </LazySection>
           )}
 
           {/* ---------- achados ---------- */}
           {result && (
-            <FindingsSection result={result} grouped={grouped} domain={domain} />
+            <LazySection>
+              <FindingsSection result={result} grouped={grouped} domain={domain} />
+            </LazySection>
           )}
 
           {/* ---------- o que eu resolvo ---------- */}
