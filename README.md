@@ -103,9 +103,8 @@ searchable part of the page, didn't exist for crawlers at all.
    CI also publishes the Worker before Pages, because the site calls the
    Worker's `/pagespeed` route.
 2. **PageSpeed key.** `PSI_KEY` is required in production. The deploy
-   workflow copies only the repository secret `PSI_KEY` into the Worker before
-   publishing it; if that secret is empty, the Worker keeps the value it
-   already has. By hand, run
+   workflow copies `PSI_KEY` into the Worker before publishing it; if that
+   secret is empty, the Worker keeps the value it already has. By hand, run
    `cd worker && npx wrangler secret put PSI_KEY --env=""`. Without a key the
    Worker falls back to Google's anonymous quota, shared across Cloudflare
    egress IPs, which usually answers 429. The old
@@ -113,16 +112,38 @@ searchable part of the page, didn't exist for crawlers at all.
    key restricted to the PageSpeed Insights API with a quota, store it as
    `PSI_KEY`, revoke the old one in Google Cloud, and remove `VITE_PSI_KEY`
    from GitHub secrets and Pages variables.
-3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker's custom
+3. **GitHub environment and secrets.** The `deploy` job targets the
+   `production` environment. In GitHub, open **Settings → Environments**,
+   create `production`, restrict deployment branches to `master` (under
+   **Deployment branches and tags** → **Selected branches and tags**), and
+   optionally add required reviewers. With required reviewers, each deploy
+   waits for approval before it runs. Move `CLOUDFLARE_API_TOKEN` and
+   `PSI_KEY` into the `production` environment's secrets, then delete both
+   from repository secrets so unprotected workflows or branches cannot read
+   them. (`CLOUDFLARE_ACCOUNT_ID` may stay as-is or move to the environment as
+   well.) After this move, rolling back to a workflow without `environment:`
+   needs the repository secrets recreated first, or the deploy fails to
+   authenticate.
+4. **Updating pinned actions.** `.github/workflows/deploy.yml` pins GitHub
+   Actions to full 40-character commit SHAs instead of mutable tags.
+   [`.github/dependabot.yml`](.github/dependabot.yml) opens weekly PRs for
+   `github-actions` updates, keeping each SHA and version comment in sync. To
+   update one manually, look up the tag's commit SHA and update both the SHA
+   and its inline comment:
+
+   ```bash
+   gh api repos/actions/checkout/git/ref/tags/v7.0.1
+   ```
+5. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker's custom
    domain, `https://servicos-api.pedrosatin.com`.
-4. **Build and publish.** Command `npm run build`, output directory `dist`.
-5. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,
+6. **Build and publish.** Command `npm run build`, output directory `dist`.
+7. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,
    and cache rules. `connect-src` names the Worker's own domain
    (`servicos-api.pedrosatin.com`); if the Worker moves, update it there.
-6. **Rate limiting.** The Worker's per-client limit lives in each isolate's
+8. **Rate limiting.** The Worker's per-client limit lives in each isolate's
    memory. For an edge-wide limit, add the Cloudflare WAF rate limiting rule
    described in `worker/README.md`.
-7. **After deploying**, run the audit tool against
+9. **After deploying**, run the audit tool against
    `servicos.pedrosatin.com` itself. That's the test that matters, since the
    tool and the site hosting it get judged by the same standard.
 
