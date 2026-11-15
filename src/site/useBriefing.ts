@@ -12,8 +12,8 @@ const BRIEFING_VAZIO: Briefing = {
 
 /**
  * Rola até o formulário e põe o foco no campo Nome. Como na análise, o foco
- * vai sem rolar (`preventScroll`): do contrário ele interrompe a rolagem suave
- * e deixa o campo no meio da tela, com o título do formulário fora de vista.
+ * usa `preventScroll`. Sem essa opção, ele interrompe a rolagem suave e deixa
+ * o campo no meio da tela, com o título do formulário fora de vista.
  */
 const irParaOFormulario = (): void => {
   document.getElementById('atendimento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
