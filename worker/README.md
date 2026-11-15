@@ -194,6 +194,14 @@ uma mensagem fixa em português, sem o texto da exceção.
 O Worker usa o fetch da plataforma, que já bloqueia redes privadas; a checagem
 por DoH não fixa o IP que o fetch vai usar.
 
+No servidor Node local, `worker/dev-server.mjs` instala um dispatcher global do
+undici em `worker/dev-dispatcher.mjs` porque o Node não impõe bloqueio de rede
+privada. Cada conexão de saída resolve o hostname pelo mesmo DoH público e
+recusa endereços internos ou reservados na abertura do socket, inclusive IPs
+literais e resoluções locais do sistema operacional que apontem para o laço
+local ou para a rede privada. Só a consulta ao próprio `cloudflare-dns.com` usa
+a resolução do sistema, ainda filtrada pelas mesmas faixas de IP público.
+
 Tetos de leitura: 3 MB para HTML, 128 KB para `robots.txt` e 1 MB para cada
 sitemap. A cadeia da página principal tem até seis requisições; as de
 `robots.txt` e de cada sitemap, até três. Todas têm 12 segundos para

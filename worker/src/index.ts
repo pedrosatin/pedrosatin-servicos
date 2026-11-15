@@ -109,7 +109,7 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
  * varredura. Os nomes cobrem laço local e os sufixos usados em redes internas;
  * as faixas de IP ficam em `isInternalIpv4` e `isInternalIpv6`.
  */
-const isInternalName = (host: string): boolean =>
+export const isInternalName = (host: string): boolean =>
   host === 'localhost' ||
   host.endsWith('.localhost') ||
   host.endsWith('.local') ||
@@ -121,7 +121,7 @@ const isInternalName = (host: string): boolean =>
  * URL converte IPv4 escrito em decimal, hexadecimal ou octal para a notação
  * comum e compacta o IPv6, então `2130706433` e `0177.0.0.1` viram `127.0.0.1`.
  */
-const canonicalHost = (hostname: string): string => {
+export const canonicalHost = (hostname: string): string => {
   let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   try {
     const url = new URL(host.includes(':') ? `http://[${host}]` : `http://${host}`);
@@ -200,7 +200,7 @@ const isInternalIpv6 = (g: number[]): boolean => {
 };
 
 /** true para IP interno, false para IP público, null quando o host não é IP. */
-const ipVerdict = (host: string): boolean | null => {
+export const ipVerdict = (host: string): boolean | null => {
   const v4 = parseIpv4(host);
   if (v4) return isInternalIpv4(v4);
   const v6 = parseIpv6(host);
@@ -212,7 +212,7 @@ interface DohResponse {
   Answer?: { type: number; data: string }[];
 }
 
-const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
+export const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<string[]> => {
   const url = new URL('https://cloudflare-dns.com/dns-query');
   url.searchParams.set('name', name);
   url.searchParams.set('type', type);

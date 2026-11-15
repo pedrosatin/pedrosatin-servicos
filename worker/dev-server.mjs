@@ -16,7 +16,16 @@
 
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { setGlobalDispatcher } from 'undici';
+import { createSafeAgent } from './dev-dispatcher.mjs';
 import worker from './src/index.ts';
+
+/**
+ * O runtime dos Workers barra saída para redes privadas, mas o fetch do Node
+ * segue o DNS local. O dispatcher global abaixo força cada conexão a usar o
+ * endereço público confirmado pelo DoH e recusa qualquer destino interno.
+ */
+setGlobalDispatcher(createSafeAgent());
 
 const PORT = Number(process.env.PORT ?? 8787);
 
