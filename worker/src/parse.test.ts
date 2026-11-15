@@ -275,7 +275,7 @@ describe('detecção de plataforma', () => {
 });
 
 describe('relatório completo', () => {
-  it('fixa o resultado de um documento com todos os grupos de campos', () => {
+  it('extrai o relatório completo de um documento com todos os grupos de campos', () => {
     const html = `<!-- <h2>fora</h2> -->
 <html lang=" pt-BR ">
 <head>

@@ -89,7 +89,7 @@ const corsHeaders = (origin: string | null, env: Env): Record<string, string> =>
 };
 
 /**
- * Resposta de erro não vai para cache de navegador nem de CDN: um 429 ou um 403
+ * Resposta de erro não vai para cache de navegador nem de CDN. Um 429 ou um 403
  * guardado seguiria valendo depois que a condição passou. Quem precisa de outro
  * valor passa o `cache-control` em `headers`, que vem depois e prevalece.
  */
@@ -835,8 +835,8 @@ const upstreamCode = (value: unknown): string | undefined =>
   typeof value === 'string' && /^[A-Za-z_]{1,64}$/.test(value) ? value : undefined;
 
 /**
- * Erro do Google. O log guarda só os códigos (status HTTP, `status` e `reason`
- * estruturados, como cota esgotada ou API desativada). O `message` é texto livre
+ * Erro do Google. O log guarda só os códigos: o status HTTP e o `status` e o
+ * `reason` estruturados, como cota esgotada ou API desativada. O `message` é texto livre
  * do provedor e pode repetir o domínio consultado ou trechos da chave, então
  * não é registrado.
  */
@@ -1094,9 +1094,12 @@ export default {
 
     try {
       const report = await runAudit(input);
+      // Domínio inválido ou DNS que falhou voltam com `error`. Sem `no-store`,
+      // uma falha passageira ficaria dois minutos em cache. Um site que
+      // respondeu 404 ou 500 é resultado da auditoria e entra no cache.
       return json(report, 200, {
         ...headers,
-        'cache-control': 'public, max-age=120',
+        'cache-control': report.error ? 'no-store' : 'public, max-age=120',
       });
     } catch (error) {
       // Falha da auditoria sai com 200 para o SPA ler o corpo; sem `no-store`, o

@@ -390,6 +390,13 @@ describe('audit handler', () => {
     expect(limited.headers.get('cache-control')).toBe('no-store');
   });
 
+  it('answers an invalid domain with no-store', async () => {
+    const response = await worker.fetch(auditRequest('203.0.113.62', 'url=localhost'), {});
+    expect(response.status).toBe(200);
+    expect(((await response.clone().json()) as { error?: string }).error).toBeTruthy();
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
   it('keeps the cache of a successful audit', async () => {
     installFetch(() => new Response('<title>ok</title>', { headers: { 'content-type': 'text/html' } }));
     const response = await worker.fetch(auditRequest('203.0.113.61'), {});

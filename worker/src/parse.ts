@@ -309,7 +309,7 @@ const stripNonContent = (html: string): string => {
  * ou blocos de cache citando `/wp-content/`. Filtrar comentários aqui não
  * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
  */
-// Assinaturas conferidas em ordem: a primeira que casa decide a plataforma.
+// Assinaturas conferidas em ordem. A primeira que casa decide a plataforma.
 const GENERATOR_PLATFORMS: readonly (readonly [string, string])[] = [
   ['wordpress', 'WordPress'],
   ['wix', 'Wix'],
@@ -420,7 +420,7 @@ const jsonLdChildren = (node: unknown): unknown[] => {
 };
 
 /**
- * Percorre o JSON-LD com pilha explícita, em pré-ordem, sem recursão: um corpo
+ * Percorre o JSON-LD com pilha explícita, em pré-ordem e sem recursão. Um corpo
  * aninhado em dezenas de milhares de níveis não estoura a pilha de chamadas.
  */
 const walkJsonLd = (root: unknown, types: Set<string>): void => {
@@ -432,7 +432,7 @@ const walkJsonLd = (root: unknown, types: Set<string>): void => {
     }
     if (depth >= MAX_JSON_LD_DEPTH) continue;
     const children = jsonLdChildren(node);
-    // Empilha de trás para a frente: o primeiro filho sai primeiro.
+    // Empilha de trás para a frente para que o primeiro filho saia primeiro.
     for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], depth: depth + 1 });
   }
 };
