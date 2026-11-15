@@ -85,9 +85,11 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
                 demais, então a tela estreita recebe um arquivo próprio,
                 fechado no rosto. Só um dos dois é baixado. */}
             <picture>
-              <source media="(max-width: 900px)" srcSet={PROFILE.photoSquare} />
+              <source media="(max-width: 900px)" srcSet={`${PROFILE.photoSquareSmall} 168w, ${PROFILE.photoSquare} 300w`} sizes="96px" />
               <img
-                src={PROFILE.photo}
+                src={PROFILE.photoSmall}
+                srcSet={`${PROFILE.photoSmall} 298w, ${PROFILE.photo} 400w`}
+                sizes="298px"
                 alt={PROFILE.photoAlt}
                 width={600}
                 height={750}

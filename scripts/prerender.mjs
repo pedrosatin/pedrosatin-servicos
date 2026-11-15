@@ -4,11 +4,12 @@
  * hash e atualiza a data de publicação no `sitemap.xml`.
  *
  * Roda depois dos dois `vite build`: o do cliente, que produz o `index.html`
- * com os links de script e estilo, e o de servidor, que produz o módulo capaz
+ * com os assets do cliente, e o de servidor, que produz o módulo capaz
  * de renderizar o componente em texto.
  */
 
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { inlineStyles } from './inlineStyles.mjs';
 import { render } from '../dist-ssr/entry-server.js';
 import { buildNotFoundHtml, ROOT_MARKER } from './notFoundPage.mjs';
 
@@ -18,9 +19,7 @@ const notFoundPage = new URL('404.html', dist);
 const sitemap = new URL('sitemap.xml', dist);
 const ssrDir = new URL('../dist-ssr/', import.meta.url);
 
-// As fontes só são descobertas depois que o navegador baixa e lê a folha de
-// estilo, o que atrasa o primeiro texto na fonte certa. O preload as pede junto
-// com o CSS.
+// O preload pede as fontes antes que o navegador processe o CSS embutido.
 async function collectFontPreloads(distDir) {
   const assets = await readdir(new URL('assets/', distDir));
   const fonts = assets.filter((name) => name.endsWith('.woff2'));
@@ -45,6 +44,17 @@ async function updateSitemapDate(sitemapPath, today) {
   await writeFile(sitemapPath, updated);
 }
 
+function assertCompleteBody(body) {
+  if (/<!--\$(?:!|\?)-->/.test(body)) {
+    throw new Error('SSR contém uma seção suspensa ou incompleta.');
+  }
+  for (const id of ['topo', 'analise', 'resolvo', 'google', 'dominio', 'sobre', 'trabalhos', 'atendimento', 'faq']) {
+    if (!body.includes(`id="${id}"`)) {
+      throw new Error(`Seção permanente ausente no SSR. Id ${id}.`);
+    }
+  }
+}
+
 function countWords(html) {
   return html
     .replace(/<[^>]*>/g, ' ')
@@ -52,7 +62,7 @@ function countWords(html) {
     .split(/\s+/).length;
 }
 
-const template = await readFile(page, 'utf8');
+const template = await inlineStyles(dist);
 
 // Se o marcador mudar, o build precisa falhar em vez de publicar a casca vazia.
 if (!template.includes(ROOT_MARKER)) {
@@ -65,6 +75,7 @@ const { tags: preloads, count: fontCount } = await collectFontPreloads(dist);
 const shellHtml = template.replace('</head>', () => `  ${preloads}\n  </head>`);
 
 const body = render();
+assertCompleteBody(body);
 const indexHtml = shellHtml.replace(ROOT_MARKER, () => `<div id="root">${body}</div>`);
 await writeFile(page, indexHtml);
 

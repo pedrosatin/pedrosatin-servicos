@@ -6,8 +6,7 @@ import { NEED_OPTIONS } from '../../lib/services';
 import type { AuditResult } from '../../lib/types';
 import { RotuloDaSecao } from './RotuloDaSecao';
 
-/** Campo que recebe o foco quando um card de serviço leva até o formulário. */
-export const ID_CAMPO_NOME = 'atendimento-nome';
+import { ID_CAMPO_NOME } from '../fieldIds';
 
 const DESCRICAO_DA_ETAPA: Record<string, string> = {
   Levantamento:

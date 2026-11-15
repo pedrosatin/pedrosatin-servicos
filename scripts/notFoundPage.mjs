@@ -1,7 +1,7 @@
 /**
  * Gera o HTML estático de `dist/404.html` a partir da casca do build.
  *
- * Reaproveita a folha de estilo com hash e o preload das fontes sem carregar
+ * Reaproveita o `<style>` embutido e o preload das fontes sem carregar
  * o bundle JavaScript nem repetir metadados canônicos e sociais da home.
  */
 
