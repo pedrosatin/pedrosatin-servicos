@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { countBySeverity } from './achados';
+import { countBySeverity, groupByArea } from './achados';
 import type { Finding } from './types';
 
 describe('countBySeverity', () => {
@@ -45,5 +45,39 @@ describe('countBySeverity', () => {
       info: 1,
       good: 0,
     });
+  });
+});
+
+describe('groupByArea', () => {
+  const achado = (id: string, area: Finding['area']): Finding => ({
+    id,
+    severity: 'info',
+    title: id,
+    evidence: '',
+    action: '',
+    area,
+  });
+
+  it('devolve lista vazia sem achados', () => {
+    expect(groupByArea([])).toEqual([]);
+  });
+
+  it('mantém a ordem de primeira aparição das áreas e a dos achados em cada uma', () => {
+    const findings = [
+      achado('1', 'desempenho'),
+      achado('2', 'seguranca'),
+      achado('3', 'desempenho'),
+      achado('4', 'dominio'),
+      achado('5', 'seguranca'),
+    ];
+
+    const grupos = groupByArea(findings);
+
+    expect(grupos.map(([area]) => area)).toEqual(['desempenho', 'seguranca', 'dominio']);
+    expect(grupos.map(([, lista]) => lista.map((f) => f.id))).toEqual([
+      ['1', '3'],
+      ['2', '5'],
+      ['4'],
+    ]);
   });
 });
