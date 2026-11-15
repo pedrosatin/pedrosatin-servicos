@@ -131,7 +131,9 @@ export const LandingPage: React.FC = () => {
       return;
     }
     void run(target);
-    inputRef.current?.focus();
+    // Sem `preventScroll`, o foco interrompe a rolagem suave acima e deixa o
+    // campo no meio da tela, em vez de logo abaixo do cabeçalho.
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   runRef.current = run;

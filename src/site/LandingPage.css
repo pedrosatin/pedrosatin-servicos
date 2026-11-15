@@ -350,6 +350,9 @@
 /* ---------- análise: terminal + aparelho ---------- */
 
 .lp-analysis {
+  /* Sem padding próprio, o topo do terminal colaria na borda do cabeçalho
+     quando a âncora #analise ou o scrollIntoView o trazem para o topo. */
+  scroll-margin-top: 1rem;
   margin-top: 2.4rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
