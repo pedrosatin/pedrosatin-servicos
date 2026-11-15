@@ -248,7 +248,9 @@
   flex-shrink: 0;
 }
 
-.lp-menu-toggle,
+/* `.lp-btn` vem depois e também define `display`; o seletor composto garante
+   que o botão Menu fique oculto no desktop. */
+.lp-btn.lp-menu-toggle,
 .lp-menu-backdrop,
 .lp-mobile-panel {
   display: none;
@@ -2203,7 +2205,7 @@
     display: none;
   }
 
-  .lp-menu-toggle {
+  .lp-btn.lp-menu-toggle {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -2491,7 +2493,7 @@
     flex-wrap: wrap;
   }
 
-  .lp-menu-toggle {
+  .lp-btn.lp-menu-toggle {
     display: none;
   }
 
