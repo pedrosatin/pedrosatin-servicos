@@ -6,11 +6,11 @@
 - Nome: Pedro Satin
 - Profissão: Engenheiro de Software e Professor Universitário
 - Especialidade: Desenvolvimento web, deploy, resolução de bugs em código de IA, arquitetura de software, infraestrutura em nuvem e SEO técnico.
-- Domínio principal de serviços: https://servicos.pedrosatin.com
-- Portfólio: https://pedrosatin.com
-- WhatsApp: +55 44 9165-8870 (https://wa.me/554491658870)
-- LinkedIn: https://www.linkedin.com/in/pedro-satin
-- GitHub: https://www.github.com/pedrosatin
+- Domínio principal de serviços: [servicos.pedrosatin.com](https://servicos.pedrosatin.com)
+- Portfólio: [pedrosatin.com](https://pedrosatin.com)
+- WhatsApp: +55 44 9165-8870 ([wa.me/554491658870](https://wa.me/554491658870))
+- LinkedIn: [linkedin.com/in/pedro-satin](https://www.linkedin.com/in/pedro-satin)
+- GitHub: [github.com/pedrosatin](https://www.github.com/pedrosatin)
 - Localização base: Paraná, Brasil (Atendimento remoto para todo o Brasil)
 
 ## 2. Catálogo Detalhado de Serviços
@@ -66,9 +66,9 @@ Depende do escopo definido. Publicações com apontamento de domínio próprio e
 O trabalho abrange principalmente TypeScript e o ecossistema web moderno: React, Next.js, Vite e Node.js no desenvolvimento; Supabase, Firebase e PostgreSQL para persistência; Vercel, Cloudflare, VPS e AWS para infraestrutura e deploy; Stripe, Asaas e Mercado Pago para pagamentos.
 
 ## 4. Casos Reais
-- servicos.pedrosatin.com: Landing page com nota máxima de desempenho, zero scripts de terceiros bloqueantes e renderização estática.
-- pedrosatin.com: Portfólio de engenharia em Astro, HTML estático servido por CDN e indexado no Google e Bing.
-- silvasatin.adv.br: Site institucional de advocacia em Maringá-PR, responsivo e presente na busca.
-- trincaconstrutora.com.br: Landing page de construtora em Maringá-PR, com simulador de financiamento Caixa (Minha Casa Minha Vida e SBPE) e HTML pré-renderizado.
-- palpitae.com.br: Plataforma web de bolões de futebol desenvolvida em Vite e Cloudflare.
-- https://kpopquiz.online: site bilíngue de jogos diários e perguntas em Astro e Preact com domínio próprio.
+- [servicos.pedrosatin.com](https://servicos.pedrosatin.com): Landing page com nota máxima de desempenho, zero scripts de terceiros bloqueantes e renderização estática.
+- [pedrosatin.com](https://pedrosatin.com): Portfólio de engenharia em Astro, HTML estático servido por CDN e indexado no Google e Bing.
+- [silvasatin.adv.br](https://silvasatin.adv.br): Site institucional de advocacia em Maringá-PR, responsivo e presente na busca.
+- [trincaconstrutora.com.br](https://trincaconstrutora.com.br): Landing page de construtora em Maringá-PR, com simulador de financiamento Caixa (Minha Casa Minha Vida e SBPE) e HTML pré-renderizado.
+- [palpitae.com.br](https://palpitae.com.br): Plataforma web de bolões de futebol desenvolvida em Vite e Cloudflare.
+- [kpopquiz.online](https://kpopquiz.online): site bilíngue de jogos diários e perguntas em Astro e Preact com domínio próprio.
