@@ -690,6 +690,54 @@
   border: 0;
 }
 
+.lp-terminal-summary {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  flex-wrap: wrap;
+}
+
+.lp-terminal-summary-text {
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.lp-terminal-summary.no-score .lp-terminal-summary-text {
+  color: var(--amber);
+}
+
+/* Área de toque de 44 px de altura para o link no celular e no desktop. */
+.lp-terminal-summary-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 580;
+  color: var(--green);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lp-terminal-summary-link::after {
+  content: '→';
+  margin-left: 0.35rem;
+  transition: transform 0.15s;
+}
+
+.lp-terminal-summary-link:hover {
+  text-decoration: underline;
+}
+
+.lp-terminal-summary-link:hover::after {
+  transform: translateX(3px);
+}
+
 /* ---------- aparelho ---------- */
 
 .lp-device-col {
@@ -832,6 +880,9 @@
 /* ---------- veredito ---------- */
 
 .lp-verdict {
+  /* Folga de 1.25rem abaixo do cabeçalho ao rolar para #resultado. A altura do
+     cabeçalho já vem do `scroll-padding-top` em `index.css`. */
+  scroll-margin-top: 1.25rem;
   margin-top: 2rem;
   display: grid;
   grid-template-columns: auto 1fr auto;
