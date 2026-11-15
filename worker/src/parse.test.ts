@@ -175,4 +175,55 @@ describe('worker parse', () => {
     expect(report.h1).toEqual([]);
     expect(report.images.total).toBe(0);
   });
+  describe('JSON-LD aninhado', () => {
+    const ldScript = (body: string) => `<script type="application/ld+json">${body}</script>`;
+    const types = (body: string) => parseHtml(ldScript(body), body.length).jsonLdTypes;
+    // Cada nível é um objeto com `@type` e um `@graph` que contém o próximo.
+    const nested = (levels: number) => {
+      let body = '{"@type":"Fundo"}';
+      for (let level = levels; level >= 1; level--) body = `{"@type":"N${level}","@graph":[${body}]}`;
+      return body;
+    };
+
+    it('lê os tipos de um `@graph` e de arrays aninhados como antes', () => {
+      expect(types('[{"@type":["A","B"]},[{"@type":"C"}],{"@graph":[{"@type":"D"},{"@type":7}]}]')).toEqual([
+        'A', 'B', 'C', 'D',
+      ]);
+    });
+
+    it('ignora o que passa de 32 níveis de `@graph` e mantém o que está antes', () => {
+      const found = types(nested(100));
+      expect(found).toHaveLength(33);
+      expect(found[0]).toBe('N1');
+      expect(found).toContain('N32');
+      expect(found).not.toContain('N34');
+      expect(found).not.toContain('Fundo');
+    });
+
+    it('ignora, sem exceção, 100.000 níveis de arrays e de `@graph`', () => {
+      const levels = 100_000;
+      const arrays = '['.repeat(levels) + '{"@type":"Fundo"}' + ']'.repeat(levels);
+      const graphs = '{"@graph":['.repeat(levels) + '{"@type":"Fundo"}' + ']}'.repeat(levels);
+      for (const body of [arrays, graphs]) {
+        expect(() => parseHtml(ldScript(body), body.length)).not.toThrow();
+        expect(types(body)).toEqual([]);
+      }
+    });
+
+    it('não conta colchetes de dentro de strings como aninhamento', () => {
+      const text = '[[[['.repeat(200) + '\\"]]]]';
+      expect(types(JSON.stringify({ '@type': 'Real', note: text }))).toEqual(['Real']);
+    });
+
+    it('lê 3 MB de colchetes abertos em menos de 200 ms', () => {
+      const html = ldScript('['.repeat(1_500_000) + ']'.repeat(1_500_000));
+      let best = Infinity;
+      for (let round = 0; round < 3; round++) {
+        const start = performance.now();
+        expect(parseHtml(html, html.length).jsonLdTypes).toEqual([]);
+        best = Math.min(best, performance.now() - start);
+      }
+      expect(best).toBeLessThan(200);
+    });
+  });
 });

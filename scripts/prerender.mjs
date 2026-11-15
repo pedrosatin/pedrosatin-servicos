@@ -27,7 +27,9 @@ if (!html.includes(marker)) {
 /* ---------- 1. o texto da página ---------- */
 
 const body = render();
-html = html.replace(marker, `<div id="root">${body}</div>`);
+// Função na substituição: com string, `$&`, `$1` ou `$\`` no texto renderizado
+// seriam expandidos pelo `replace` em vez de ir literais para o HTML.
+html = html.replace(marker, () => `<div id="root">${body}</div>`);
 
 /* ---------- 2. preload das fontes ---------- */
 
@@ -50,7 +52,7 @@ const preloads = fonts
   )
   .join('\n    ');
 
-html = html.replace('</head>', `  ${preloads}\n  </head>`);
+html = html.replace('</head>', () => `  ${preloads}\n  </head>`);
 
 await writeFile(page, html);
 

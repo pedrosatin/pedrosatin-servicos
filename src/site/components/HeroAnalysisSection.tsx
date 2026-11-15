@@ -9,6 +9,16 @@ import { AnuncioDaAuditoria } from './AnuncioDaAuditoria';
 import { DeviceStatusBar } from './DeviceStatusBar';
 import { StatusGlyph } from './StatusGlyph';
 
+/**
+ * O screenshot vem do Worker, que repassa o JSON do Google. O `src` só aceita
+ * imagem raster em `data:`: `javascript:`, `data:image/svg+xml` e URL externa
+ * ficam de fora, e o placeholder aparece no lugar.
+ */
+const SCREENSHOT_PREFIXES = ['data:image/jpeg', 'data:image/webp'];
+const comScreenshot = (mobile: PageSpeedReport | null): mobile is PageSpeedReport & { screenshot: string } =>
+  typeof mobile?.screenshot === 'string' &&
+  SCREENSHOT_PREFIXES.some((prefix) => mobile.screenshot?.startsWith(prefix));
+
 interface SeverityCounts {
   critical: number;
   warning: number;
@@ -182,7 +192,7 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
           <div className="lp-device">
             <DeviceStatusBar time={deviceTime} />
             <div className="lp-device-screen">
-              {mobile?.screenshot ? (
+              {comScreenshot(mobile) ? (
                 <img
                   src={mobile.screenshot}
                   alt={`Como ${result?.domain} aparece em um celular`}

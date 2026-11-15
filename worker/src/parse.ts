@@ -354,37 +354,94 @@ const findCharset = (html: string): string | null => {
 
 const JSON_LD_TYPE_RE = /type\s*=\s*["']application\/ld\+json["']/i;
 
+/**
+ * Profundidade máxima de arrays e `@graph` aninhados que a leitura segue. JSON-LD
+ * de verdade usa um ou dois níveis; o limite só barra corpo montado para custar
+ * CPU. O que passa dele é ignorado.
+ */
+const MAX_JSON_LD_DEPTH = 32;
+
+/**
+ * Aninhamento máximo de `[` e `{` que vai para o `JSON.parse`. O parse nativo
+ * custa tempo proporcional à profundidade, e um corpo de 3 MB de colchetes
+ * abertos o faz gastar centenas de milissegundos para devolver uma estrutura
+ * sem tipo algum. Passou do teto, o bloco é ignorado sem ser lido.
+ */
+const MAX_JSON_NESTING = 256;
+
+const OPEN_BRACKETS = new Set([0x5b, 0x7b]); // [ {
+const CLOSE_BRACKETS = new Set([0x5d, 0x7d]); // ] }
+
+/** Passo linear: conta o aninhamento fora de strings e para ao passar de `max`. */
+const exceedsNesting = (text: string, max: number): boolean => {
+  let depth = 0;
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (inString) {
+      if (code === 0x5c) i++; // barra invertida: pula o caractere escapado
+      else if (code === 0x22) inString = false;
+    } else if (code === 0x22) {
+      inString = true;
+    } else if (OPEN_BRACKETS.has(code)) {
+      if (++depth > max) return true;
+    } else if (CLOSE_BRACKETS.has(code)) {
+      depth--;
+    }
+  }
+  return false;
+};
+
+/** Os `@type` de um nó, em string ou lista; valores de outro tipo são ignorados. */
+const typesOf = (record: Record<string, unknown>): string[] => {
+  const type = record['@type'];
+  if (typeof type === 'string') return [type];
+  return Array.isArray(type) ? type.filter((t): t is string => typeof t === 'string') : [];
+};
+
+/** Filhos que a leitura segue: os itens de um array ou o `@graph` de um objeto. */
+const jsonLdChildren = (node: unknown): unknown[] => {
+  if (Array.isArray(node)) return node;
+  if (!node || typeof node !== 'object') return [];
+  const graph = (node as Record<string, unknown>)['@graph'];
+  return Array.isArray(graph) ? graph : [];
+};
+
+/**
+ * Percorre o JSON-LD com pilha explícita, em pré-ordem, sem recursão: um corpo
+ * aninhado em dezenas de milhares de níveis não estoura a pilha de chamadas.
+ */
+const walkJsonLd = (root: unknown, types: Set<string>): void => {
+  const stack: { node: unknown; depth: number }[] = [{ node: root, depth: 0 }];
+  for (let item = stack.pop(); item; item = stack.pop()) {
+    const { node, depth } = item;
+    if (!Array.isArray(node) && node && typeof node === 'object') {
+      for (const type of typesOf(node as Record<string, unknown>)) types.add(type);
+    }
+    if (depth >= MAX_JSON_LD_DEPTH) continue;
+    const children = jsonLdChildren(node);
+    // Empilha de trás para a frente: o primeiro filho sai primeiro.
+    for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], depth: depth + 1 });
+  }
+};
+
+const FALLBACK_TYPE_RE = /"@type"\s*:\s*"([^"]+)"/g;
+
 const collectJsonLdTypes = (html: string): string[] => {
   const types = new Set<string>();
   const isJsonLd = (openTag: string): boolean => JSON_LD_TYPE_RE.test(openTag);
 
   for (const { content: body } of rawElements(html, SCRIPT_OPEN, SCRIPT_CLOSE, isJsonLd)) {
+    if (exceedsNesting(body, MAX_JSON_NESTING)) continue;
     try {
-      const parsed: unknown = JSON.parse(body);
-      const walk = (node: unknown): void => {
-        if (Array.isArray(node)) {
-          node.forEach(walk);
-          return;
-        }
-        if (node && typeof node === 'object') {
-          const record = node as Record<string, unknown>;
-          const type = record['@type'];
-          if (typeof type === 'string') types.add(type);
-          if (Array.isArray(type)) type.forEach((t) => typeof t === 'string' && types.add(t));
-          if (Array.isArray(record['@graph'])) (record['@graph'] as unknown[]).forEach(walk);
-        }
-      };
-      walk(parsed);
+      walkJsonLd(JSON.parse(body), types);
     } catch {
       // JSON-LD malformado é em si um achado, mas não interrompe a auditoria.
-      const fallback = /"@type"\s*:\s*"([^"]+)"/g;
-      let match: RegExpExecArray | null;
-      while ((match = fallback.exec(body)) !== null) types.add(match[1]);
+      for (const match of body.matchAll(FALLBACK_TYPE_RE)) types.add(match[1]);
     }
   }
   return [...types];
 };
-
 
 const SRC_RE = /\bsrc\s*=/i;
 const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
