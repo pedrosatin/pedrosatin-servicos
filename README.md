@@ -116,11 +116,14 @@ searchable part of the page, didn't exist for crawlers at all.
    `production` environment. In GitHub, open **Settings → Environments**,
    create `production`, restrict deployment branches to `master` (under
    **Deployment branches and tags** → **Selected branches and tags**), and
-   optionally add required reviewers. Move `CLOUDFLARE_API_TOKEN` and
+   optionally add required reviewers. With required reviewers, each deploy
+   waits for approval before it runs. Move `CLOUDFLARE_API_TOKEN` and
    `PSI_KEY` into the `production` environment's secrets, then delete both
    from repository secrets so unprotected workflows or branches cannot read
    them. (`CLOUDFLARE_ACCOUNT_ID` may stay as-is or move to the environment as
-   well.)
+   well.) After this move, rolling back to a workflow without `environment:`
+   needs the repository secrets recreated first, or the deploy fails to
+   authenticate.
 4. **Updating pinned actions.** `.github/workflows/deploy.yml` pins GitHub
    Actions to full 40-character commit SHAs instead of mutable tags.
    [`.github/dependabot.yml`](.github/dependabot.yml) opens weekly PRs for
