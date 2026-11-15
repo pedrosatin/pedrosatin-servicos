@@ -21,21 +21,25 @@ import worker from './src/index.ts';
 const PORT = Number(process.env.PORT ?? 8787);
 
 /**
- * A lista de origens é lida do `wrangler.toml`, e não copiada para cá. Uma
- * segunda cópia acabaria divergindo, e o sintoma seria o pior possível: a
- * análise funcionando em desenvolvimento e recusada em produção. Vale a seção
- * `[env.dev.vars]`, a mesma do `wrangler dev --env dev`; a de produção não
- * aceita localhost.
+ * As listas de hosts e de origens são lidas do `wrangler.toml`, e não
+ * copiadas para cá. Uma segunda cópia acabaria divergindo, e o sintoma seria o
+ * pior possível: a análise funcionando em desenvolvimento e recusada em
+ * produção. Vale a seção `[env.dev.vars]`, a mesma do `wrangler dev --env dev`;
+ * a de produção não aceita localhost.
  */
 const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
 const devVars = /^\[env\.dev\.vars\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(wrangler)?.[1] ?? '';
-const allowed = /^\s*ALLOWED_ORIGINS\s*=\s*"([^"]*)"/m.exec(devVars)?.[1];
+const devVar = (name) => {
+  const value = new RegExp(`^\\s*${name}\\s*=\\s*"([^"]*)"`, 'm').exec(devVars)?.[1];
+  if (!value) throw new Error(`${name} não encontrado em [env.dev.vars] no worker/wrangler.toml.`);
+  return value;
+};
 
-if (!allowed) {
-  throw new Error('ALLOWED_ORIGINS não encontrado em [env.dev.vars] no worker/wrangler.toml.');
-}
-
-const env = { ALLOWED_ORIGINS: allowed, PSI_KEY: process.env.PSI_KEY };
+const env = {
+  ALLOWED_HOSTS: devVar('ALLOWED_HOSTS'),
+  ALLOWED_ORIGINS: devVar('ALLOWED_ORIGINS'),
+  PSI_KEY: process.env.PSI_KEY,
+};
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
