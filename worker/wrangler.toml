@@ -2,13 +2,20 @@ name = "pedrosatin-audit"
 main = "src/worker.ts"
 compatibility_date = "2026-08-18"
 
-workers_dev = true
+# Só o domínio próprio. A regra de Rate Limiting do WAF filtra por esse host,
+# então o `*.workers.dev` e as preview URLs ficam desligados para que todo o
+# tráfego passe por ela.
+workers_dev = false
+preview_urls = false
 
 routes = [
   { pattern = "servicos-api.pedrosatin.com", custom_domain = true }
 ]
 
 [vars]
+# Hostnames que o handler atende, separados por vírgula. Os outros recebem 404
+# antes do limitador. Sem a variável, vale só servicos-api.pedrosatin.com.
+ALLOWED_HOSTS = "servicos-api.pedrosatin.com"
 # Origens autorizadas a chamar o endpoint em produção, separadas por vírgula.
 ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev"
 
@@ -16,12 +23,14 @@ ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https:
 enabled = true
 
 # Desenvolvimento local: `npm run dev` (wrangler dev --env dev) e o servidor
-# Node (`npm run worker:dev` na raiz) leem as origens daqui. Repete as de
-# produção e acrescenta o Vite (5173) e o preview (4173). Nunca publique este
-# ambiente; o deploy usa `--env=""`, o ambiente de topo.
+# Node (`npm run worker:dev` na raiz) leem hosts e origens daqui. Os hosts são
+# os do servidor local; as origens repetem as de produção e acrescentam o Vite
+# (5173) e o preview (4173). Nunca publique este ambiente; o deploy usa
+# `--env=""`, o ambiente de topo.
 [env.dev]
 workers_dev = false
 routes = []
 
 [env.dev.vars]
+ALLOWED_HOSTS = "localhost,127.0.0.1"
 ALLOWED_ORIGINS = "https://servicos.pedrosatin.com,https://pedrosatin.com,https://pedrosatin-servicos.pages.dev,http://localhost:5173,http://localhost:4173"

@@ -22,10 +22,25 @@ npm run dev        # http://localhost:8787/audit?url=silvasatin.adv.br
 ```
 
 `npm run dev` sobe o ambiente `dev` do `wrangler.toml` (`wrangler dev --env dev`),
-que aceita as origens de produção e também `http://localhost:5173` e
-`http://localhost:4173`. O servidor Node da raiz (`npm run worker:dev`) lê a
-mesma lista de `[env.dev.vars]`. A configuração de produção (`[vars]`) não
-aceita localhost: `wrangler dev --env=""` se comporta como produção.
+que atende `localhost` e `127.0.0.1` e aceita as origens de produção e também
+`http://localhost:5173` e `http://localhost:4173`. O servidor Node da raiz
+(`npm run worker:dev`) lê as mesmas listas de `[env.dev.vars]`. A configuração
+de produção (`[vars]`) não aceita localhost. `wrangler dev --env=""` reescreve
+a URL para o host da rota de produção e recusa a origem `http://localhost:5173`
+com 403, como em produção.
+
+## Hosts atendidos
+
+O handler só responde aos hostnames de `ALLOWED_HOSTS`, lista separada por
+vírgula. Em produção (`[vars]`) é só `servicos-api.pedrosatin.com`; no ambiente
+`dev`, `localhost` e `127.0.0.1`. Qualquer outro host recebe 404 sem CORS, antes
+do limite por cliente e de qualquer subrequest. Sem a variável, ou com curinga,
+vale só o domínio de produção.
+
+O ambiente de produção também desliga o `*.workers.dev` (`workers_dev = false`)
+e as preview URLs (`preview_urls = false`). A regra de Rate Limiting do WAF
+descrita abaixo filtra pelo host do domínio próprio, e um segundo hostname
+passaria sem ela.
 
 ## Publicar
 
@@ -33,12 +48,15 @@ aceita localhost: `wrangler dev --env=""` se comporta como produção.
 npm run deploy     # wrangler deploy --env="", o ambiente de produção
 ```
 
-Depois de publicar, aponte o front para a URL do Worker criando um `.env` na raiz
-do projeto:
+O Worker fica só no domínio próprio. Para apontar o front para ele, crie um
+`.env` na raiz do projeto:
 
 ```
-VITE_AUDIT_ENDPOINT=https://pedrosatin-audit.<seu-subdominio>.workers.dev
+VITE_AUDIT_ENDPOINT=https://servicos-api.pedrosatin.com
 ```
+
+Trocar de domínio exige mudar a rota em `routes`, o `ALLOWED_HOSTS` de
+`[vars]`, a regra do WAF e o `connect-src` de `public/_headers`.
 
 ## O que a rota devolve
 

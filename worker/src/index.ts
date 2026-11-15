@@ -15,6 +15,7 @@ import { countSitemapUrls, isSitemapIndex, parseHtml, parseRobots } from './pars
 import type { AuditResponse, RedirectHop, RobotsReport, SitemapReport } from '../../shared/report-types.ts';
 
 interface Env {
+  ALLOWED_HOSTS?: string;
   ALLOWED_ORIGINS?: string;
   PSI_KEY?: string;
 }
@@ -25,6 +26,10 @@ const DEFAULT_ORIGINS = [
   'https://servicos.pedrosatin.com',
   'https://pedrosatin.com',
 ];
+
+// Só o domínio próprio. O desenvolvimento local declara localhost no
+// `[env.dev.vars]` do wrangler.toml.
+const DEFAULT_HOSTS = ['servicos-api.pedrosatin.com'];
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; PedroSatinAudit/1.0; +https://servicos.pedrosatin.com)';
@@ -57,6 +62,18 @@ export const allowedOrigins = (env: Env): string[] => {
   const origins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
   if (origins.length === 0 || origins.includes('*')) return DEFAULT_ORIGINS;
   return origins;
+};
+
+/**
+ * Hostnames que o Worker atende. A regra de Rate Limiting do WAF filtra pelo
+ * host do domínio próprio, então outro nome que chegue ao Worker (o
+ * `*.workers.dev` ou uma preview URL, se voltarem a ser ligados) passaria sem
+ * ela. Sem a variável, vale só o domínio de produção; curinga também cai nele.
+ */
+export const allowedHosts = (env: Env): string[] => {
+  const hosts = (env.ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+  if (hosts.length === 0 || hosts.some((h) => h.includes('*'))) return DEFAULT_HOSTS;
+  return hosts;
 };
 
 const corsHeaders = (origin: string | null, env: Env): Record<string, string> => {
@@ -890,6 +907,13 @@ const auditErrorMessage = (error: unknown): string => {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Host fora da lista sai antes do limitador e de qualquer subrequest: não
+    // ocupa vaga na tabela nem gasta cota.
+    const url = new URL(request.url);
+    if (!allowedHosts(env).includes(url.hostname)) {
+      return new Response('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
+    }
+
     const origin = request.headers.get('origin');
     const headers = corsHeaders(origin, env);
 
@@ -899,7 +923,6 @@ export default {
     const clientIp = request.headers.get('cf-connecting-ip');
     if (!clientIp) return json({ error: 'Endereço do cliente não confirmado.' }, 403, headers);
 
-    const url = new URL(request.url);
     const bucket = url.pathname === '/pagespeed' ? 'pagespeed' : 'audit';
     const client = rateLimitClient(clientIp);
     const retryAfter = consumeRateLimit(bucket, client, rateLimitPrefix(client), Date.now());

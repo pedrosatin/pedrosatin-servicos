@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import wranglerToml from '../wrangler.toml?raw';
 import worker, {
+  allowedHosts,
   allowedOrigins,
   auditRobotsAndSitemap,
   checkHttpsUpgrade,
@@ -328,12 +330,12 @@ describe('allowedOrigins', () => {
 });
 
 const auditRequest = (ip = '203.0.113.10', query = 'url=example.com') =>
-  new Request(`https://api.example.com/audit?${query}`, {
+  new Request(`https://servicos-api.pedrosatin.com/audit?${query}`, {
     headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': ip },
   });
 
 const pagespeedRequest = (ip = '203.0.113.20') =>
-  new Request('https://api.example.com/pagespeed?domain=example.com&strategy=mobile', {
+  new Request('https://servicos-api.pedrosatin.com/pagespeed?domain=example.com&strategy=mobile', {
     headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': ip },
   });
 
@@ -358,7 +360,7 @@ describe('audit handler', () => {
 
   it('refuses localhost origins with the production configuration', async () => {
     installFetch(() => new Response(''));
-    const request = new Request('https://api.example.com/audit?url=example.com', {
+    const request = new Request('https://servicos-api.pedrosatin.com/audit?url=example.com', {
       headers: { origin: 'http://localhost:5173', 'cf-connecting-ip': '203.0.113.40' },
     });
     expect((await worker.fetch(request, {})).status).toBe(403);
@@ -404,12 +406,83 @@ describe('audit handler', () => {
   it('preserves preflight and refuses missing identity, unauthorized origins and invalid routes', async () => {
     installFetch(() => new Response(''));
     const env = { ALLOWED_ORIGINS: 'https://allowed.example' };
-    const make = (path: string, origin?: string, ip?: string, method = 'GET') => new Request(`https://api.example${path}`, { method, headers: { ...(origin ? { origin } : {}), ...(ip ? { 'cf-connecting-ip': ip } : {}) } });
+    const make = (path: string, origin?: string, ip?: string, method = 'GET') => new Request(`https://servicos-api.pedrosatin.com${path}`, { method, headers: { ...(origin ? { origin } : {}), ...(ip ? { 'cf-connecting-ip': ip } : {}) } });
     expect((await worker.fetch(make('/audit', undefined, undefined, 'OPTIONS'), env)).status).toBe(204);
     expect((await worker.fetch(make('/audit', 'https://allowed.example'), env)).status).toBe(403);
     expect((await worker.fetch(make('/audit', 'https://denied.example', 'one'), env)).status).toBe(403);
     expect((await worker.fetch(make('/unknown', 'https://allowed.example', 'two'), env)).status).toBe(404);
     expect((await worker.fetch(make('/audit', 'https://allowed.example', 'three'), env)).status).toBe(400);
+  });
+});
+
+/** Texto de uma seção do wrangler.toml; `''` devolve o ambiente de topo, antes da primeira seção. */
+const tomlSection = (name: string): string => {
+  if (name === '') return wranglerToml.split(/^\[/m)[0] ?? '';
+  const escaped = name.replace(/[.[\]]/g, '\\$&');
+  return new RegExp(`^\\[${escaped}\\]\\s*$([\\s\\S]*?)(?=^\\[|(?![\\s\\S]))`, 'm').exec(wranglerToml)?.[1] ?? '';
+};
+
+const tomlValue = (section: string, key: string): string | undefined =>
+  new RegExp(`^\\s*${key}\\s*=\\s*"?([^"\\n]*)"?`, 'm').exec(tomlSection(section))?.[1]?.trim();
+
+describe('allowedHosts', () => {
+  it('falls back to the production domain when ALLOWED_HOSTS is missing, empty or a wildcard', () => {
+    for (const value of [undefined, '', '   ', '*', 'localhost, *.workers.dev']) {
+      expect(allowedHosts({ ALLOWED_HOSTS: value })).toEqual(['servicos-api.pedrosatin.com']);
+    }
+  });
+
+  it('returns the parsed list in lower case', () => {
+    expect(allowedHosts({ ALLOWED_HOSTS: ' Localhost, 127.0.0.1 ' })).toEqual(['localhost', '127.0.0.1']);
+  });
+});
+
+describe('host allowlist', () => {
+  const request = (base: string, ip: string) =>
+    new Request(`${base}/pagespeed?domain=example.com&strategy=mobile`, {
+      headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': ip },
+    });
+
+  const production = { ALLOWED_HOSTS: tomlValue('vars', 'ALLOWED_HOSTS') };
+  const dev = { ALLOWED_HOSTS: tomlValue('env.dev.vars', 'ALLOWED_HOSTS') };
+
+  it('turns off workers.dev and preview URLs in production and keeps localhost in dev only', () => {
+    expect(tomlValue('', 'workers_dev')).toBe('false');
+    expect(tomlValue('', 'preview_urls')).toBe('false');
+    expect(production.ALLOWED_HOSTS).toBe('servicos-api.pedrosatin.com');
+    expect(allowedHosts(dev)).toEqual(['localhost', '127.0.0.1']);
+  });
+
+  it('answers 404 to other hosts before the rate limit and any subrequest', async () => {
+    const mock = installFetch(() => new Response('{}'));
+    const hosts = ['https://pedrosatin-audit.example.workers.dev', 'https://attacker-chosen.invalid', 'http://localhost:8787'];
+    for (const env of [production, {}]) {
+      for (const [i, base] of hosts.entries()) {
+        const response = await worker.fetch(request(base, `198.51.100.${i + 1}`), env);
+        expect(response.status).toBe(404);
+        expect(response.headers.get('access-control-allow-origin')).toBeNull();
+      }
+    }
+    // OPTIONS também é barrado: o preflight não confirma que o Worker existe ali.
+    const preflight = new Request('https://pedrosatin-audit.example.workers.dev/audit', { method: 'OPTIONS' });
+    expect((await worker.fetch(preflight, production)).status).toBe(404);
+    expect(rateLimitCache.size).toBe(0);
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it('serves the production domain with the production configuration', async () => {
+    const mock = installFetch(() => new Response('{}', { headers: { 'content-type': 'application/json' } }));
+    const response = await worker.fetch(request('https://servicos-api.pedrosatin.com', '198.51.100.10'), production);
+    expect(response.status).toBe(200);
+    expect(rateLimitCache.size).toBe(1);
+    expect(siteCalls(mock)).toHaveLength(1);
+  });
+
+  it('serves localhost with the dev configuration and refuses the other hosts', async () => {
+    installFetch(() => new Response('{}', { headers: { 'content-type': 'application/json' } }));
+    expect((await worker.fetch(request('http://localhost:8787', '127.0.0.1'), dev)).status).toBe(200);
+    expect((await worker.fetch(request('http://127.0.0.1:8787', '127.0.0.2'), dev)).status).toBe(200);
+    expect((await worker.fetch(request('https://pedrosatin-audit.example.workers.dev', '127.0.0.3'), dev)).status).toBe(404);
   });
 });
 
@@ -453,7 +526,7 @@ describe('PageSpeed proxy', () => {
     expect(await second.text()).toBe('{"lighthouseResult":{}}');
     expect(second.headers.get('access-control-allow-origin')).toBe('https://servicos.pedrosatin.com');
     expect(mock.mock.calls.filter(([url]) => String(url).includes('pagespeedonline'))).toHaveLength(1);
-    const desktop = new Request('https://api.example.com/pagespeed?domain=example.com&strategy=desktop', {
+    const desktop = new Request('https://servicos-api.pedrosatin.com/pagespeed?domain=example.com&strategy=desktop', {
       headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': '203.0.113.23' },
     });
     await worker.fetch(desktop, {});
@@ -469,7 +542,7 @@ describe('PageSpeed proxy', () => {
 
   it('rejects internal targets and unknown strategies', async () => {
     installFetch(() => new Response('{}'));
-    const make = (query: string) => new Request(`https://api.example.com/pagespeed?${query}`, {
+    const make = (query: string) => new Request(`https://servicos-api.pedrosatin.com/pagespeed?${query}`, {
       headers: { origin: 'https://servicos.pedrosatin.com', 'cf-connecting-ip': '203.0.113.30' },
     });
     expect((await worker.fetch(make('domain=127.0.0.1'), {})).status).toBe(400);
@@ -537,7 +610,7 @@ describe('rate limiting', () => {
 
   it('keeps one /48 from locking out new visitors after 5000 unique requests', async () => {
     const noOrigin = (ip: string) =>
-      new Request('https://api.example.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } });
+      new Request('https://servicos-api.pedrosatin.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } });
     const preAttack = await worker.fetch(auditRequest('203.0.113.7'), {});
     expect(preAttack.status).toBe(200);
     // Cenário do security audit: cada requisição vem de um /64 diferente do
@@ -563,7 +636,7 @@ describe('rate limiting', () => {
     const total = RATE_LIMIT_MAX_ENTRIES + 3 * RATE_LIMIT_PREFIX_SLOTS;
     for (let i = 0; i < total; i++) {
       const ip = `2001:db8:${Math.floor(i / RATE_LIMIT_PREFIX_SLOTS).toString(16)}:${(i % RATE_LIMIT_PREFIX_SLOTS).toString(16)}::1`;
-      await worker.fetch(new Request('https://api.example.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } }), {});
+      await worker.fetch(new Request('https://servicos-api.pedrosatin.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } }), {});
       expect(rateLimitCache.size).toBeLessThanOrEqual(RATE_LIMIT_MAX_ENTRIES);
     }
     expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);

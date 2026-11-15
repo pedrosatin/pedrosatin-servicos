@@ -97,6 +97,9 @@ searchable part of the page, didn't exist for crawlers at all.
    `worker/wrangler.toml` to the final origins and run `npm run worker:deploy`
    (it passes `--env=""`, the top-level production environment). Production
    origins don't include localhost; local development reads `[env.dev.vars]`.
+   The Worker answers only the hostnames in `ALLOWED_HOSTS`
+   (`servicos-api.pedrosatin.com` in production) and returns 404 to any
+   other. `workers.dev` and preview URLs are off.
    CI also publishes the Worker before Pages, because the site calls the
    Worker's `/pagespeed` route.
 2. **PageSpeed key.** `PSI_KEY` is required in production. The deploy
@@ -110,7 +113,8 @@ searchable part of the page, didn't exist for crawlers at all.
    key restricted to the PageSpeed Insights API with a quota, store it as
    `PSI_KEY`, revoke the old one in Google Cloud, and remove `VITE_PSI_KEY`
    from GitHub secrets and Pages variables.
-3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker URL.
+3. **Site variables.** Set `VITE_AUDIT_ENDPOINT` to the Worker's custom
+   domain, `https://servicos-api.pedrosatin.com`.
 4. **Build and publish.** Command `npm run build`, output directory `dist`.
 5. **Headers.** `public/_headers` ships with the build and sets HSTS, CSP,
    and cache rules. `connect-src` names the Worker's own domain
