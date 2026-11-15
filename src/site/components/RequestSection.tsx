@@ -1,12 +1,20 @@
 import React from 'react';
 import { CONTACT, buildWhatsAppUrl } from '../../lib/config';
 import { briefingWhatsAppUrl, type Briefing } from '../../lib/message';
+import { ETAPAS_DEPOIS } from '../../lib/prazos';
 import { NEED_OPTIONS } from '../../lib/services';
 import type { AuditResult } from '../../lib/types';
-import { FactList } from './FactList';
 
 /** Campo que recebe o foco quando um card de serviço leva até o formulário. */
 export const ID_CAMPO_NOME = 'atendimento-nome';
+
+const DESCRICAO_DA_ETAPA: Record<string, string> = {
+  Levantamento:
+    'conversamos sobre o projeto e necessidades. Se houver link, eu analiso a saúde técnica.',
+  Orçamento: 'valor fechado do trabalho com escopo escrito e prazo claro.',
+  'Execução e entrega':
+    'desenvolvimento com acompanhamento, publicação nas suas contas e auditoria final.',
+};
 
 interface RequestSectionProps {
   briefing: Briefing;
@@ -141,25 +149,24 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
 
           <aside className="lp-request-side">
             <h3>O que acontece depois</h3>
-            <FactList
-              as="ol"
-              items={[
-                {
-                  label: 'Levantamento',
-                  value:
-                    'conversamos sobre o projeto e necessidades. Se houver link, eu analiso a saúde técnica.',
-                },
-                {
-                  label: 'Orçamento',
-                  value: 'valor fechado do trabalho com escopo escrito e prazo claro.',
-                },
-                {
-                  label: 'Execução e entrega',
-                  value:
-                    'desenvolvimento com acompanhamento, publicação nas suas contas e auditoria final.',
-                },
-              ]}
-            />
+            <ol className="lp-etapas">
+              {ETAPAS_DEPOIS.map((item) => (
+                <li key={item.etapa}>
+                  <strong>{item.etapa}</strong>
+                  <span>{DESCRICAO_DA_ETAPA[item.etapa]}</span>
+                  <dl>
+                    <div>
+                      <dt>Prazo</dt>
+                      <dd>{item.prazo}</dd>
+                    </div>
+                    <div>
+                      <dt>Você faz</dt>
+                      <dd>{item.voceFaz}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ol>
             <div className="lp-request-contact">
               <span>WhatsApp</span>
               <a
