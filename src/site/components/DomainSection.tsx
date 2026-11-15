@@ -3,6 +3,7 @@ import { DOMAIN_EXTENSIONS, REGISTRO_BR_URL } from '../../lib/config';
 import { formatDate } from '../../lib/format';
 import type { DomainRegistration } from '../../lib/types';
 import { FactList } from './FactList';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 interface DomainSectionProps {
   domain?: string;
@@ -15,6 +16,7 @@ export const DomainSection: React.FC<DomainSectionProps> = ({
 }) => (
   <section className="lp-domain" id="dominio">
     <div className="lp-wrap">
+      <RotuloDaSecao id="dominio" />
       <h2 className="lp-h2">Domínio e infraestrutura no seu nome</h2>
       <p className="lp-h2-sub">
         Domínios .com.br custam a partir de R$ 40 por ano direto no Registro.br. Você paga aos provedores oficiais, sem taxa intermediária ou dependência técnica.

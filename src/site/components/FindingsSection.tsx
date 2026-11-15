@@ -2,6 +2,7 @@ import React from 'react';
 import { AREA_LABELS } from '../../lib/achados';
 import { auditWhatsAppUrl } from '../../lib/message';
 import type { AuditResult, Finding, Severity } from '../../lib/types';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 const SEVERITY_TAG: Record<Severity, string> = {
   critical: 'CRÍTICO',
@@ -23,6 +24,7 @@ export const FindingsSection: React.FC<FindingsSectionProps> = ({
 }) => (
   <section className="lp-findings">
     <div className="lp-wrap">
+      <RotuloDaSecao id="achados" />
       <h2 className="lp-h2">Achados da análise</h2>
       <p className="lp-h2-sub">
         Cada linha traz a medição que a originou. Nada aqui é estimativa.

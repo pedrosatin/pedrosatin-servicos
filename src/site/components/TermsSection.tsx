@@ -1,8 +1,10 @@
 import React from 'react';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 export const TermsSection: React.FC = () => (
   <section className="lp-terms">
     <div className="lp-wrap">
+      <RotuloDaSecao id="condicoes" />
       <h2 className="lp-h2">Como o trabalho funciona</h2>
       <div className="lp-terms-grid">
         <article>
