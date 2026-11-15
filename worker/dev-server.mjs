@@ -21,11 +21,26 @@ import { createSafeAgent } from './dev-dispatcher.mjs';
 import worker from './src/index.ts';
 
 /**
- * O runtime dos Workers barra saída para redes privadas, mas o fetch do Node
- * segue o DNS local. O dispatcher global abaixo força cada conexão a usar o
- * endereço público confirmado pelo DoH e recusa qualquer destino interno.
+ * No Node, o fetch resolve o nome pelo DNS do sistema e alcança redes privadas.
+ * O dispatcher global abaixo força cada conexão a usar o endereço público
+ * confirmado pelo DoH e recusa qualquer destino interno.
  */
+const verifyGlobalDispatcher = async () => {
+  try {
+    // Porta 65535 evita a lista de bad ports do Fetch, que barra a porta 9 antes do dispatcher.
+    const response = await fetch('http://127.0.0.1:65535/');
+    await response.body?.cancel();
+  } catch (error) {
+    if (error instanceof Error && error.cause?.code === 'ERR_BLOCKED_TARGET') return;
+    console.error('Autoteste do dispatcher falhou antes de iniciar o servidor.', error);
+    process.exit(1);
+  }
+  console.error('Autoteste do dispatcher falhou porque o fetch global alcançou 127.0.0.1.');
+  process.exit(1);
+};
+
 setGlobalDispatcher(createSafeAgent());
+await verifyGlobalDispatcher();
 
 const PORT = Number(process.env.PORT ?? 8787);
 

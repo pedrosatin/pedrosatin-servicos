@@ -7,10 +7,11 @@
     "types": ["@cloudflare/workers-types"],
     "strict": true,
     "noEmit": true,
+    "allowJs": true,
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "dev-dispatcher.test.ts"]
 }

@@ -3,7 +3,7 @@
  *
  * Em produção, o runtime da Cloudflare impede saída para redes privadas. No
  * Node essa barreira não existe, e a resolução local do sistema operacional
- * pode divergir do DoH checado pelo Worker. Este módulo instala um conector
+ * pode divergir do DoH checado pelo Worker. Este módulo cria um conector
  * que resolve o destino pelo mesmo DoH público, recusa qualquer IP interno ou
  * reservado na hora da conexão e ignora o DNS local para alvos externos.
  */
@@ -27,6 +27,8 @@ const notFoundError = (hostname) =>
  * Verdadeiro quando o destino já é um nome interno conhecido ou um IP literal
  * não público. O Node não chama `lookup` para IPs literais em `net.connect`,
  * então a checagem precisa rodar também antes do conector padrão.
+ *
+ * @param {string} hostname
  */
 export const isBlockedLiteralOrName = (hostname) => {
   const host = canonicalHost(hostname);
@@ -98,10 +100,42 @@ const resolveSystemPublic = (hostname, options, systemLookup, callback) => {
 };
 
 /**
+ * @typedef {(hostname: string, type: 'A' | 'AAAA') => Promise<string[]>} DohLookup
+ * @typedef {{ address: string; family: number }} LookupEntry
+ * @typedef {(
+ *   error: Error | null,
+ *   addressOrList?: string | LookupEntry[],
+ *   family?: number,
+ * ) => void} LookupCallback
+ * @typedef {(
+ *   hostname: string,
+ *   options: { all?: boolean; family?: number },
+ *   callback: LookupCallback,
+ * ) => void} SystemLookup
+ * @typedef {(
+ *   hostname: string,
+ *   optionsOrCallback: { all?: boolean; family?: number } | LookupCallback,
+ *   callback?: LookupCallback,
+ * ) => void} SafeLookup
+ * @typedef {(
+ *   options: { hostname: string },
+ *   callback: (error: Error | null, socket?: unknown) => void,
+ * ) => unknown} ConnectorFn
+ * @typedef {(options: { lookup: SafeLookup }) => ConnectorFn} BuildConnectorFn
+ */
+
+/**
  * Lookup compatível com `net.connect` que resolve destinos via DoH público e
  * falha fechado se qualquer endereço for interno, reservado ou inválido. Só o
- * próprio servidor DoH usa a resolução do sistema operacional, ainda assim
- * filtrada pelas mesmas regras de IP público para evitar recursão infinita.
+ * servidor DoH usa a resolução do sistema, para não haver recursão. O
+ * resultado passa pelas mesmas regras de IP público.
+ *
+ * @param {{
+ *   dohLookup?: DohLookup;
+ *   systemLookup?: SystemLookup;
+ *   dohHostname?: string;
+ * }} [options]
+ * @returns {SafeLookup}
  */
 export const createSafeLookup = ({
   dohLookup = resolveDoh,
@@ -131,6 +165,14 @@ export const createSafeLookup = ({
 /**
  * Cria um `Agent` do undici que barra IPs literais privados e fixa toda
  * resolução de hostname ao endereço público retornado pelo DoH.
+ *
+ * @param {{
+ *   dohLookup?: DohLookup;
+ *   systemLookup?: SystemLookup;
+ *   dohHostname?: string;
+ *   buildConnectorFn?: BuildConnectorFn;
+ *   [key: string]: unknown;
+ * }} [options]
  */
 export const createSafeAgent = ({
   dohLookup = resolveDoh,

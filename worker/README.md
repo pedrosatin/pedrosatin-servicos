@@ -194,13 +194,17 @@ uma mensagem fixa em português, sem o texto da exceção.
 O Worker usa o fetch da plataforma, que já bloqueia redes privadas; a checagem
 por DoH não fixa o IP que o fetch vai usar.
 
-No servidor Node local, `worker/dev-server.mjs` instala um dispatcher global do
-undici em `worker/dev-dispatcher.mjs` porque o Node não impõe bloqueio de rede
-privada. Cada conexão de saída resolve o hostname pelo mesmo DoH público e
-recusa endereços internos ou reservados na abertura do socket, inclusive IPs
-literais e resoluções locais do sistema operacional que apontem para o laço
-local ou para a rede privada. Só a consulta ao próprio `cloudflare-dns.com` usa
-a resolução do sistema, ainda filtrada pelas mesmas faixas de IP público.
+No servidor Node local, `worker/dev-server.mjs` instala como dispatcher global
+do undici o `Agent` definido em `worker/dev-dispatcher.mjs` porque o Node não
+impõe bloqueio de rede privada. O dispatcher resolve o hostname de cada conexão
+nova pelo mesmo DoH público, sem consultar o DNS do sistema, e recusa endereço
+interno ou reservado antes de abrir o socket. IP literal interno é recusado sem
+consulta. Só a consulta ao próprio `cloudflare-dns.com` usa a resolução do
+sistema, ainda filtrada pelas mesmas faixas de IP público. O certificado TLS de
+`cloudflare-dns.com` impede que um IP público forjado responda pelo DoH. Um IP
+privado nessa resolução só faz a auditoria falhar. Com esse dispatcher próprio,
+o dev server deixa de usar `HTTP_PROXY` e `NODE_USE_ENV_PROXY`, e cada conexão
+nova faz duas consultas DoH, dos tipos A e AAAA, sem cache.
 
 Tetos de leitura: 3 MB para HTML, 128 KB para `robots.txt` e 1 MB para cada
 sitemap. A cadeia da página principal tem até seis requisições; as de

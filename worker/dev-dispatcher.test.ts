@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { fetch as undiciFetch } from 'undici';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { getGlobalDispatcher, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
 import { createSafeAgent, createSafeLookup, isBlockedLiteralOrName } from './dev-dispatcher.mjs';
 
 type LookupCallback = (
@@ -38,10 +38,16 @@ const runLookup = (
 describe('dev-dispatcher', () => {
   let loopbackPort = 0;
   let loopbackHits = 0;
+  let loopbackConnections = 0;
+  let previousDispatcher: ReturnType<typeof getGlobalDispatcher> | undefined;
+
   const server = createServer((_req, res) => {
     loopbackHits += 1;
     res.writeHead(200);
     res.end('local-secret');
+  });
+  server.on('connection', () => {
+    loopbackConnections += 1;
   });
 
   beforeAll(async () => {
@@ -53,13 +59,20 @@ describe('dev-dispatcher', () => {
     });
   });
 
+  afterEach(() => {
+    if (previousDispatcher) {
+      setGlobalDispatcher(previousDispatcher);
+      previousDispatcher = undefined;
+    }
+  });
+
   afterAll(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
     });
   });
 
-  it('ignora resolução local para 127.0.0.1 quando o DoH responde IP público', async () => {
+  it('conecta no IP do DoH sem consultar o DNS do sistema', async () => {
     loopbackHits = 0;
     const systemLookup = vi.fn((_host: string, _opts: unknown, cb: LookupCallback) => {
       cb(null, [{ address: '127.0.0.1', family: 4 }]);
@@ -116,7 +129,9 @@ describe('dev-dispatcher', () => {
     ];
 
     for (const url of blockedUrls) {
-      await expect(undiciFetch(url, { dispatcher: agent }), url).rejects.toThrow();
+      await expect(undiciFetch(url, { dispatcher: agent }), url).rejects.toMatchObject({
+        cause: { code: 'ERR_BLOCKED_TARGET' },
+      });
     }
 
     await agent.close();
@@ -154,14 +169,16 @@ describe('dev-dispatcher', () => {
       await expect(
         undiciFetch(`http://rebind.example:${loopbackPort}/`, { dispatcher: agent }),
         answers.join(','),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: { code: 'ERR_BLOCKED_TARGET' },
+      });
       await agent.close();
     }
 
     expect(loopbackHits).toBe(0);
   });
 
-  it('aceita IP público quando uma consulta DoH falha mas a outra traz endereço público', async () => {
+  it('aceita o IP público do A quando a consulta AAAA falha', async () => {
     const dohLookup = vi.fn(async (_name: string, type: 'A' | 'AAAA') => {
       if (type === 'AAAA') throw new Error('AAAA servfail');
       return ['93.184.215.14'];
@@ -201,16 +218,20 @@ describe('dev-dispatcher', () => {
   });
 
   it('permite IP literal público no conector sem chamar DNS', async () => {
+    const dohLookup = vi.fn();
+    const systemLookup = vi.fn();
     const baseConnect = vi.fn((_opts: unknown, cb: (err: Error | null) => void) => {
       cb(new Error('reached-base-connector'));
     });
     const buildConnectorFn = vi.fn(() => baseConnect);
-    const agent = createSafeAgent({ buildConnectorFn });
+    const agent = createSafeAgent({ dohLookup, systemLookup, buildConnectorFn });
 
     await expect(undiciFetch('http://93.184.215.14/', { dispatcher: agent })).rejects.toThrow();
     await agent.close();
 
     expect(baseConnect).toHaveBeenCalledTimes(1);
+    expect(dohLookup).not.toHaveBeenCalled();
+    expect(systemLookup).not.toHaveBeenCalled();
   });
 
   it('protege a resolução de cloudflare-dns.com contra IPs internos do sistema', async () => {
@@ -232,5 +253,24 @@ describe('dev-dispatcher', () => {
       systemLookup: (_host, _opts, cb) => cb(new Error('dns offline')),
     });
     await expect(runLookup(systemError, 'cloudflare-dns.com', { all: true })).rejects.toThrow('dns offline');
+  });
+
+  it('bloqueia o fetch global ao instalar o agent com setGlobalDispatcher', async () => {
+    loopbackHits = 0;
+    loopbackConnections = 0;
+    previousDispatcher = getGlobalDispatcher();
+    const agent = createSafeAgent();
+    setGlobalDispatcher(agent);
+
+    try {
+      await expect(fetch(`http://127.0.0.1:${loopbackPort}/`)).rejects.toMatchObject({
+        cause: { code: 'ERR_BLOCKED_TARGET' },
+      });
+    } finally {
+      await agent.close();
+    }
+
+    expect(loopbackConnections).toBe(0);
+    expect(loopbackHits).toBe(0);
   });
 });
