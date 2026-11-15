@@ -1,17 +1,12 @@
 import React from 'react';
 import { CONTACT, buildWhatsAppUrl } from '../../lib/config';
 import { briefingWhatsAppUrl, type Briefing } from '../../lib/message';
+import { NEED_OPTIONS } from '../../lib/services';
 import type { AuditResult } from '../../lib/types';
 import { FactList } from './FactList';
 
-const NEEDS = [
-  'Fiz um projeto com IA e não sei como publicar',
-  'Meu projeto feito com IA está com bugs ou travou',
-  'Preciso integrar banco de dados, login ou pagamentos',
-  'Meu site feito com IA está lento ou quebrado no celular',
-  'Quero transformar meu protótipo de IA em um produto real',
-  'Ainda não sei, quero uma avaliação técnica',
-];
+/** Campo que recebe o foco quando um card de serviço leva até o formulário. */
+export const ID_CAMPO_NOME = 'atendimento-nome';
 
 interface RequestSectionProps {
   briefing: Briefing;
@@ -44,6 +39,7 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
                   <label className="lp-field">
                     <span>Nome</span>
                     <input
+                      id={ID_CAMPO_NOME}
                       value={briefing.name}
                       onChange={(event) => onChange({ ...briefing, name: event.target.value })}
                       placeholder="como devo te chamar"
@@ -76,7 +72,7 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
                   role="group"
                   aria-labelledby="atendimento-necessidade"
                 >
-                  {NEEDS.map((item) => (
+                  {NEED_OPTIONS.map((item) => (
                     <button
                       key={item}
                       type="button"

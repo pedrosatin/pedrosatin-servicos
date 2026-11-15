@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { auditWhatsAppUrl, briefingWhatsAppUrl } from './message';
 import { buildWhatsAppUrl } from './config';
 import { normalizeDomain } from './dominio';
+import { NEEDS } from './services';
 import type { AuditResult, Finding } from './types';
 
 vi.mock('./config', () => ({
@@ -175,6 +176,39 @@ describe('message', () => {
         'Olá Pedro, vim pela sua página de engenharia para projetos com IA.\n' +
         'Meu nome é Carlos.\n' +
         'Link / Site atual: carlos.com\n\n' +
+        'Podemos conversar sobre o levantamento técnico e o orçamento?'
+      );
+    });
+
+    it('leva a necessidade escolhida num card junto do domínio e dos achados da auditoria', () => {
+      const briefing = {
+        name: 'Ana',
+        activity: '',
+        need: NEEDS.google,
+        currentSite: 'ana.com.br',
+        notes: '',
+      };
+      const resultado = {
+        domain: 'ana.com.br',
+        score: { value: 42, label: 'Ruim' },
+        findings: [
+          { title: 'Sem sitemap', severity: 'warning' },
+          { title: 'Página em branco sem JavaScript', severity: 'critical' },
+        ] as Finding[],
+      } as unknown as AuditResult;
+      vi.mocked(normalizeDomain).mockReturnValue('ana.com.br');
+
+      briefingWhatsAppUrl(briefing, resultado);
+
+      expect(buildWhatsAppUrl).toHaveBeenCalledWith(
+        'Olá Pedro, vim pela sua página de engenharia para projetos com IA.\n' +
+        'Meu nome é Ana.\n' +
+        'Necessidade: Quero que meu site apareça no Google.\n' +
+        'Link / Site atual: ana.com.br\n' +
+        'Resultado do diagnóstico: 42/100.\n' +
+        'Pontos encontrados na análise:\n' +
+        '1. Sem sitemap\n' +
+        '2. Página em branco sem JavaScript\n\n' +
         'Podemos conversar sobre o levantamento técnico e o orçamento?'
       );
     });

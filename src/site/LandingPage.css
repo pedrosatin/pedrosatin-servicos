@@ -1222,6 +1222,32 @@
   line-height: 1.62;
 }
 
+/* Área de toque de 44 px de altura, acima do mínimo de 40 px. */
+.lp-service-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 580;
+  color: var(--green);
+  text-decoration: none;
+}
+
+.lp-service-cta::after {
+  content: '→';
+  margin-left: 0.4rem;
+  transition: transform 0.15s;
+}
+
+.lp-service-cta:hover {
+  text-decoration: underline;
+}
+
+.lp-service-cta:hover::after {
+  transform: translateX(3px);
+}
+
 /* ---------- google ---------- */
 
 .lp-google {

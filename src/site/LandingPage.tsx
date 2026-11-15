@@ -39,7 +39,7 @@ export const LandingPage: React.FC = () => {
     counts,
     grouped,
   } = useAnaliseDaLanding();
-  const [briefing, setBriefing] = useBriefing(result?.domain);
+  const [briefing, setBriefing, escolherNecessidade] = useBriefing(result?.domain);
   const deviceTime = useHoraDoAparelho(mobile?.fetchedAt);
 
   return (
@@ -90,7 +90,7 @@ export const LandingPage: React.FC = () => {
         )}
 
         {/* ---------- o que eu resolvo ---------- */}
-        <ServicesSection />
+        <ServicesSection onQueroResolver={escolherNecessidade} />
 
         {/* ---------- google ---------- */}
         <GoogleSection domainToConsult={result?.domain ?? domain ?? 'pedrosatin.com'} />

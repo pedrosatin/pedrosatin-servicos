@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Briefing } from '../lib/message';
+import { ID_CAMPO_NOME } from './components/RequestSection';
 
 const BRIEFING_VAZIO: Briefing = {
   name: '',
@@ -7,6 +8,16 @@ const BRIEFING_VAZIO: Briefing = {
   need: '',
   currentSite: '',
   notes: '',
+};
+
+/**
+ * Rola até o formulário e põe o foco no campo Nome. Como na análise, o foco
+ * vai sem rolar (`preventScroll`): do contrário ele interrompe a rolagem suave
+ * e deixa o campo no meio da tela, com o título do formulário fora de vista.
+ */
+const irParaOFormulario = (): void => {
+  document.getElementById('atendimento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(ID_CAMPO_NOME)?.focus({ preventScroll: true });
 };
 
 /**
@@ -23,5 +34,11 @@ export const useBriefing = (siteAnalisado: string | undefined) => {
     }
   }, [siteAnalisado]);
 
-  return [briefing, setBriefing] as const;
+  /** Destino do link "Quero resolver isso" de cada card de serviço. */
+  const escolherNecessidade = (need: string): void => {
+    setBriefing((prev) => ({ ...prev, need }));
+    irParaOFormulario();
+  };
+
+  return [briefing, setBriefing, escolherNecessidade] as const;
 };

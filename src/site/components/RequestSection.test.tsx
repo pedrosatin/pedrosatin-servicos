@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type { Briefing } from '../../lib/message';
+import { NEEDS } from '../../lib/services';
 import { RequestSection } from './RequestSection';
 
 const Formulario = () => {
@@ -20,7 +21,16 @@ describe('RequestSection: necessidades', () => {
     render(<Formulario />);
 
     const grupo = screen.getByRole('group', { name: 'Do que você precisa' });
-    expect(grupo.querySelectorAll('button[aria-pressed]')).toHaveLength(6);
+    expect(grupo.querySelectorAll('button[aria-pressed]')).toHaveLength(7);
+  });
+
+  test('"Quero que meu site apareça no Google" vem antes de "Ainda não sei", que fica por último', () => {
+    render(<Formulario />);
+
+    const grupo = screen.getByRole('group', { name: 'Do que você precisa' });
+    const textos = Array.from(grupo.querySelectorAll('button')).map((b) => b.textContent);
+
+    expect(textos.slice(-2)).toEqual([NEEDS.google, NEEDS.naoSei]);
   });
 
   test('aria-pressed acompanha a opção escolhida', () => {

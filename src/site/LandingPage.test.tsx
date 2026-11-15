@@ -7,6 +7,7 @@ import * as sources from '../lib/sources';
 import * as useAudit from '../lib/useAudit';
 import type { AuditResult, AuditStep } from '../lib/types';
 import type { AuditPhase } from '../lib/useAudit';
+import { SERVICES } from '../lib/services';
 
 vi.mock('../lib/sources', () => ({
   fetchPageSpeed: vi.fn(),
@@ -141,5 +142,37 @@ describe('LandingPage', () => {
 
     expect(html).toMatch(/<p role="status" class="lp-sr-only"><\/p>/);
     expect(html).toMatch(/<p class="lp-error" role="alert"><\/p>/);
+  });
+
+  test.each(SERVICES.map((service) => [service.title, service.need]))(
+    'o card "%s" marca "%s" no formulário e leva o foco ao Nome',
+    (title, need) => {
+      vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
+      const rolar = vi.fn();
+      Element.prototype.scrollIntoView = rolar;
+      render(<LandingPage />);
+
+      fireEvent.click(screen.getByRole('link', { name: `Quero resolver isso: ${title}` }));
+
+      expect(rolar).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+      expect(screen.getByRole('button', { name: need })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1);
+      expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Nome' }));
+    },
+  );
+
+  test('trocar de card troca a necessidade marcada e preserva o que já foi digitado', () => {
+    vi.spyOn(useAudit, 'useAudit').mockImplementation(useMockAudit);
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<LandingPage />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Ana' } });
+
+    fireEvent.click(screen.getByRole('link', { name: /Quero resolver isso: Deploy/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Quero resolver isso: SEO/ }));
+
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Ana');
+    expect(
+      screen.getByRole('button', { name: 'Quero que meu site apareça no Google' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });
