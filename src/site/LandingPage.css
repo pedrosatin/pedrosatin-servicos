@@ -880,7 +880,8 @@
 /* ---------- veredito ---------- */
 
 .lp-verdict {
-  /* Sem preenchimento interno no bloco, o topo encostaria no cabeçalho ao rolar para #resultado. */
+  /* Folga de 1.25rem abaixo do cabeçalho ao rolar para #resultado. A altura do
+     cabeçalho já vem do `scroll-padding-top` em `index.css`. */
   scroll-margin-top: 1.25rem;
   margin-top: 2rem;
   display: grid;
