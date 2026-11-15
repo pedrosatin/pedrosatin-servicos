@@ -1,11 +1,15 @@
 import { render } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { Briefing } from '../../lib/message';
-import { rotuloDaSecao, type IdSecaoDaPagina } from '../secoesDaPagina';
+import type { AuditResult, PageSpeedReport } from '../../lib/types';
+import { SecoesVisiveisContext } from '../SecoesVisiveisContext';
+import { rotuloDaSecao, secoesVisiveis, type IdSecaoDaPagina } from '../secoesDaPagina';
 import { AboutSection } from './AboutSection';
+import { CompareSection } from './CompareSection';
 import { CtaSection } from './CtaSection';
 import { DomainSection } from './DomainSection';
 import { FaqSection } from './FaqSection';
+import { FindingsSection } from './FindingsSection';
 import { GoogleSection } from './GoogleSection';
 import { RequestSection } from './RequestSection';
 import { ServicesSection } from './ServicesSection';
@@ -20,7 +24,65 @@ const briefingVazio: Briefing = {
   notes: '',
 };
 
+const pageSpeedExemplo: PageSpeedReport = {
+  strategy: 'mobile',
+  scores: { performance: 80, seo: 90, accessibility: 95, bestPractices: 90 },
+  lab: {
+    lcpMs: 1800,
+    fcpMs: 900,
+    cls: 0.01,
+    tbtMs: 80,
+    speedIndexMs: 1200,
+    serverResponseMs: 120,
+    totalBytes: 120000,
+  },
+  field: {
+    available: false,
+    origin: true,
+    overall: 'FAST',
+    lcp: { p75: null, category: null },
+    cls: { p75: null, category: null },
+    inp: { p75: null, category: null },
+  },
+  screenshot: null,
+  screenshotSize: null,
+  opportunities: [],
+  fetchedAt: '2026-11-15T00:00:00.000Z',
+};
+
+const resultadoExemplo: AuditResult = {
+  domain: 'exemplo.com.br',
+  startedAt: '2026-11-15T00:00:00.000Z',
+  finishedAt: '2026-11-15T00:00:01.000Z',
+  dns: null,
+  email: null,
+  registration: null,
+  content: null,
+  pagespeed: pageSpeedExemplo,
+  pagespeedError: null,
+  contentError: null,
+  score: null,
+  coverage: { complete: true, missing: [] },
+  findings: [],
+};
+
 const casos: Array<[IdSecaoDaPagina, () => ReturnType<typeof render>]> = [
+  [
+    'comparacao',
+    () =>
+      render(
+        <CompareSection
+          mobile={pageSpeedExemplo}
+          desktop={null}
+          desktopState="idle"
+          result={resultadoExemplo}
+        />,
+      ),
+  ],
+  [
+    'achados',
+    () => render(<FindingsSection result={resultadoExemplo} grouped={[]} domain="exemplo.com.br" />),
+  ],
   ['resolvo', () => render(<ServicesSection onQueroResolver={vi.fn()} />)],
   ['google', () => render(<GoogleSection domainToConsult="exemplo.com.br" />)],
   ['dominio', () => render(<DomainSection />)],
@@ -51,4 +113,15 @@ describe('Rótulos numerados nas seções da página', () => {
       expect(rotulo?.nextElementSibling).toBe(h2);
     },
   );
+
+  test('usa a numeração do SecoesVisiveisContext quando fornecido', () => {
+    const visiveis = secoesVisiveis({ temComparacao: false, temAchados: false });
+    const { container } = render(
+      <SecoesVisiveisContext.Provider value={visiveis}>
+        <ServicesSection onQueroResolver={vi.fn()} />
+      </SecoesVisiveisContext.Provider>,
+    );
+
+    expect(container.querySelector('.lp-section-label')?.textContent).toBe('01 // serviços');
+  });
 });

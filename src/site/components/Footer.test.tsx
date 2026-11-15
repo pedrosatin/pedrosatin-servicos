@@ -81,4 +81,12 @@ describe('Footer', () => {
     expect(llmsLink.getAttribute('href')).toBe('/llms.txt');
     expect(llmsLink.getAttribute('target')).toBe('_blank');
   });
+
+  test('aplica a classe is-alt apenas quando fundoAlternado é verdadeiro', () => {
+    const { container: padrao } = render(<Footer />);
+    expect(padrao.querySelector('footer')).not.toHaveClass('is-alt');
+
+    const { container: alternado } = render(<Footer fundoAlternado />);
+    expect(alternado.querySelector('footer')).toHaveClass('lp-footer', 'is-alt');
+  });
 });

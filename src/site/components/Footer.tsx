@@ -4,8 +4,12 @@ import { SECOES_DO_MENU } from '../secoesDoMenu';
 
 const URL_WHATSAPP_RODAPE = buildWhatsAppUrl('Olá Pedro, vim pela sua página de serviços.');
 
-export const Footer: React.FC = () => (
-  <footer className="lp-footer">
+interface FooterProps {
+  fundoAlternado?: boolean;
+}
+
+export const Footer: React.FC<FooterProps> = ({ fundoAlternado = false }) => (
+  <footer className={fundoAlternado ? 'lp-footer is-alt' : 'lp-footer'}>
     <div className="lp-wrap lp-footer-inner">
       <div className="lp-footer-main">
         <span className="lp-footer-name">{CONTACT.name}</span>

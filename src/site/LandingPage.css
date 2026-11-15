@@ -2201,7 +2201,9 @@
   background: var(--bg);
 }
 
-.lp-main:has(> section:last-child:nth-child(odd)) + .lp-footer {
+/* Classe calculada pela contagem de seções visíveis em vez de `:has()`,
+   que só entrou no Chrome 105 e no Safari 15.4, acima do alvo do Vite. */
+.lp-footer.is-alt {
   background: var(--bg-alt);
 }
 
