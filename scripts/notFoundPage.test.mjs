@@ -26,6 +26,16 @@ const SAMPLE_SHELL = `<!doctype html>
 </html>`;
 
 describe('buildNotFoundHtml', () => {
+  test('remove metas da home mesmo com content antes de name ou property', () => {
+    const shell = SAMPLE_SHELL.replace(
+      '<meta name="twitter:title" content="Home" />',
+      '<meta content="summary_large_image" name="twitter:card" />\n    <meta content="Home" property="og:description" />',
+    );
+    const html = buildNotFoundHtml(shell);
+    expect(html).not.toContain('twitter:card');
+    expect(html).not.toContain('og:description');
+  });
+
   test('gera 404 estática com noindex, links esperados, CSS/fontes e sem script do app', () => {
     const html = buildNotFoundHtml(SAMPLE_SHELL);
 

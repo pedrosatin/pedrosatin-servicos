@@ -69,7 +69,8 @@ function replaceHeadForNotFound(html) {
     .replace(/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/, () => ROBOTS_NOINDEX)
     .replace(/\s*<link\s+rel="canonical"[^>]*\/?>/g, () => '')
     .replace(
-      /\s*<meta\s+(?:name|property)="(?:description|og:[^"]+|twitter:[^"]+|profile:[^"]+)"[^>]*\/?>/g,
+      // O lookahead acha `name` ou `property` em qualquer posição da tag.
+      /\s*<meta\b(?=[^>]*\b(?:name|property)="(?:description|og:[^"]+|twitter:[^"]+|profile:[^"]+)")[^>]*\/?>/g,
       () => '',
     )
     .replace(/\s*<link[^>]*type="application\/json\+oembed"[^>]*\/?>/g, () => '')
@@ -87,6 +88,7 @@ function assertValidNotFoundHtml(html) {
     [!html.includes(ROBOTS_NOINDEX), 'Meta robots noindex ausente em 404.html.'],
     [html.includes('rel="canonical"'), 'Canonical da home vazou para 404.html.'],
     [html.includes('property="og:'), 'Metadados Open Graph vazaram para 404.html.'],
+    [html.includes('name="twitter:'), 'Metadados do Twitter vazaram para 404.html.'],
     [html.includes('type="module"'), 'Script do app vazou para 404.html.'],
     [html.includes(ROOT_MARKER), 'Marcador root não foi substituído em 404.html.'],
   ];
