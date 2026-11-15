@@ -850,11 +850,11 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: strin
         record = undefined;
       }
       // Tabela cheia e prefixo ainda sem contador: a janela mais antiga sai
-      // para abrir a vaga, e o teto de memória se mantém. Com no máximo
-      // `RATE_LIMIT_PREFIX_SLOTS` vagas por prefixo e rota, só enche a tabela
-      // quem controla dezenas de /48 ou /24. Para zerar o contador de outro
-      // cliente, esse chamador ainda precisa trocar a tabela inteira usando
-      // prefixos sem contador, e cada uma dessas requisições conta.
+      // para abrir a vaga, mesmo que esteja ativa, e o teto de memória se
+      // mantém. Com no máximo `RATE_LIMIT_PREFIX_SLOTS` vagas por prefixo e
+      // rota, encher a tabela exige entradas de dezenas de /48 ou /24. Com ela
+      // cheia, uma requisição de um prefixo sem contador basta para renovar
+      // antes da hora a janela de outro cliente, sem bloquear ninguém.
       if (!record && rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
         const oldest = rateLimitCache.keys().next().value;
         if (oldest !== undefined) rateLimitCache.delete(oldest);

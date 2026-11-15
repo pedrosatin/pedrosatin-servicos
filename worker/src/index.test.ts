@@ -541,8 +541,9 @@ describe('rate limiting', () => {
     const preAttack = await worker.fetch(auditRequest('203.0.113.7'), {});
     expect(preAttack.status).toBe(200);
     // Cenário do security audit: cada requisição vem de um /64 diferente do
-    // mesmo /48, metade sem Origin (o 403 vem depois do limitador e não faz
-    // subrequest), seguidas de mais 10.
+    // mesmo /48, seguidas de mais 10. Metade não envia Origin: recebe 403
+    // enquanto há orçamento e 429 depois que o limitador o esgota. Nenhuma
+    // faz subrequest.
     for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES + 10; i++) {
       const ip = `2001:db8:bbbb:${i.toString(16)}::1`;
       await worker.fetch(i % 2 === 0 ? noOrigin(ip) : auditRequest(ip), {});
