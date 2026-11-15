@@ -218,8 +218,8 @@
 
 .lp-nav {
   display: flex;
-  gap: 1.35rem;
-  font-size: 0.85rem;
+  gap: 1.15rem;
+  font-size: 0.84rem;
 }
 
 .lp-nav a {
@@ -227,12 +227,68 @@
   text-decoration: none;
   padding-block: 0.2rem;
   border-bottom: 1px solid transparent;
+  white-space: nowrap;
   transition: color 0.15s, border-color 0.15s;
 }
 
 .lp-nav a:hover {
   color: var(--ink);
   border-bottom-color: var(--green);
+}
+
+.lp-nav a.lp-nav-highlight {
+  color: var(--green);
+  font-weight: 500;
+}
+
+.lp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+/* `.lp-btn` vem depois e também define `display`; o seletor composto garante
+   que o botão Menu fique oculto no desktop. */
+.lp-btn.lp-menu-toggle,
+.lp-menu-backdrop,
+.lp-mobile-panel {
+  display: none;
+}
+
+.lp-menu-icon {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 14px;
+  height: 11px;
+}
+
+.lp-menu-icon span {
+  display: block;
+  width: 100%;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.lp-menu-toggle[aria-expanded='true'] {
+  border-color: var(--green-edge);
+  color: var(--ink);
+  background: var(--bg-raised);
+}
+
+.lp-menu-toggle[aria-expanded='true'] .lp-menu-icon span:nth-child(1) {
+  transform: translateY(4.75px) rotate(45deg);
+}
+
+.lp-menu-toggle[aria-expanded='true'] .lp-menu-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.lp-menu-toggle[aria-expanded='true'] .lp-menu-icon span:nth-child(3) {
+  transform: translateY(-4.75px) rotate(-45deg);
 }
 
 /* ---------- botões ---------- */
@@ -398,7 +454,7 @@
 .lp-analysis {
   /* Sem padding próprio, o topo do terminal colaria na borda do cabeçalho
      quando a âncora #analise ou o scrollIntoView o trazem para o topo. */
-  scroll-margin-top: 1rem;
+  scroll-margin-top: 1.25rem;
   margin-top: 2.4rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -2133,9 +2189,157 @@
 
 /* ---------- telas menores ---------- */
 
+@media (max-width: 1080px) {
+  .lp-header-inner {
+    gap: 0.9rem;
+  }
+
+  .lp-nav {
+    gap: 0.65rem;
+    font-size: 0.78rem;
+  }
+}
+
 @media (max-width: 900px) {
   .lp-nav {
     display: none;
+  }
+
+  .lp-btn.lp-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .lp-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background: rgba(10, 17, 32, 0.72);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    touch-action: none;
+  }
+
+  .lp-mobile-panel {
+    display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - 6.5rem);
+    max-height: calc(100dvh - var(--lp-header-h, 72px) - 2.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--bg-sunken);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line-strong);
+    box-shadow: 0 18px 40px rgba(4, 8, 18, 0.55);
+  }
+
+  .lp-mobile-panel[hidden] {
+    display: none;
+  }
+
+  .lp-mobile-panel-inner {
+    padding-block: 0.9rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .lp-mobile-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .lp-mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 0.96rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .lp-mobile-nav-link:hover {
+    background: var(--bg-raised);
+    border-color: var(--line);
+  }
+
+  .lp-mobile-nav-index {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-faint);
+    min-width: 1.5rem;
+  }
+
+  .lp-mobile-nav-link.is-featured {
+    margin-top: 0.25rem;
+    background: var(--green-soft);
+    border-color: var(--green-edge);
+    font-weight: 600;
+  }
+
+  .lp-mobile-nav-link.is-featured .lp-mobile-nav-index {
+    color: var(--green);
+  }
+
+  .lp-mobile-nav-dica {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--green);
+  }
+
+  .lp-mobile-panel-footer {
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .lp-mobile-panel-cta {
+    width: 100%;
+  }
+
+  .lp-mobile-panel-contacts {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+  }
+
+  .lp-mobile-panel-contacts-links {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .lp-mobile-panel-contacts a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line-strong);
+    padding-bottom: 1px;
+  }
+
+  .lp-mobile-panel-contacts a:hover {
+    color: var(--ink);
+    border-bottom-color: var(--green);
   }
 
   .lp-hero-top {
@@ -2175,14 +2379,15 @@
     padding: 0.7rem 0.95rem;
   }
 
-  /* A faixa de status empilha em telas estreitas; sem as barras ela não
-     parece uma lista interrompida. */
-  .lp-statusbar-sep {
+  /* No celular, só o estado do analisador fica visível para manter uma linha
+     e evitar que o texto secundário empurre a primeira dobra para baixo. */
+  .lp-statusbar-sep,
+  .lp-statusbar-item:not(:first-child) {
     display: none;
   }
 
-  .lp-statusbar-inner {
-    gap: 0.15rem 0.75rem;
+  .lp-statusbar-item {
+    white-space: nowrap;
   }
 
   .lp-about-grid {
@@ -2221,6 +2426,35 @@
 }
 
 @media (max-width: 560px) {
+  .lp-header-inner {
+    gap: 0.6rem;
+    padding-block: 0.7rem;
+  }
+
+  .lp-brand {
+    gap: 0.5rem;
+  }
+
+  .lp-brand-name {
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .lp-brand-role {
+    font-size: 0.64rem;
+    white-space: nowrap;
+  }
+
+  .lp-header-actions {
+    gap: 0.45rem;
+  }
+
+  .lp-header-actions .lp-btn {
+    padding: 0.48rem 0.72rem;
+    font-size: 0.78rem;
+    min-height: 40px;
+  }
+
   .lp-compare-head,
   .lp-compare-row {
     grid-template-columns: minmax(0, 1fr) 66px 66px;
@@ -2238,5 +2472,69 @@
 
   .lp-verdict-counts {
     gap: 1.2rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .lp-header .lp-wrap {
+    padding-inline: 1rem;
+  }
+}
+
+/* Marca, CTA e botão Menu somam 344 px de conteúdo no mínimo. Abaixo de 400 px
+   o CTA perde o prefixo "Falar no" (o nome acessível passa a ser "WhatsApp",
+   igual ao texto visível) e a marca pode encolher com reticências. */
+@media (max-width: 400px) {
+  .lp-cta-prefixo {
+    display: none;
+  }
+
+  .lp-brand,
+  .lp-brand-text {
+    min-width: 0;
+  }
+
+  .lp-brand-mark {
+    flex-shrink: 0;
+  }
+
+  .lp-brand-name {
+    flex-shrink: 0;
+  }
+
+  .lp-header-actions .lp-btn {
+    padding-inline: 0.6rem;
+  }
+
+  .lp-brand-role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Sem JavaScript, o botão Menu não responde; o cabeçalho deixa de ser fixo e a
+   lista de seções aparece logo abaixo da marca. */
+@media (max-width: 900px) and (scripting: none) {
+  .lp-header {
+    position: static;
+  }
+
+  .lp-header-inner {
+    flex-wrap: wrap;
+  }
+
+  .lp-btn.lp-menu-toggle {
+    display: none;
+  }
+
+  .lp-nav {
+    display: flex;
+    flex-wrap: wrap;
+    order: 3;
+    flex-basis: 100%;
+    gap: 0.45rem 0.95rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.82rem;
   }
 }
