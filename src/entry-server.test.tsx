@@ -1,13 +1,17 @@
 // @vitest-environment node
 import { expect, test } from 'vitest';
-import { render } from './entry-server';
+import { faltasNoSsr, render } from './entry-server';
 
-test('pré-renderiza todas as seções sem scripts de streaming nem boundaries pendentes', () => {
+test('pré-renderiza o hero e todas as seções permanentes, em ordem, sem boundary pendente', () => {
   const html = render();
-  for (const id of ['topo', 'analise', 'resolvo', 'google', 'dominio', 'sobre', 'trabalhos', 'atendimento', 'faq']) {
-    expect(html).toContain(`id="${id}"`);
-  }
-  expect(html).not.toContain('<!--$?-->');
-  expect(html).not.toContain('<!--$!-->');
+  expect(faltasNoSsr(html)).toEqual([]);
   expect(html).not.toContain('$RC(');
+});
+
+test('acusa seção ausente, inclusive as que não têm id', () => {
+  const html = render();
+  const semCondicoes = html.replace('>04 // condições<', '><');
+  expect(faltasNoSsr(semCondicoes)).toEqual(['rótulo 04 // condições']);
+  expect(faltasNoSsr(html.replace(' id="topo"', ''))).toEqual(['id topo']);
+  expect(faltasNoSsr(`${html}<!--$!-->`)).toEqual(['seção suspensa ou incompleta']);
 });

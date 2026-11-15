@@ -10,7 +10,7 @@
 
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { inlineStyles } from './inlineStyles.mjs';
-import { render } from '../dist-ssr/entry-server.js';
+import { faltasNoSsr, render } from '../dist-ssr/entry-server.js';
 import { buildNotFoundHtml, ROOT_MARKER } from './notFoundPage.mjs';
 
 const dist = new URL('../dist/', import.meta.url);
@@ -45,13 +45,9 @@ async function updateSitemapDate(sitemapPath, today) {
 }
 
 function assertCompleteBody(body) {
-  if (/<!--\$(?:!|\?)-->/.test(body)) {
-    throw new Error('SSR contém uma seção suspensa ou incompleta.');
-  }
-  for (const id of ['topo', 'analise', 'resolvo', 'google', 'dominio', 'sobre', 'trabalhos', 'atendimento', 'faq']) {
-    if (!body.includes(`id="${id}"`)) {
-      throw new Error(`Seção permanente ausente no SSR. Id ${id}.`);
-    }
+  const faltas = faltasNoSsr(body);
+  if (faltas.length > 0) {
+    throw new Error(`SSR incompleto. Falta: ${faltas.join(', ')}.`);
   }
 }
 
