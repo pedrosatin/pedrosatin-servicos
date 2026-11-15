@@ -695,17 +695,118 @@ class PageSpeedCache {
 
 export const pageSpeedCache = new PageSpeedCache();
 
-const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string>): Promise<Response> => {
-  const target = await normalizeTarget(url.searchParams.get('domain') ?? '');
-  const strategy = url.searchParams.get('strategy') ?? 'mobile';
-  if (!target || !['mobile', 'desktop'].includes(strategy)) return json({ error: 'Destino inválido.' }, 400, headers);
-  const cacheKey = `${strategy}:${target.href}`;
-  const pageSpeedResponse = (body: string) => new Response(body, {
-    status: 200,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers, 'cache-control': 'no-store' },
-  });
-  const cached = pageSpeedCache.get(cacheKey, Date.now());
-  if (cached !== null) return pageSpeedResponse(cached);
+/**
+ * Tetos de chamadas do Worker à PageSpeed Insights API, além do limite por
+ * cliente do handler. Só a requisição que sai para o Google conta: resposta
+ * do cache não gasta nenhum deles.
+ *
+ * - `perBlockPerMinute`: um /48 (IPv6) ou /24 (IPv4) de `rateLimitPrefix`
+ *   divide 30 chamadas por minuto, o mesmo que um cliente sozinho recebe do
+ *   limitador. Girar /64 dentro do bloco não rende cota extra.
+ * - `perIsolatePerMinute` e `perIsolatePerHour`: teto do isolate inteiro,
+ *   somando todos os blocos e destinos. A cota padrão de uma chave da PSI API
+ *   é de 25.000 consultas por dia e 400 a cada 100 segundos (240 por minuto).
+ *   Contando com até quatro isolates ativos ao mesmo tempo, 60 por minuto
+ *   cabem nos 240 do Google e 250 por hora somam 24.000 por dia, abaixo dos
+ *   25.000. A conta e a fonte estão no README do Worker.
+ */
+export const PAGESPEED_UPSTREAM_LIMITS = {
+  perBlockPerMinute: 30,
+  perIsolatePerMinute: 60,
+  perIsolatePerHour: 250,
+} as const;
+
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+
+/** Contador de janela fixa: zera quando a janela vence. */
+class FixedWindow {
+  private count = 0;
+  private resetAt = 0;
+  private readonly limit: number;
+  private readonly windowMs: number;
+
+  constructor(limit: number, windowMs: number) {
+    this.limit = limit;
+    this.windowMs = windowMs;
+  }
+
+  hasRoom(now: number): boolean {
+    if (now >= this.resetAt) {
+      this.count = 0;
+      this.resetAt = now + this.windowMs;
+    }
+    return this.count < this.limit;
+  }
+
+  spend(): void {
+    this.count += 1;
+  }
+
+  clear(): void {
+    this.count = 0;
+    this.resetAt = 0;
+  }
+}
+
+/**
+ * Orçamento de chamadas ao Google por bloco e por isolate. A contagem por
+ * bloco só ganha entrada quando uma chamada sai, e toda chamada também passa
+ * pelo teto por hora, então a tabela de blocos tem no máximo
+ * `perIsolatePerHour` entradas. Toda entrada nova vai para o fim do Map com a
+ * mesma duração, então as vencidas ficam sempre no começo.
+ */
+class PageSpeedUpstreamBudget {
+  private readonly blocks = new Map<string, { count: number; expiresAt: number }>();
+  private readonly minute = new FixedWindow(PAGESPEED_UPSTREAM_LIMITS.perIsolatePerMinute, MINUTE_MS);
+  private readonly hour = new FixedWindow(PAGESPEED_UPSTREAM_LIMITS.perIsolatePerHour, HOUR_MS);
+
+  /**
+   * Reserva uma chamada ao Google para o bloco. Devolve null quando a chamada
+   * pode sair ou o nome do teto que acabou; a recusa não gasta nenhum teto.
+   */
+  reserve(block: string, now: number): 'bloco' | 'minuto' | 'hora' | null {
+    this.dropExpired(now);
+    const record = this.blocks.get(block);
+    if ((record?.count ?? 0) >= PAGESPEED_UPSTREAM_LIMITS.perBlockPerMinute) return 'bloco';
+    if (!this.minute.hasRoom(now)) return 'minuto';
+    if (!this.hour.hasRoom(now)) return 'hora';
+    this.minute.spend();
+    this.hour.spend();
+    if (record) record.count += 1;
+    else this.blocks.set(block, { count: 1, expiresAt: now + MINUTE_MS });
+    return null;
+  }
+
+  clear(): void {
+    this.blocks.clear();
+    this.minute.clear();
+    this.hour.clear();
+  }
+
+  private dropExpired(now: number): void {
+    for (const [block, record] of this.blocks) {
+      if (record.expiresAt > now) break;
+      this.blocks.delete(block);
+    }
+  }
+}
+
+export const pageSpeedUpstream = new PageSpeedUpstreamBudget();
+
+/**
+ * Resposta de indisponível do /pagespeed. É a mesma para erro do Google e para
+ * teto do Worker esgotado, então o visitante não distingue os dois.
+ */
+const pageSpeedUnavailable = (status: number, headers: Record<string, string>): Response =>
+  json({ error: 'PageSpeed indisponível.' }, status, headers);
+
+const pageSpeedResponse = (body: string, headers: Record<string, string>): Response => new Response(body, {
+  status: 200,
+  headers: { 'content-type': 'application/json; charset=utf-8', ...headers, 'cache-control': 'no-store' },
+});
+
+const fetchPageSpeed = (target: URL, strategy: string, env: Env): Promise<Response> => {
   const params = new URLSearchParams({ url: target.toString(), strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) params.append('category', category);
   // A chave vai no header, fora da URL que aparece em logs e traces. O Referer
@@ -713,31 +814,51 @@ const proxyPageSpeed = async (url: URL, env: Env, headers: Record<string, string
   // quando a consulta saía do navegador.
   const googleHeaders: Record<string, string> = { referer: `${allowedOrigins(env)[0]}/` };
   if (env.PSI_KEY) googleHeaders['x-goog-api-key'] = env.PSI_KEY;
+  return fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {
+    headers: googleHeaders,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(PAGESPEED_TIMEOUT_MS),
+  });
+};
+
+/** Erro do Google: o motivo (cota, chave restrita, API desativada) fica só no log. */
+const pageSpeedUpstreamError = async (response: Response, headers: Record<string, string>): Promise<Response> => {
+  const reason = await readBodyLimited(response, 4_000)
+    .then(({ text }) => (JSON.parse(text) as { error?: { status?: string; message?: string } }).error)
+    .catch(() => undefined);
+  console.warn('pagespeed upstream error', response.status, reason?.status, reason?.message);
+  return pageSpeedUnavailable(response.status >= 400 && response.status < 600 ? response.status : 502, headers);
+};
+
+/** `block` é o /48 ou /24 do visitante, de `rateLimitPrefix`. */
+const proxyPageSpeed = async (
+  url: URL, env: Env, headers: Record<string, string>, block: string,
+): Promise<Response> => {
+  const target = await normalizeTarget(url.searchParams.get('domain') ?? '');
+  const strategy = url.searchParams.get('strategy') ?? 'mobile';
+  if (!target || !['mobile', 'desktop'].includes(strategy)) return json({ error: 'Destino inválido.' }, 400, headers);
+  const cacheKey = `${strategy}:${target.href}`;
+  const cached = pageSpeedCache.get(cacheKey, Date.now());
+  if (cached !== null) return pageSpeedResponse(cached, headers);
+  // Teto esgotado responde como a cota esgotada do Google (429), sem chamar o Google.
+  const exhausted = pageSpeedUpstream.reserve(block, Date.now());
+  if (exhausted) {
+    console.warn('pagespeed upstream cap reached', exhausted);
+    return pageSpeedUnavailable(429, headers);
+  }
   try {
-    const response = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {
-      headers: googleHeaders,
-      redirect: 'manual',
-      signal: AbortSignal.timeout(PAGESPEED_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      // O motivo do Google (cota, chave restrita, API desativada) fica só no log.
-      const reason = await readBodyLimited(response, 4_000)
-        .then(({ text }) => (JSON.parse(text) as { error?: { status?: string; message?: string } }).error)
-        .catch(() => undefined);
-      console.warn('pagespeed upstream error', response.status, reason?.status, reason?.message);
-      const status = response.status >= 400 && response.status < 600 ? response.status : 502;
-      return json({ error: 'PageSpeed indisponível.' }, status, headers);
-    }
+    const response = await fetchPageSpeed(target, strategy, env);
+    if (!response.ok) return await pageSpeedUpstreamError(response, headers);
     const { text, bytes } = await readBodyLimited(response, MAX_PAGESPEED_BYTES, PAGESPEED_TIMEOUT_MS);
     // Corpo cortado no teto não é JSON válido; melhor recusar aqui.
     if (bytes >= MAX_PAGESPEED_BYTES) return json({ error: 'Resposta do PageSpeed grande demais.' }, 502, headers);
     // O destino é fixo, então o corpo segue como texto, sem parse nem nova serialização.
     pageSpeedCache.set(cacheKey, text, Date.now());
-    return pageSpeedResponse(text);
+    return pageSpeedResponse(text, headers);
   } catch (error) {
     return isTimeout(error)
       ? json({ error: 'O PageSpeed demorou demais para responder.' }, 504, headers)
-      : json({ error: 'PageSpeed indisponível.' }, 502, headers);
+      : pageSpeedUnavailable(502, headers);
   }
 };
 
@@ -925,7 +1046,8 @@ export default {
 
     const bucket = url.pathname === '/pagespeed' ? 'pagespeed' : 'audit';
     const client = rateLimitClient(clientIp);
-    const retryAfter = consumeRateLimit(bucket, client, rateLimitPrefix(client), Date.now());
+    const prefix = rateLimitPrefix(client);
+    const retryAfter = consumeRateLimit(bucket, client, prefix, Date.now());
     if (retryAfter !== null) {
       // `code` separa este limite do 429 repassado pelo Google no /pagespeed.
       return json({ error: 'Muitas requisições. Tente novamente mais tarde.', code: 'rate_limited' }, 429, {
@@ -942,7 +1064,7 @@ export default {
       return json({ error: 'Origem não autorizada.' }, 403, headers);
     }
 
-    if (url.pathname === '/pagespeed') return proxyPageSpeed(url, env, headers);
+    if (url.pathname === '/pagespeed') return proxyPageSpeed(url, env, headers, prefix);
     if (url.pathname !== '/audit') {
       return json({ error: 'Rota não encontrada. Use /audit?url=exemplo.com.br' }, 404, headers);
     }
