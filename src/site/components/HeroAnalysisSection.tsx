@@ -171,7 +171,7 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
             )}
 
             {/* Fica no DOM desde o início, vazio, pelo mesmo motivo da região
-                de status: o alerta só é lido se a região já existir. */}
+                de status. O alerta só é lido se a região já existir. */}
             <p className="lp-error" role="alert">
               {error}
             </p>

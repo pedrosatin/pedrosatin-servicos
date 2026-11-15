@@ -136,7 +136,7 @@ describe('HeroAnalysisSection: terminal', () => {
     expect(linhas[0]).toHaveTextContent('1 registro(s) A');
     expect(linhas[1]).toHaveTextContent('pagespeed exemplo.com.br');
     expect(linhas[1]?.querySelector('.lp-log-detail')).toBeNull();
-    // As linhas não entram no anúncio: só o início da análise é lido.
+    // As linhas não entram no anúncio; só o início da análise é lido.
     expect(screen.getByRole('status')).toHaveTextContent('Análise de exemplo.com.br iniciada.');
   });
 });
