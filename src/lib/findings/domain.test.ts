@@ -92,8 +92,8 @@ describe('buildDomainFindings', () => {
         registration: {
           found: true,
           daysToExpire: 150,
-          expiresAt: '2023-06-01T00:00:00.000Z',
-          registeredAt: '2022-06-01T00:00:00.000Z',
+          expiresAt: '2023-06-01T12:00:00.000Z',
+          registeredAt: '2022-06-01T12:00:00.000Z',
           source: 'registro.br'
         }
       } as unknown as AuditResult;
@@ -103,7 +103,8 @@ describe('buildDomainFindings', () => {
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'dominio-ok',
         area: 'dominio',
-        severity: 'good'
+        severity: 'good',
+        evidence: expect.stringMatching(/Válido até 01\/06\/2023 \(150 dias\), registrado em 01\/06\/2022\./),
       }));
     });
 

@@ -430,7 +430,11 @@ describe('buildContentFindings', () => {
     buildContentFindings(result, push);
 
     expect(push).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'html-pesado', severity: 'warning' })
+      expect.objectContaining({
+        id: 'html-pesado',
+        severity: 'warning',
+        evidence: expect.stringContaining('586 KB'),
+      })
     );
   });
   it('says the HTML is larger than the read ceiling when the Worker truncated it', () => {

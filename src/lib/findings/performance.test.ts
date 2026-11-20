@@ -55,6 +55,7 @@ describe('buildPerformanceFindings', () => {
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'lcp-campo',
         severity: 'critical',
+        evidence: '4.50 s no percentil 75 de usuários reais do Chrome. O limite do Google é 2.50 s.',
       }));
     });
 
@@ -149,7 +150,8 @@ describe('buildPerformanceFindings', () => {
       buildPerformanceFindings(result as unknown as AuditResult, pushMock);
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'inp-campo',
-        severity: 'critical'
+        severity: 'critical',
+        evidence: '600 ms entre o toque e a resposta visual; o limite do Google é 200 ms.',
       }));
     });
 
@@ -159,7 +161,8 @@ describe('buildPerformanceFindings', () => {
       buildPerformanceFindings(result as unknown as AuditResult, pushMock);
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'inp-campo',
-        severity: 'warning'
+        severity: 'warning',
+        evidence: expect.stringContaining('300 ms'),
       }));
     });
 
@@ -177,10 +180,13 @@ describe('buildPerformanceFindings', () => {
     it('pushes critical when score < 50', () => {
       const result = createBaseResult();
       result.pagespeed.scores.performance = 40;
+      result.pagespeed.lab.lcpMs = 3200;
+      result.pagespeed.lab.serverResponseMs = 450;
       buildPerformanceFindings(result as unknown as AuditResult, pushMock);
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'score-performance',
-        severity: 'critical'
+        severity: 'critical',
+        evidence: 'Medição do Lighthouse: maior elemento em 3.20 s, resposta do servidor em 450 ms.',
       }));
     });
 
@@ -296,7 +302,8 @@ describe('buildPerformanceFindings', () => {
       buildPerformanceFindings(result as unknown as AuditResult, pushMock);
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'peso-total',
-        severity: 'warning'
+        severity: 'warning',
+        evidence: expect.stringContaining('2.4 MB'),
       }));
     });
 

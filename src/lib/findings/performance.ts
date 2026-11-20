@@ -1,5 +1,5 @@
 import type { AuditResult, Finding, PageSpeedReport } from '../types';
-import { ms, kb } from './utils';
+import { formatMs, formatBytes } from '../format';
 
 type PushFinding = (finding: Finding) => void;
 
@@ -7,7 +7,6 @@ const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
   const { field } = pagespeed;
 
   if (field.available && field.lcp.p75 !== null) {
-    const seconds = (field.lcp.p75 / 1000).toFixed(1);
     const severity = field.lcp.p75 > 4000 ? 'critical' : field.lcp.p75 > 2500 ? 'warning' : 'good';
     push({
       id: 'lcp-campo',
@@ -17,7 +16,7 @@ const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
         severity === 'good'
           ? 'Tempo de carregamento aprovado pelo Google'
           : 'Visitantes reais esperam demais pelo conteúdo principal',
-      evidence: `${seconds}s no percentil 75 de usuários reais do Chrome${field.origin ? ' (dados de todo o domínio)' : ''}. O limite do Google é 2,5s.`,
+      evidence: `${formatMs(field.lcp.p75)} no percentil 75 de usuários reais do Chrome${field.origin ? ' (dados de todo o domínio)' : ''}. O limite do Google é ${formatMs(2500)}.`,
       action:
         severity === 'good'
           ? 'Nada a fazer neste ponto.'
@@ -58,7 +57,7 @@ const checkFieldInp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
       area: 'desempenho',
       severity: field.inp.p75 > 500 ? 'critical' : 'warning',
       title: 'O site demora a responder aos toques',
-      evidence: `${Math.round(field.inp.p75)}ms entre o toque e a resposta visual; o limite do Google é 200ms.`,
+      evidence: `${formatMs(field.inp.p75)} entre o toque e a resposta visual; o limite do Google é 200 ms.`,
       action: 'A sensação é de travamento, principalmente em celulares mais simples.',
     });
   }
@@ -72,7 +71,7 @@ const checkPerformanceScore = (pagespeed: PageSpeedReport, push: PushFinding): v
       area: 'desempenho',
       severity: scores.performance < 50 ? 'critical' : scores.performance < 90 ? 'warning' : 'good',
       title: `Nota ${scores.performance}/100 em desempenho (${pagespeed.strategy === 'mobile' ? 'celular' : 'computador'})`,
-      evidence: `Medição do Lighthouse: maior elemento em ${ms(lab.lcpMs)}, resposta do servidor em ${ms(lab.serverResponseMs)}.`,
+      evidence: `Medição do Lighthouse: maior elemento em ${formatMs(lab.lcpMs)}, resposta do servidor em ${formatMs(lab.serverResponseMs)}.`,
       action:
         scores.performance < 90
           ? 'Esta é a mesma nota que qualquer pessoa vê ao consultar o PageSpeed Insights do Google para o seu endereço.'
@@ -118,7 +117,7 @@ const checkPageWeight = (pagespeed: PageSpeedReport, push: PushFinding): void =>
       area: 'desempenho',
       severity: 'warning',
       title: 'A página pesa mais que o razoável para dados móveis',
-      evidence: `${kb(lab.totalBytes)} baixados em um único acesso.`,
+      evidence: `${formatBytes(lab.totalBytes)} baixados em um único acesso.`,
       action: 'Em 4G instável isso significa vários segundos de tela em branco.',
     });
   }
