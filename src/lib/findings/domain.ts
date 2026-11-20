@@ -1,5 +1,5 @@
 import type { AuditResult, DnsReport, DomainRegistration, EmailAuthReport, Finding } from '../types';
-import { formatDate } from './utils';
+import { formatDate } from '../format';
 
 type PushFinding = (finding: Finding) => void;
 
