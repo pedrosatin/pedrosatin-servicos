@@ -12,17 +12,18 @@ import { buildContentFindings } from './findings/content';
 import { buildPerformanceFindings } from './findings/performance';
 import { buildDomainFindings } from './findings/domain';
 
-/** Reúne e ordena os achados emitidos pelos builders compatíveis com coletor. */
+/**
+ * Concatena o retorno dos quatro builders de área e ordena por severidade
+ * (critical → warning → info → good). Dentro da mesma severidade a ordem de
+ * emissão dos builders permanece estável.
+ */
 export const buildFindings = (result: AuditResult): Finding[] => {
-  const out: Finding[] = [];
-  const push = (finding: Finding): void => {
-    out.push(finding);
-  };
-
-  buildSecurityFindings(result, push);
-  buildContentFindings(result, push);
-  buildPerformanceFindings(result, push);
-  buildDomainFindings(result, push);
+  const out: Finding[] = [
+    ...buildSecurityFindings(result),
+    ...buildContentFindings(result),
+    ...buildPerformanceFindings(result),
+    ...buildDomainFindings(result),
+  ];
 
   const weight = { critical: 0, warning: 1, info: 2, good: 3 } as const;
   return out.sort((a, b) => weight[a.severity] - weight[b.severity]);
