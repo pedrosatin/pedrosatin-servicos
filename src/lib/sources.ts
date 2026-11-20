@@ -19,10 +19,11 @@ import type {
 /**
  * Transporte e endpoints HTTP das fontes.
  *
- * Em produção o caller de `fetchDns` omite o argumento e usa
+ * Em produção as `fetch*` omitem o argumento e usam
  * `defaultSourcesDeps` (DoH Google, Worker em `AUDIT_ENDPOINT`,
- * `globalThis.fetch`). O piloto DNS aceita um fake de `fetch`
- * e um endpoint DoH local sem alterar o transporte global.
+ * `globalThis.fetch`). Testes passam um fake de `fetch` e
+ * endpoints locais sem alterar o transporte global. RDAP continua
+ * derivado do domínio (`.br` → registro.br; demais → rdap.org).
  */
 export interface SourcesDeps {
   fetch: typeof fetch;
@@ -38,7 +39,8 @@ const DOH_ENDPOINT = 'https://dns.google/resolve';
 export const defaultSourcesDeps: SourcesDeps = {
   // Lê `globalThis.fetch` a cada chamada para usar stubs de teste
   // e qualquer substituição feita depois do carregamento do módulo.
-  fetch: ((input, init) => globalThis.fetch(input, init)) as typeof fetch,
+  // Só repassa os argumentos que o caller enviou (sem `undefined` extra).
+  fetch: ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args)) as typeof fetch,
   auditEndpoint: AUDIT_ENDPOINT,
   dohEndpoint: DOH_ENDPOINT,
 };
@@ -132,7 +134,11 @@ export const fetchDns = async (
   };
 };
 
-const resolveApexDns = async (domain: string, dns: DnsReport) => {
+const resolveApexDns = async (
+  domain: string,
+  dns: DnsReport,
+  deps: SourcesDeps = defaultSourcesDeps,
+) => {
   if (dns.mx.length > 0) {
     return { activeDns: dns, targetDomain: domain };
   }
@@ -144,8 +150,8 @@ const resolveApexDns = async (domain: string, dns: DnsReport) => {
 
   try {
     const [apexMxRecords, apexTxtRecords] = await Promise.all([
-      resolveRecord(apex, 'MX'),
-      resolveRecord(apex, 'TXT'),
+      resolveRecord(apex, 'MX', deps),
+      resolveRecord(apex, 'TXT', deps),
     ]);
 
     const apexMx = apexMxRecords.filter((r) => r.type === 15).map((r) => r.data);
@@ -163,10 +169,14 @@ const resolveApexDns = async (domain: string, dns: DnsReport) => {
   return { activeDns: dns, targetDomain: domain };
 };
 
-export const fetchEmailAuth = async (domain: string, dns: DnsReport): Promise<EmailAuthReport> => {
-  const { activeDns, targetDomain } = await resolveApexDns(domain, dns);
+export const fetchEmailAuth = async (
+  domain: string,
+  dns: DnsReport,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<EmailAuthReport> => {
+  const { activeDns, targetDomain } = await resolveApexDns(domain, dns, deps);
 
-  const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT');
+  const dmarcRecords = await resolveRecord(`_dmarc.${targetDomain}`, 'TXT', deps);
 
   let dmarc: string | null = null;
   for (const r of dmarcRecords) {
@@ -237,7 +247,10 @@ const vcardName = (entity: RdapEntity | undefined): string | null => {
   return match ? (match[3] as string) : null;
 };
 
-export const fetchRegistration = async (inputDomain: string): Promise<DomainRegistration> => {
+export const fetchRegistration = async (
+  inputDomain: string,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<DomainRegistration> => {
   const domain = getApexDomain(inputDomain);
   const isBr = domain.endsWith('.br');
   const source: 'registro.br' | 'rdap.org' = isBr ? 'registro.br' : 'rdap.org';
@@ -246,7 +259,7 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
     : `https://rdap.org/domain/${encodeURIComponent(domain)}`;
 
   try {
-    const response = await fetch(endpoint, { headers: { accept: 'application/rdap+json' } });
+    const response = await deps.fetch(endpoint, { headers: { accept: 'application/rdap+json' } });
 
     if (response.status === 404 || !response.ok) {
       return {
@@ -308,8 +321,13 @@ export const fetchRegistration = async (inputDomain: string): Promise<DomainRegi
 const MENSAGEM_LIMITE_DO_WORKER =
   'Muitas análises seguidas a partir da sua conexão. Aguarde um minuto e tente de novo.';
 
-export const fetchContent = async (domain: string): Promise<ContentReport> => {
-  const res = await fetch(`${AUDIT_ENDPOINT}/audit?url=${encodeURIComponent(domain)}`);
+export const fetchContent = async (
+  domain: string,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<ContentReport> => {
+  const res = await deps.fetch(
+    `${deps.auditEndpoint}/audit?url=${encodeURIComponent(domain)}`,
+  );
   if (!res.ok) {
     if (res.status === 429) throw new Error(MENSAGEM_LIMITE_DO_WORKER);
     if (res.status === 400 || res.status === 403) {
@@ -418,13 +436,16 @@ const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number =
 };
 
 /** Uma ida ao PageSpeed, com teto de tempo próprio. */
-const buscarPageSpeed = async (params: URLSearchParams): Promise<Response> => {
+const buscarPageSpeed = async (
+  params: URLSearchParams,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<Response> => {
   // Sem isto, uma resposta que nunca chega deixa a etapa pendurada para sempre.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PAGESPEED_TIMEOUT_MS);
   try {
-    return await fetch(
-      `${AUDIT_ENDPOINT.replace(/\/$/, '')}/pagespeed?${new URLSearchParams({ domain: params.get('url') ?? '', strategy: params.get('strategy') ?? 'mobile' })}`,
+    return await deps.fetch(
+      `${deps.auditEndpoint.replace(/\/$/, '')}/pagespeed?${new URLSearchParams({ domain: params.get('url') ?? '', strategy: params.get('strategy') ?? 'mobile' })}`,
       { signal: controller.signal },
     );
   } finally {
@@ -451,9 +472,12 @@ const formatarErroDeRede = (erro: unknown): Error => {
     : new Error('Não foi possível falar com o PageSpeed Insights do Google.');
 };
 
-const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeedAttemptResult> => {
+const tentarBuscarPageSpeed = async (
+  params: URLSearchParams,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<PageSpeedAttemptResult> => {
   try {
-    const response = await buscarPageSpeed(params);
+    const response = await buscarPageSpeed(params, deps);
     const data = (await response.json()) as PsiResponse;
 
     if (!data.error && response.ok && data.lighthouseResult) {
@@ -506,11 +530,12 @@ const tentarBuscarPageSpeed = async (params: URLSearchParams): Promise<PageSpeed
  */
 const buscarPageSpeedComRetentativas = async (
   params: URLSearchParams,
+  deps: SourcesDeps = defaultSourcesDeps,
 ): Promise<{ data: PsiResponse; response: Response }> => {
   let ultimoErro: Error | null = null;
 
   for (let tentativa = 1; tentativa <= PAGESPEED_TENTATIVAS; tentativa += 1) {
-    const resultado = await tentarBuscarPageSpeed(params);
+    const resultado = await tentarBuscarPageSpeed(params, deps);
 
     if (resultado.success) {
       return { data: resultado.data, response: resultado.response };
@@ -588,12 +613,13 @@ const mapearPageSpeedReport = (
 export const fetchPageSpeed = async (
   domain: string,
   strategy: 'mobile' | 'desktop' = 'mobile',
+  deps: SourcesDeps = defaultSourcesDeps,
 ): Promise<PageSpeedReport> => {
   const params = new URLSearchParams({ url: `https://${domain}`, strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) {
     params.append('category', category);
   }
 
-  const { data } = await buscarPageSpeedComRetentativas(params);
+  const { data } = await buscarPageSpeedComRetentativas(params, deps);
   return mapearPageSpeedReport(data, strategy);
 };

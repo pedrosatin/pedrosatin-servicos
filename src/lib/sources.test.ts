@@ -22,8 +22,18 @@ describe('sources', () => {
     globalThis.fetch = originalFetch;
   });
 
-  describe('fetchDns com SourcesDeps', () => {
-    it('aceita fetch e dohEndpoint injetados sem alterar o fetch global', async () => {
+  const depsDeTeste = (
+    fakeFetch: typeof fetch,
+    overrides: Partial<Omit<SourcesDeps, 'fetch'>> = {},
+  ): SourcesDeps => ({
+    fetch: fakeFetch,
+    auditEndpoint: 'https://worker.test',
+    dohEndpoint: 'https://doh.test/resolve',
+    ...overrides,
+  });
+
+  describe('fetch* com SourcesDeps injetado', () => {
+    it('fetchDns usa dohEndpoint e fetch injetados sem alterar o fetch global', async () => {
       const urls: string[] = [];
       const fakeFetch: typeof fetch = async (input, init) => {
         const url = String(input);
@@ -52,13 +62,7 @@ describe('sources', () => {
         } as Response;
       };
 
-      const deps: SourcesDeps = {
-        fetch: fakeFetch,
-        auditEndpoint: 'https://worker.test',
-        dohEndpoint: 'https://doh.test/resolve',
-      };
-
-      const result = await fetchDns('example.com', deps);
+      const result = await fetchDns('example.com', depsDeTeste(fakeFetch));
 
       expect(urls).toHaveLength(6);
       expect(urls.every((url) => url.startsWith('https://doh.test/resolve?'))).toBe(true);
@@ -74,6 +78,201 @@ describe('sources', () => {
       expect(globalThis.fetch).toBe(originalFetch);
       expect(defaultSourcesDeps.dohEndpoint).toBe('https://dns.google/resolve');
       expect(defaultSourcesDeps.auditEndpoint).toBe(AUDIT_ENDPOINT);
+    });
+
+    it('fetchContent chama o Worker /audit injetado e devolve o relatório', async () => {
+      const urls: string[] = [];
+      const mockReport = { ok: true, status: 200, findings: [] };
+      const fakeFetch: typeof fetch = async (input) => {
+        urls.push(String(input));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => mockReport,
+        } as Response;
+      };
+
+      const result = await fetchContent('example.com', depsDeTeste(fakeFetch));
+
+      expect(urls).toEqual(['https://worker.test/audit?url=example.com']);
+      expect(result).toEqual(mockReport);
+      expect(globalThis.fetch).toBe(originalFetch);
+    });
+
+    it('fetchContent propaga o 429 do Worker com a mensagem pública', async () => {
+      const fakeFetch: typeof fetch = async () =>
+        ({
+          ok: false,
+          status: 429,
+        }) as Response;
+
+      await expect(fetchContent('example.com', depsDeTeste(fakeFetch))).rejects.toThrow(
+        'Muitas análises seguidas a partir da sua conexão.',
+      );
+      expect(globalThis.fetch).toBe(originalFetch);
+    });
+
+    it('fetchPageSpeed chama o Worker /pagespeed injetado e mapeia o relatório', async () => {
+      const urls: string[] = [];
+      const fakeFetch: typeof fetch = async (input) => {
+        urls.push(String(input));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            lighthouseResult: {
+              categories: { performance: { score: 0.9 } },
+              audits: {},
+            },
+          }),
+        } as Response;
+      };
+
+      const result = await fetchPageSpeed('example.com', 'desktop', depsDeTeste(fakeFetch));
+
+      expect(urls).toHaveLength(1);
+      const called = new URL(urls[0]!);
+      expect(`${called.origin}${called.pathname}`).toBe('https://worker.test/pagespeed');
+      expect(called.searchParams.get('domain')).toBe('https://example.com');
+      expect(called.searchParams.get('strategy')).toBe('desktop');
+      expect(result.scores.performance).toBe(90);
+      expect(result.strategy).toBe('desktop');
+      expect(globalThis.fetch).toBe(originalFetch);
+    });
+
+    it('fetchPageSpeed para no 429 rate_limited do Worker sem tocar no fetch global', async () => {
+      let chamadas = 0;
+      const fakeFetch: typeof fetch = async () => {
+        chamadas += 1;
+        return {
+          ok: false,
+          status: 429,
+          json: async () => ({
+            error: 'Muitas requisições. Tente novamente mais tarde.',
+            code: 'rate_limited',
+          }),
+        } as Response;
+      };
+
+      await expect(fetchPageSpeed('example.com', 'mobile', depsDeTeste(fakeFetch))).rejects.toThrow(
+        'Muitas análises seguidas a partir da sua conexão.',
+      );
+      expect(chamadas).toBe(1);
+      expect(globalThis.fetch).toBe(originalFetch);
+    });
+
+    it('fetchEmailAuth consulta DoH injetado para apex e DMARC', async () => {
+      const urls: string[] = [];
+      const originalDns: DnsReport = {
+        domain: 'sub.example.com',
+        resolves: true,
+        a: [],
+        aaaa: [],
+        ns: [],
+        mx: [],
+        txt: [],
+        cname: [],
+        hosting: null,
+        dnsProvider: null,
+      };
+
+      const fakeFetch: typeof fetch = async (input) => {
+        const url = String(input);
+        urls.push(url);
+        const parsed = new URL(url);
+        const name = parsed.searchParams.get('name');
+        const type = parsed.searchParams.get('type');
+
+        if (name === 'example.com' && type === 'MX') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ Answer: [{ type: 15, data: '10 aspmx.l.google.com.' }] }),
+          } as Response;
+        }
+        if (name === 'example.com' && type === 'TXT') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              Answer: [{ type: 16, data: '"v=spf1 include:_spf.google.com ~all"' }],
+            }),
+          } as Response;
+        }
+        if (name === '_dmarc.example.com' && type === 'TXT') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              Answer: [{ type: 16, data: '"v=DMARC1; p=quarantine;"' }],
+            }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ Answer: [] }),
+        } as Response;
+      };
+
+      const result = await fetchEmailAuth('sub.example.com', originalDns, depsDeTeste(fakeFetch));
+
+      expect(urls.every((url) => url.startsWith('https://doh.test/resolve?'))).toBe(true);
+      expect(result).toMatchObject({
+        hasMx: true,
+        mxProvider: 'Google',
+        spf: 'v=spf1 include:_spf.google.com ~all',
+        dmarc: 'v=DMARC1; p=quarantine;',
+        dmarcPolicy: 'quarantine',
+      });
+      expect(globalThis.fetch).toBe(originalFetch);
+    });
+
+    it('fetchRegistration consulta RDAP via fetch injetado', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-05-15T12:00:00Z'));
+
+      const urls: string[] = [];
+      const fakeFetch: typeof fetch = async (input, init) => {
+        urls.push(String(input));
+        expect(init?.headers).toEqual({ accept: 'application/rdap+json' });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ldhName: 'EXAMPLE.COM',
+            events: [
+              { eventAction: 'registration', eventDate: '2000-01-01T12:00:00Z' },
+              { eventAction: 'expiration', eventDate: '2025-01-01T12:00:00Z' },
+              { eventAction: 'last changed', eventDate: '2023-01-01T12:00:00Z' },
+            ],
+            entities: [
+              {
+                roles: ['registrar'],
+                vcardArray: ['vcard', [['fn', {}, 'text', 'Mock Registrar, Inc.']]],
+              },
+            ],
+            status: ['active'],
+            nameservers: [{ ldhName: 'NS1.EXAMPLE.COM' }],
+            secureDNS: { delegationSigned: true },
+          }),
+        } as Response;
+      };
+
+      const result = await fetchRegistration('example.com', depsDeTeste(fakeFetch));
+
+      expect(urls).toEqual(['https://rdap.org/domain/example.com']);
+      expect(result).toMatchObject({
+        found: true,
+        domain: 'example.com',
+        registrar: 'Mock Registrar, Inc.',
+        daysToExpire: 231,
+        dnssec: true,
+        source: 'rdap.org',
+      });
+      expect(globalThis.fetch).toBe(originalFetch);
+
+      vi.useRealTimers();
     });
   });
 
