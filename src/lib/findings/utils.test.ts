@@ -8,19 +8,19 @@ describe('findings utils', () => {
     });
 
     it('returns formatted string in ms for values < 1000', () => {
-      expect(ms(0)).toBe('0ms');
-      expect(ms(500)).toBe('500ms');
-      expect(ms(999)).toBe('999ms');
-      expect(ms(999.4)).toBe('999ms');
-      expect(ms(999.5)).toBe('1000ms');
+      expect(ms(0)).toBe('0 ms');
+      expect(ms(500)).toBe('500 ms');
+      expect(ms(999)).toBe('999 ms');
+      expect(ms(999.4)).toBe('999 ms');
+      expect(ms(999.5)).toBe('1000 ms');
     });
 
     it('returns formatted string in s for values >= 1000', () => {
-      expect(ms(1000)).toBe('1.00s');
-      expect(ms(1500)).toBe('1.50s');
-      expect(ms(1050)).toBe('1.05s');
-      expect(ms(2000)).toBe('2.00s');
-      expect(ms(1555.5)).toBe('1.56s');
+      expect(ms(1000)).toBe('1.00 s');
+      expect(ms(1500)).toBe('1.50 s');
+      expect(ms(1050)).toBe('1.05 s');
+      expect(ms(2000)).toBe('2.00 s');
+      expect(ms(1555.5)).toBe('1.56 s');
     });
   });
 
