@@ -121,24 +121,36 @@ const checkDnsResolution = (dns: DnsReport, push: PushFinding): void => {
   }
 };
 
-export const buildDomainFindings = (result: AuditResult, push: PushFinding): void => {
+/**
+ * Devolve os achados de domínio/DNS/e-mail. O `push` opcional espelha cada
+ * item no coletor legado.
+ */
+export const buildDomainFindings = (result: AuditResult, push?: PushFinding): Finding[] => {
+  const out: Finding[] = [];
+  const emit: PushFinding = (finding) => {
+    out.push(finding);
+    push?.(finding);
+  };
+
   const { registration, email, dns } = result;
 
   if (registration?.found) {
-    checkRegistrationExpiry(registration, push);
-    checkDnssec(registration, push);
+    checkRegistrationExpiry(registration, emit);
+    checkDnssec(registration, emit);
   }
 
   if (email) {
     if (!email.hasMx) {
-      checkMissingMx(push);
+      checkMissingMx(emit);
     } else {
-      checkSpf(email, push);
-      checkDmarc(email, result.domain, push);
+      checkSpf(email, emit);
+      checkDmarc(email, result.domain, emit);
     }
   }
 
   if (dns) {
-    checkDnsResolution(dns, push);
+    checkDnsResolution(dns, emit);
   }
+
+  return out;
 };

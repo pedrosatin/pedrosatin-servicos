@@ -337,19 +337,33 @@ const checkAssets = (
   }
 };
 
+type PushFinding = (finding: Finding) => void;
+
+/**
+ * Devolve os achados de conteúdo/indexação. O `push` opcional espelha cada
+ * item no coletor legado.
+ */
 export const buildContentFindings = (
   result: AuditResult,
-  push: (finding: Finding) => void,
-): void => {
+  push?: PushFinding,
+): Finding[] => {
+  const out: Finding[] = [];
+  const emit: PushFinding = (finding) => {
+    out.push(finding);
+    push?.(finding);
+  };
+
   const { content } = result;
   const html = content?.html ?? null;
 
-  checkRobots(content, html, push);
-  checkSitemap(content, push);
-  checkMetaTags(html, push);
-  checkHeadingsAndContent(html, push);
-  checkStructuredData(html, push);
-  checkSocial(html, push);
-  checkMobile(html, push);
-  checkAssets(html, push);
+  checkRobots(content, html, emit);
+  checkSitemap(content, emit);
+  checkMetaTags(html, emit);
+  checkHeadingsAndContent(html, emit);
+  checkStructuredData(html, emit);
+  checkSocial(html, emit);
+  checkMobile(html, emit);
+  checkAssets(html, emit);
+
+  return out;
 };

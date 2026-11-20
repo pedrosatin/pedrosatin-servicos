@@ -1,14 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Mock } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildDomainFindings } from './domain';
-import type { AuditResult, Finding } from '../types';
+import type { AuditResult } from '../types';
 
 describe('buildDomainFindings', () => {
-  let pushMock: Mock<(finding: Finding) => void>;
-
-  beforeEach(() => {
-    pushMock = vi.fn();
-  });
 
   describe('registration', () => {
     it('pushes dominio-vencido when daysToExpire < 0', () => {
@@ -21,9 +15,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'dominio-vencido',
         area: 'dominio',
         severity: 'critical'
@@ -40,15 +34,14 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(resultRegistroBr, pushMock);
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      const findingsRegistroBr = buildDomainFindings(resultRegistroBr);
+      expect(findingsRegistroBr).toContainEqual(expect.objectContaining({
         id: 'dominio-vencendo',
         area: 'dominio',
         severity: 'critical',
         evidence: expect.stringContaining('segundo o Registro.br')
       }));
 
-      pushMock.mockClear();
 
       const resultRdap = {
         registration: {
@@ -59,8 +52,8 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(resultRdap, pushMock);
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      const findingsRdap = buildDomainFindings(resultRdap);
+      expect(findingsRdap).toContainEqual(expect.objectContaining({
         id: 'dominio-vencendo',
         area: 'dominio',
         severity: 'critical',
@@ -78,9 +71,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'dominio-renovacao-proxima',
         area: 'dominio',
         severity: 'warning'
@@ -98,9 +91,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'dominio-ok',
         area: 'dominio',
         severity: 'good',
@@ -118,9 +111,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-dnssec',
         area: 'seguranca',
         severity: 'info'
@@ -137,9 +130,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'sem-dnssec'
       }));
     });
@@ -153,9 +146,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-email-proprio',
         area: 'dominio',
         severity: 'info'
@@ -171,9 +164,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-spf',
         area: 'seguranca',
         severity: 'warning'
@@ -190,9 +183,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-dmarc',
         area: 'seguranca',
         severity: 'warning',
@@ -210,9 +203,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'dmarc-permissivo',
         area: 'seguranca',
         severity: 'info'
@@ -228,9 +221,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'dns-nao-resolve',
         area: 'dominio',
         severity: 'critical'
@@ -244,9 +237,9 @@ describe('buildDomainFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildDomainFindings(result, pushMock);
+      const findings = buildDomainFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'dns-nao-resolve'
       }));
     });

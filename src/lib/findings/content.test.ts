@@ -1,10 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildContentFindings } from './content';
 import type { AuditResult } from '../types';
 
 describe('buildContentFindings', () => {
   it('identifies when robots.txt blocks all', () => {
-    const push = vi.fn();
     const result = {
       content: {
         robots: { blocksAll: true },
@@ -12,15 +11,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'robots-bloqueia', severity: 'critical' })
     );
   });
 
   it('identifies missing robots.txt', () => {
-    const push = vi.fn();
     const result = {
       content: {
         finalUrl: 'https://example.com/',
@@ -29,61 +27,57 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'robots-ausente', severity: 'info' })
     );
   });
 
   it('identifies missing sitemap', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: false },
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'sitemap-ausente', severity: 'warning' })
     );
   });
 
   it('reports an unverified sitemap instead of a missing one when the lookup failed', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: false, url: null, urlCount: null, isIndex: false, error: 'Não foi possível consultar o sitemap.' },
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'sitemap-nao-verificado', severity: 'info' })
     );
-    expect(push).not.toHaveBeenCalledWith(expect.objectContaining({ id: 'sitemap-ausente' }));
+    expect(findings).not.toContainEqual(expect.objectContaining({ id: 'sitemap-ausente' }));
   });
 
   it('identifies valid sitemap', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true, url: 'https://example.com/sitemap.xml', urlCount: 10, isIndex: false },
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'sitemap-ok', severity: 'good' })
     );
   });
 
   it('identifies meta noindex', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -91,15 +85,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'meta-noindex', severity: 'critical' })
     );
   });
 
   it('identifies missing title', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -107,15 +100,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'title-ausente', severity: 'critical' })
     );
   });
 
   it('identifies long title', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -123,15 +115,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'title-longo', severity: 'warning' })
     );
   });
 
   it('identifies short title', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -139,15 +130,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'title-curto', severity: 'warning' })
     );
   });
 
   it('identifies missing meta description', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -155,15 +145,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'description-ausente', severity: 'warning' })
     );
   });
 
   it('identifies long meta description', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -171,15 +160,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'description-longa', severity: 'info' })
     );
   });
 
   it('identifies missing canonical', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
@@ -187,15 +175,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'canonical-ausente', severity: 'warning' })
     );
   });
 
   it('identifies missing H1', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -203,15 +190,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'h1-ausente', severity: 'warning' })
     );
   });
 
   it('identifies multiple H1s', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -219,15 +205,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'h1-multiplo', severity: 'info' })
     );
   });
 
   it('identifies JS dependent content (critical)', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -235,15 +220,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'conteudo-dependente-js', severity: 'critical' })
     );
   });
 
   it('identifies JS dependent content (warning)', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -251,15 +235,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'conteudo-dependente-js', severity: 'warning' })
     );
   });
 
   it('identifies missing structured data', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -267,15 +250,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'sem-dados-estruturados', severity: 'info' })
     );
   });
 
   it('identifies valid structured data', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -283,15 +265,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'dados-estruturados-ok', severity: 'good' })
     );
   });
 
   it('identifies missing open graph tags', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -299,15 +280,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'og-ausente', severity: 'warning' })
     );
   });
 
   it('identifies missing viewport', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -315,15 +295,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'viewport-ausente', severity: 'critical' })
     );
   });
 
   it('identifies blocked zoom in viewport', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -331,15 +310,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'zoom-bloqueado', severity: 'warning' })
     );
   });
 
   it('identifies images missing alt attributes', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -347,15 +325,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'imagens-sem-alt', severity: 'info' })
     );
   });
 
   it('identifies images missing dimensions', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -363,15 +340,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'imagens-sem-dimensao', severity: 'warning' })
     );
   });
 
   it('identifies blocking scripts (info)', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -379,15 +355,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'scripts-bloqueantes', severity: 'info' })
     );
   });
 
   it('identifies blocking scripts (warning)', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -395,15 +370,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'scripts-bloqueantes', severity: 'warning' })
     );
   });
 
   it('identifies missing lang attribute', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -411,15 +385,14 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'lang-ausente', severity: 'info' })
     );
   });
 
   it('identifies heavy HTML', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -427,9 +400,9 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({
         id: 'html-pesado',
         severity: 'warning',
@@ -438,7 +411,6 @@ describe('buildContentFindings', () => {
     );
   });
   it('says the HTML is larger than the read ceiling when the Worker truncated it', () => {
-    const push = vi.fn();
     const result = {
       content: {
         sitemap: { found: true },
@@ -446,9 +418,9 @@ describe('buildContentFindings', () => {
       },
     } as unknown as AuditResult;
 
-    buildContentFindings(result, push);
+    const findings = buildContentFindings(result);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(findings).toContainEqual(
       expect.objectContaining({ id: 'html-pesado', evidence: expect.stringContaining('mais de 2.9 MB') })
     );
   });
