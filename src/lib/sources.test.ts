@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchRegistration, fetchEmailAuth, fetchPageSpeed, fetchContent } from './sources';
+import {
+  fetchDns,
+  fetchRegistration,
+  fetchEmailAuth,
+  fetchPageSpeed,
+  fetchContent,
+  defaultSourcesDeps,
+} from './sources';
+import type { SourcesDeps } from './sources';
 import type { DnsReport } from './types';
 import { AUDIT_ENDPOINT } from './config';
 
@@ -12,6 +20,61 @@ describe('sources', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+  });
+
+  describe('fetchDns com SourcesDeps', () => {
+    it('aceita fetch e dohEndpoint injetados sem alterar o fetch global', async () => {
+      const urls: string[] = [];
+      const fakeFetch: typeof fetch = async (input, init) => {
+        const url = String(input);
+        urls.push(url);
+        expect(init?.headers).toEqual({ accept: 'application/dns-json' });
+
+        const type = new URL(url).searchParams.get('type');
+        const answersByType: Record<string, { type: number; data: string }[]> = {
+          A: [{ type: 1, data: '93.184.216.34' }],
+          AAAA: [],
+          NS: [{ type: 2, data: 'ns1.cloudflare.com.' }],
+          MX: [{ type: 15, data: '10 mail.example.com.' }],
+          TXT: [{ type: 16, data: '"v=spf1 -all"' }],
+          CNAME: [{ type: 5, data: 'example.com.' }],
+        };
+        const answers = (answersByType[type ?? ''] ?? []).map((answer) => ({
+          name: 'example.com',
+          TTL: 300,
+          ...answer,
+        }));
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ Status: 0, Answer: answers }),
+        } as Response;
+      };
+
+      const deps: SourcesDeps = {
+        fetch: fakeFetch,
+        auditEndpoint: 'https://worker.test',
+        dohEndpoint: 'https://doh.test/resolve',
+      };
+
+      const result = await fetchDns('example.com', deps);
+
+      expect(urls).toHaveLength(6);
+      expect(urls.every((url) => url.startsWith('https://doh.test/resolve?'))).toBe(true);
+      expect(result).toMatchObject({
+        domain: 'example.com',
+        resolves: true,
+        a: ['93.184.216.34'],
+        aaaa: [],
+        ns: ['ns1.cloudflare.com'],
+        hosting: 'Cloudflare',
+        dnsProvider: 'Cloudflare',
+      });
+      expect(globalThis.fetch).toBe(originalFetch);
+      expect(defaultSourcesDeps.dohEndpoint).toBe('https://dns.google/resolve');
+      expect(defaultSourcesDeps.auditEndpoint).toBe(AUDIT_ENDPOINT);
+    });
   });
 
   describe('fetchRegistration', () => {
@@ -386,6 +449,124 @@ describe('sources', () => {
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
       expect(result.scores.performance).toBe(95);
+    });
+
+    it('mapeia oportunidades, lab e CrUX da URL a partir do payload do PageSpeed', async () => {
+      const mockPsiResponse = {
+        lighthouseResult: {
+          categories: {
+            performance: { score: 0.82 },
+            seo: { score: 0.91 },
+            accessibility: { score: 0.88 },
+            'best-practices': { score: 0.77 },
+          },
+          audits: {
+            'largest-contentful-paint': { numericValue: 2400 },
+            'first-contentful-paint': { numericValue: 1100 },
+            'cumulative-layout-shift': { numericValue: 0.04 },
+            'total-blocking-time': { numericValue: 180 },
+            'speed-index': { numericValue: 2100 },
+            'server-response-time': { numericValue: 320 },
+            'total-byte-weight': { numericValue: 1_250_000 },
+            'unused-javascript': {
+              title: 'Reduza JavaScript não usado',
+              details: { overallSavingsMs: 900, type: 'opportunity' },
+            },
+            'render-blocking-resources': {
+              title: 'Elimine recursos que bloqueiam a renderização',
+              details: { overallSavingsMs: 400, type: 'opportunity' },
+            },
+            'efficient-animated-content': {
+              title: 'Use formatos de vídeo eficientes',
+              details: { overallSavingsMs: 80, type: 'opportunity' },
+            },
+            'sem-titulo': {
+              details: { overallSavingsMs: 500, type: 'opportunity' },
+            },
+            'final-screenshot': {
+              details: { data: 'data:image/jpeg;base64,abc', type: 'screenshot' },
+            },
+          },
+        },
+        loadingExperience: {
+          overall_category: 'AVERAGE',
+          metrics: {
+            LARGEST_CONTENTFUL_PAINT_MS: { percentile: 2800, category: 'AVERAGE' },
+            CUMULATIVE_LAYOUT_SHIFT_SCORE: { percentile: 12, category: 'FAST' },
+            INTERACTION_TO_NEXT_PAINT: { percentile: 210, category: 'SLOW' },
+          },
+        },
+        originLoadingExperience: {
+          overall_category: 'SLOW',
+          metrics: {
+            LARGEST_CONTENTFUL_PAINT_MS: { percentile: 5000, category: 'SLOW' },
+          },
+        },
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockPsiResponse,
+      } as unknown as Response);
+
+      const result = await fetchPageSpeed('example.com', 'mobile');
+
+      expect(result.scores).toEqual({
+        performance: 82,
+        seo: 91,
+        accessibility: 88,
+        bestPractices: 77,
+      });
+      expect(result.lab).toEqual({
+        lcpMs: 2400,
+        fcpMs: 1100,
+        cls: 0.04,
+        tbtMs: 180,
+        speedIndexMs: 2100,
+        serverResponseMs: 320,
+        totalBytes: 1_250_000,
+      });
+      expect(result.opportunities).toEqual([
+        { title: 'Reduza JavaScript não usado', savingsMs: 900 },
+        { title: 'Elimine recursos que bloqueiam a renderização', savingsMs: 400 },
+      ]);
+      expect(result.field).toEqual({
+        available: true,
+        overall: 'AVERAGE',
+        lcp: { p75: 2800, category: 'AVERAGE' },
+        cls: { p75: 12, category: 'FAST' },
+        inp: { p75: 210, category: 'SLOW' },
+        origin: false,
+      });
+      expect(result.screenshot).toBe('data:image/jpeg;base64,abc');
+      expect(result.strategy).toBe('mobile');
+    });
+
+    it('usa CrUX da origem quando a URL específica não tem métricas de campo', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          lighthouseResult: { categories: {}, audits: {} },
+          loadingExperience: { overall_category: 'FAST', metrics: {} },
+          originLoadingExperience: {
+            overall_category: 'AVERAGE',
+            metrics: {
+              LARGEST_CONTENTFUL_PAINT_MS: { percentile: 3100, category: 'AVERAGE' },
+              CUMULATIVE_LAYOUT_SHIFT_SCORE: { percentile: 8, category: 'FAST' },
+              INTERACTION_TO_NEXT_PAINT: { percentile: 150, category: 'FAST' },
+            },
+          },
+        }),
+      } as unknown as Response);
+
+      const result = await fetchPageSpeed('example.com');
+
+      expect(result.field.available).toBe(true);
+      expect(result.field.origin).toBe(true);
+      expect(result.field.overall).toBe('AVERAGE');
+      expect(result.field.lcp).toEqual({ p75: 3100, category: 'AVERAGE' });
     });
 
     it('calls the Worker /pagespeed route without a key', async () => {
