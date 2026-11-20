@@ -169,7 +169,8 @@ describe('buildDomainFindings', () => {
       expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-spf',
         area: 'seguranca',
-        severity: 'warning'
+        severity: 'warning',
+        title: 'Qualquer pessoa pode enviar e-mail se passando pelo seu domínio'
       }));
     });
 
