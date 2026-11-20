@@ -1,14 +1,12 @@
 import type { AuditResult, Finding, PageSpeedReport } from '../types';
 import { formatMs, formatBytes } from '../format';
 
-type PushFinding = (finding: Finding) => void;
-
-const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkFieldLcp = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { field } = pagespeed;
 
   if (field.available && field.lcp.p75 !== null) {
     const severity = field.lcp.p75 > 4000 ? 'critical' : field.lcp.p75 > 2500 ? 'warning' : 'good';
-    push({
+    return {
       id: 'lcp-campo',
       area: 'desempenho',
       severity,
@@ -21,9 +19,10 @@ const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
         severity === 'good'
           ? 'Nada a fazer neste ponto.'
           : 'Esta é a métrica que o Google usa como critério de classificação, medida em quem realmente acessa o site — não em simulação.',
-    });
-  } else if (!field.available) {
-    push({
+    };
+  }
+  if (!field.available) {
+    return {
       id: 'sem-dados-campo',
       area: 'desempenho',
       severity: 'info',
@@ -31,42 +30,45 @@ const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
       evidence: 'O relatório CrUX não tem amostra suficiente para este domínio.',
       action:
         'Acontece com sites de baixo tráfego. Indica também que o site recebe poucas visitas vindas da busca.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkFieldCls = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkFieldCls = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { field } = pagespeed;
   if (field.available && field.cls.p75 !== null && field.cls.p75 > 0.1) {
-    push({
+    return {
       id: 'cls-campo',
       area: 'desempenho',
       severity: field.cls.p75 > 0.25 ? 'critical' : 'warning',
       title: 'O layout se desloca durante o carregamento',
       evidence: `Índice de instabilidade visual de ${field.cls.p75.toFixed(2)} em usuários reais; o aceitável é até 0,10.`,
       action: 'É o efeito de a página "pular" e o visitante clicar sem querer no lugar errado.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkFieldInp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkFieldInp = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { field } = pagespeed;
   if (field.available && field.inp.p75 !== null && field.inp.p75 > 200) {
-    push({
+    return {
       id: 'inp-campo',
       area: 'desempenho',
       severity: field.inp.p75 > 500 ? 'critical' : 'warning',
       title: 'O site demora a responder aos toques',
       evidence: `${formatMs(field.inp.p75)} entre o toque e a resposta visual; o limite do Google é 200 ms.`,
       action: 'A sensação é de travamento, principalmente em celulares mais simples.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkPerformanceScore = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkPerformanceScore = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { lab, scores } = pagespeed;
   if (scores.performance !== null) {
-    push({
+    return {
       id: 'score-performance',
       area: 'desempenho',
       severity: scores.performance < 50 ? 'critical' : scores.performance < 90 ? 'warning' : 'good',
@@ -76,28 +78,30 @@ const checkPerformanceScore = (pagespeed: PageSpeedReport, push: PushFinding): v
         scores.performance < 90
           ? 'Esta é a mesma nota que qualquer pessoa vê ao consultar o PageSpeed Insights do Google para o seu endereço.'
           : 'Nada a fazer neste ponto.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkSeoScore = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkSeoScore = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { scores } = pagespeed;
   if (scores.seo !== null && scores.seo < 90) {
-    push({
+    return {
       id: 'score-seo',
       area: 'indexacao',
       severity: scores.seo < 70 ? 'warning' : 'info',
       title: `Nota ${scores.seo}/100 nas verificações de SEO do Google`,
       evidence: 'Avaliação automática do Lighthouse sobre a estrutura da página.',
       action: 'Cobre itens básicos de rastreamento que costumam ser rápidos de corrigir.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkAccessibilityScore = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkAccessibilityScore = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { scores } = pagespeed;
   if (scores.accessibility !== null && scores.accessibility < 90) {
-    push({
+    return {
       id: 'score-acessibilidade',
       area: 'conteudo',
       severity: scores.accessibility < 70 ? 'warning' : 'info',
@@ -105,45 +109,47 @@ const checkAccessibilityScore = (pagespeed: PageSpeedReport, push: PushFinding):
       evidence: 'Contraste de cores, rótulos de formulário e navegação por teclado avaliados pelo Lighthouse.',
       action:
         'Além da questão de inclusão, esses itens afetam a leitura do site por qualquer pessoa em tela pequena e sob sol forte.',
-    });
+    };
   }
+  return undefined;
 };
 
-const checkPageWeight = (pagespeed: PageSpeedReport, push: PushFinding): void => {
+const checkPageWeight = (pagespeed: PageSpeedReport): Finding | undefined => {
   const { lab } = pagespeed;
   if (lab.totalBytes !== null && lab.totalBytes > 2_000_000) {
-    push({
+    return {
       id: 'peso-total',
       area: 'desempenho',
       severity: 'warning',
       title: 'A página pesa mais que o razoável para dados móveis',
       evidence: `${formatBytes(lab.totalBytes)} baixados em um único acesso.`,
       action: 'Em 4G instável isso significa vários segundos de tela em branco.',
-    });
+    };
   }
+  return undefined;
 };
 
-/**
- * Devolve os achados de desempenho. O `push` opcional espelha cada item no
- * coletor legado.
- */
-export const buildPerformanceFindings = (result: AuditResult, push?: PushFinding): Finding[] => {
+/** Devolve os achados de desempenho a partir do PageSpeed. */
+export const buildPerformanceFindings = (result: AuditResult): Finding[] => {
   const { pagespeed } = result;
   if (!pagespeed) return [];
 
   const out: Finding[] = [];
-  const emit: PushFinding = (finding) => {
-    out.push(finding);
-    push?.(finding);
-  };
 
-  checkFieldLcp(pagespeed, emit);
-  checkFieldCls(pagespeed, emit);
-  checkFieldInp(pagespeed, emit);
-  checkPerformanceScore(pagespeed, emit);
-  checkSeoScore(pagespeed, emit);
-  checkAccessibilityScore(pagespeed, emit);
-  checkPageWeight(pagespeed, emit);
+  const lcp = checkFieldLcp(pagespeed);
+  if (lcp) out.push(lcp);
+  const cls = checkFieldCls(pagespeed);
+  if (cls) out.push(cls);
+  const inp = checkFieldInp(pagespeed);
+  if (inp) out.push(inp);
+  const performance = checkPerformanceScore(pagespeed);
+  if (performance) out.push(performance);
+  const seo = checkSeoScore(pagespeed);
+  if (seo) out.push(seo);
+  const accessibility = checkAccessibilityScore(pagespeed);
+  if (accessibility) out.push(accessibility);
+  const weight = checkPageWeight(pagespeed);
+  if (weight) out.push(weight);
 
   return out;
 };
