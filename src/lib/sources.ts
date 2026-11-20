@@ -16,7 +16,32 @@ import type {
   PageSpeedReport,
 } from './types';
 
+/**
+ * Transporte e endpoints HTTP das fontes.
+ *
+ * Em produção o caller de `fetchDns` omite o argumento e usa
+ * `defaultSourcesDeps` (DoH Google, Worker em `AUDIT_ENDPOINT`,
+ * `globalThis.fetch`). O piloto DNS aceita um fake de `fetch`
+ * e um endpoint DoH local sem alterar o transporte global.
+ */
+export interface SourcesDeps {
+  fetch: typeof fetch;
+  /** Base do Worker (`/audit`, `/pagespeed`). */
+  auditEndpoint: string;
+  /** Endpoint DoH JSON (Google em produção). */
+  dohEndpoint: string;
+}
 
+const DOH_ENDPOINT = 'https://dns.google/resolve';
+
+/** Defaults iguais ao comportamento atual de produção. */
+export const defaultSourcesDeps: SourcesDeps = {
+  // Lê `globalThis.fetch` a cada chamada para usar stubs de teste
+  // e qualquer substituição feita depois do carregamento do módulo.
+  fetch: ((input, init) => globalThis.fetch(input, init)) as typeof fetch,
+  auditEndpoint: AUDIT_ENDPOINT,
+  dohEndpoint: DOH_ENDPOINT,
+};
 
 /* ------------------------------------------------------------------ *
  * DNS sobre HTTPS
@@ -34,11 +59,13 @@ interface DohResponse {
   Answer?: DohAnswer[];
 }
 
-const DOH_ENDPOINT = 'https://dns.google/resolve';
-
-const resolveRecord = async (domain: string, type: string): Promise<DohAnswer[]> => {
-  const response = await fetch(
-    `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${type}`,
+const resolveRecord = async (
+  domain: string,
+  type: string,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<DohAnswer[]> => {
+  const response = await deps.fetch(
+    `${deps.dohEndpoint}?name=${encodeURIComponent(domain)}&type=${type}`,
     { headers: { accept: 'application/dns-json' } },
   );
   if (!response.ok) throw new Error(`Falha na consulta DNS (${type}).`);
@@ -75,14 +102,17 @@ const identifyProvider = (hostnames: string[]): string | null => {
   return null;
 };
 
-export const fetchDns = async (domain: string): Promise<DnsReport> => {
+export const fetchDns = async (
+  domain: string,
+  deps: SourcesDeps = defaultSourcesDeps,
+): Promise<DnsReport> => {
   const [a, aaaa, ns, mx, txt, cname] = await Promise.all([
-    resolveRecord(domain, 'A'),
-    resolveRecord(domain, 'AAAA'),
-    resolveRecord(domain, 'NS'),
-    resolveRecord(domain, 'MX'),
-    resolveRecord(domain, 'TXT'),
-    resolveRecord(`www.${domain}`, 'CNAME'),
+    resolveRecord(domain, 'A', deps),
+    resolveRecord(domain, 'AAAA', deps),
+    resolveRecord(domain, 'NS', deps),
+    resolveRecord(domain, 'MX', deps),
+    resolveRecord(domain, 'TXT', deps),
+    resolveRecord(`www.${domain}`, 'CNAME', deps),
   ]);
 
   const nsNames = ns.filter(r => r.type === 2).map(r => r.data.replace(/\.$/, ''));
