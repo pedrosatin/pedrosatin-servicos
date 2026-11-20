@@ -20,17 +20,26 @@ describe('buildFindings', () => {
     const dummyResult = {} as unknown as AuditResult;
 
     vi.mocked(buildSecurityFindings).mockImplementation((_res, push) => {
-      push({ id: 'sec-1', severity: 'warning', area: 'seguranca', title: 't', action: 'a', evidence: 'e' });
+      const finding: Finding = { id: 'sec-1', severity: 'warning', area: 'seguranca', title: 't', action: 'a', evidence: 'e' };
+      push?.(finding);
+      return [finding];
     });
     vi.mocked(buildContentFindings).mockImplementation((_res, push) => {
-      push({ id: 'cont-1', severity: 'good', area: 'conteudo', title: 't', action: 'a', evidence: 'e' });
-      push({ id: 'cont-2', severity: 'info', area: 'conteudo', title: 't', action: 'a', evidence: 'e' });
+      const findings: Finding[] = [
+        { id: 'cont-1', severity: 'good', area: 'conteudo', title: 't', action: 'a', evidence: 'e' },
+        { id: 'cont-2', severity: 'info', area: 'conteudo', title: 't', action: 'a', evidence: 'e' },
+      ];
+      findings.forEach((finding) => push?.(finding));
+      return findings;
     });
     vi.mocked(buildPerformanceFindings).mockImplementation((_res, push) => {
-      push({ id: 'perf-1', severity: 'critical', area: 'desempenho', title: 't', action: 'a', evidence: 'e' });
+      const finding: Finding = { id: 'perf-1', severity: 'critical', area: 'desempenho', title: 't', action: 'a', evidence: 'e' };
+      push?.(finding);
+      return [finding];
     });
     vi.mocked(buildDomainFindings).mockImplementation((_res, _push) => {
-       // Does not push anything for this test
+      // Does not push anything for this test
+      return [];
     });
 
     const findings = buildFindings(dummyResult);

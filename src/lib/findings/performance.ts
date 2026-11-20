@@ -123,15 +123,27 @@ const checkPageWeight = (pagespeed: PageSpeedReport, push: PushFinding): void =>
   }
 };
 
-export const buildPerformanceFindings = (result: AuditResult, push: PushFinding): void => {
+/**
+ * Devolve os achados de desempenho. O `push` opcional espelha cada item no
+ * coletor legado.
+ */
+export const buildPerformanceFindings = (result: AuditResult, push?: PushFinding): Finding[] => {
   const { pagespeed } = result;
-  if (!pagespeed) return;
+  if (!pagespeed) return [];
 
-  checkFieldLcp(pagespeed, push);
-  checkFieldCls(pagespeed, push);
-  checkFieldInp(pagespeed, push);
-  checkPerformanceScore(pagespeed, push);
-  checkSeoScore(pagespeed, push);
-  checkAccessibilityScore(pagespeed, push);
-  checkPageWeight(pagespeed, push);
+  const out: Finding[] = [];
+  const emit: PushFinding = (finding) => {
+    out.push(finding);
+    push?.(finding);
+  };
+
+  checkFieldLcp(pagespeed, emit);
+  checkFieldCls(pagespeed, emit);
+  checkFieldInp(pagespeed, emit);
+  checkPerformanceScore(pagespeed, emit);
+  checkSeoScore(pagespeed, emit);
+  checkAccessibilityScore(pagespeed, emit);
+  checkPageWeight(pagespeed, emit);
+
+  return out;
 };

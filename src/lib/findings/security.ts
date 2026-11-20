@@ -109,15 +109,26 @@ const checkRedirectChain = (content: ContentReport, push: PushFinding): void => 
   }
 };
 
-export const buildSecurityFindings = (result: AuditResult, push: PushFinding): void => {
-  const { content } = result;
+/**
+ * Devolve os achados de segurança/transporte. O `push` opcional espelha cada
+ * item no coletor legado.
+ */
+export const buildSecurityFindings = (result: AuditResult, push?: PushFinding): Finding[] => {
+  const out: Finding[] = [];
+  const emit: PushFinding = (finding) => {
+    out.push(finding);
+    push?.(finding);
+  };
 
+  const { content } = result;
   if (content) {
-    checkHttps(content, result.domain, push);
-    checkHsts(content, push);
-    checkPoweredBy(content, push);
-    checkCompression(content, push);
-    checkCacheControl(content, push);
-    checkRedirectChain(content, push);
+    checkHttps(content, result.domain, emit);
+    checkHsts(content, emit);
+    checkPoweredBy(content, emit);
+    checkCompression(content, emit);
+    checkCacheControl(content, emit);
+    checkRedirectChain(content, emit);
   }
+
+  return out;
 };

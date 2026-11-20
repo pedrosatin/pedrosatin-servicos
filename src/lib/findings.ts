@@ -12,6 +12,7 @@ import { buildContentFindings } from './findings/content';
 import { buildPerformanceFindings } from './findings/performance';
 import { buildDomainFindings } from './findings/domain';
 
+/** Reúne e ordena os achados emitidos pelos builders compatíveis com coletor. */
 export const buildFindings = (result: AuditResult): Finding[] => {
   const out: Finding[] = [];
   const push = (finding: Finding): void => {
