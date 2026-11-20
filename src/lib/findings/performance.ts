@@ -16,7 +16,7 @@ const checkFieldLcp = (pagespeed: PageSpeedReport, push: PushFinding): void => {
         severity === 'good'
           ? 'Tempo de carregamento aprovado pelo Google'
           : 'Visitantes reais esperam demais pelo conteúdo principal',
-      evidence: `${formatMs(field.lcp.p75)} no percentil 75 de usuários reais do Chrome${field.origin ? ' (dados de todo o domínio)' : ''}. O limite do Google é 2,5s.`,
+      evidence: `${formatMs(field.lcp.p75)} no percentil 75 de usuários reais do Chrome${field.origin ? ' (dados de todo o domínio)' : ''}. O limite do Google é ${formatMs(2500)}.`,
       action:
         severity === 'good'
           ? 'Nada a fazer neste ponto.'

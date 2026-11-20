@@ -55,7 +55,7 @@ describe('buildPerformanceFindings', () => {
       expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
         id: 'lcp-campo',
         severity: 'critical',
-        evidence: expect.stringContaining('4.50 s'),
+        evidence: '4.50 s no percentil 75 de usuários reais do Chrome. O limite do Google é 2.50 s.',
       }));
     });
 
