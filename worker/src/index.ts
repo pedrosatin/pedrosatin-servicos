@@ -709,19 +709,24 @@ export const pageSpeedCache = new PageSpeedCache();
  * cliente do handler. Só a requisição que sai para o Google conta. Resposta
  * do cache não gasta nenhum deles.
  *
- * - `perBlockPerMinute`: um /48 no IPv6 ou /24 no IPv4, de `rateLimitPrefix`,
- *   divide 30 chamadas por minuto, o mesmo que um cliente sozinho recebe do
- *   limitador. Girar /64 dentro do bloco não rende cota extra.
+ * - `perBlockPerMinute`: um /48 no IPv6 ou /24 no IPv4, de `rateLimitPrefix`.
+ *   Uma análise normal faz 2 medições (mobile e desktop), então 4 por minuto
+ *   ainda permitem duas análises completas no bloco. Fica abaixo de
+ *   `perIsolatePerMinute` para que um bloco sozinho não esgote o isolate.
+ *   Girar /64 dentro do bloco não rende cota extra.
  * - `perIsolatePerMinute` e `perIsolatePerHour`: teto do isolate inteiro,
- *   somando todos os blocos e destinos. A cota padrão de uma chave da PSI API
- *   é de 25.000 consultas por dia e 400 a cada 100 segundos, ou 240 por minuto.
- *   Contando com até quatro isolates ativos ao mesmo tempo, 60 por minuto
- *   cabem nos 240 do Google e 250 por hora somam 24.000 por dia, abaixo dos
- *   25.000. A conta e a fonte estão no README do Worker.
+ *   somando todos os blocos e destinos. A cota efetiva da chave em produção
+ *   (lida no Google Cloud em 20/11/2026) é de 25.000 consultas por dia e 30
+ *   por minuto. Com até quatro isolates ativos ao mesmo tempo, 4 × 6 = 24
+ *   por minuto, 80% da cota de 30, com margem de 20%. O alerta no Cloud
+ *   Monitoring dispara acima de 24 consultas em 60 s; se ele disparar, a
+ *   premissa de quatro isolates deixou de valer. 250 por hora somam
+ *   4 × 250 × 24 = 24.000 por dia, abaixo dos 25.000. A conta e a fonte
+ *   estão no README do Worker.
  */
 export const PAGESPEED_UPSTREAM_LIMITS = {
-  perBlockPerMinute: 30,
-  perIsolatePerMinute: 60,
+  perBlockPerMinute: 4,
+  perIsolatePerMinute: 6,
   perIsolatePerHour: 250,
 } as const;
 

@@ -96,9 +96,10 @@ Desde 20/11/2026 a produção usa uma chave criada no projeto do Google Cloud
 do operador, restrita só à PageSpeed Insights API e gravada no secret
 `PSI_KEY` do repositório do GitHub e no Worker. Depois da troca, uma medição
 pelo endpoint `/pagespeed` respondeu 200 com resultado do Lighthouse.
-`VITE_PSI_KEY` continua fora do deploy. A origem da chave anterior não foi
-identificada, pois nenhum projeto visível à conta do operador lista uma chave
-da PSI, então a revogação dela segue pendente.
+`VITE_PSI_KEY` continua fora do deploy. A chave anterior não aparece em nenhum
+projeto visível à conta do operador, nem entre as apagadas nos últimos 30
+dias, e em 21/11/2026 o Google já a recusava com `API key expired`. Não sobrou
+nada para revogar.
 
 O Worker guarda cada medição bem-sucedida por 10 minutos, por destino e
 estratégia, na memória do isolate. Repetir a mesma medição nesse intervalo não
@@ -126,19 +127,17 @@ Google. Os valores ficam em `PAGESPEED_UPSTREAM_LIMITS`, em `src/index.ts`:
 
 | Teto | Valor | Conta |
 | :--- | :--- | :--- |
-| Por bloco (/48 no IPv6, /24 no IPv4) | 30 por minuto | o mesmo de um cliente sozinho |
-| Por isolate | 60 por minuto | 4 isolates × 60 = 240, a janela curta do Google |
+| Por bloco (/48 no IPv6, /24 no IPv4) | 4 por minuto | duas análises no bloco, cada uma com 2 chamadas ao Google (mobile e desktop) |
+| Por isolate | 6 por minuto | 4 isolates × 6 = 24, 80% da cota de 30/min |
 | Por isolate | 250 por hora | 4 isolates × 250 × 24 h = 24.000, abaixo das 25.000 diárias |
 
-A tabela e os tetos do código continuam como estão, pois a conta foi montada
-sobre a cota padrão de 240/min. Com a cota efetiva de 30/min da chave atual, o
-teto de 60 por minuto por isolate e a conta "4 × 60 = 240" ficam acima do que
-o Google concede. Nesse caso o Google devolve 429 antes de qualquer teto do
-Worker, e `pageSpeedUpstreamError`, em `src/index.ts`, repassa esse status ao
-visitante com o corpo `{"error":"PageSpeed indisponível."}`. Ajustar `PAGESPEED_UPSTREAM_LIMITS`
-ou pedir aumento de cota no Google Cloud fica como decisão pendente.
+Os tetos cabem na cota efetiva de 30/min da chave atual. Com até quatro
+isolates recebendo medições ao mesmo tempo, 4 × 6 = 24 por minuto, 80% da
+cota de 30, com margem de 20%. O alerta no Cloud Monitoring dispara acima de
+24 consultas em 60 s; se ele disparar, a premissa de quatro isolates deixou
+de valer.
 
-A conta da tabela ainda supõe até quatro isolates recebendo medições ao mesmo
+A conta da tabela supõe até quatro isolates recebendo medições ao mesmo
 tempo, porque o público do site está no Brasil e passa por poucos data centers
 da Cloudflare. Com mais isolates, o teto real cresce na mesma proporção, e a
 regra do WAF e o alerta de cota no Google Cloud ficam como as proteções
@@ -146,22 +145,22 @@ seguintes.
 
 O teto por bloco fecha o caminho do security audit. Antes, 32 /64 de um mesmo
 /56, cada um com 30 medições por minuto e query única para escapar do cache,
-faziam 960 chamadas ao Google. Agora fazem 30.
+faziam 960 chamadas ao Google. Agora fazem 4.
 
 Os tetos são aproximações, com dois limites conhecidos:
 
 - As janelas são fixas, como as do limite por cliente. Na virada do minuto, um
-  isolate pode soltar até 60 chamadas no fim de uma janela e mais 60 no começo
-  da seguinte, então quatro isolates em rajada passariam das 400 a cada 100
-  segundos da cota padrão. Com a cota de 30 por minuto da chave atual, um
-  único isolate já passa do limite do Google antes disso. Nos dois casos o
-  Google devolve 429 e o visitante recebe a mesma
-  resposta de indisponível, sem custo extra na chave.
+  isolate pode soltar até 2 × 6 = 12 chamadas (fim de uma janela e começo da
+  seguinte); quatro isolates em rajada podem chegar a 48 numa virada, acima
+  dos 30 da chave. Aí o Google devolve 429 e o visitante recebe a mesma
+  resposta de indisponível, sem custo extra na chave. A cota padrão de 400 a
+  cada 100 segundos continua como referência (fonte acima).
 - O teto do isolate é dividido entre todos os blocos. Dois blocos esgotam o
-  minuto, e um bloco esgota a hora em cerca de 9 minutos. Enquanto isso durar,
-  outros visitantes que caírem no mesmo isolate só recebem medições que já
-  estejam no cache. A troca é proposital: o teto protege a cota da chave, e a
-  regra do WAF limita quem tenta esgotá-lo.
+  minuto. Um bloco sozinho chega a 240 chamadas por hora, abaixo do teto
+  horário de 250; dois blocos ativos no mesmo isolate podem esgotar a hora.
+  Enquanto isso durar, outros visitantes que caírem no mesmo isolate só
+  recebem medições que já estejam no cache. A troca é proposital: o teto
+  protege a cota da chave, e a regra do WAF limita quem tenta esgotá-lo.
 
 Só a chamada que sai para o Google conta. Resposta do cache não gasta nenhum
 dos tetos. Quando um deles acaba, o visitante recebe a mesma resposta da cota

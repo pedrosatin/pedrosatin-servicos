@@ -697,12 +697,13 @@ describe('PageSpeed upstream caps', () => {
   it('does not spend any cap on cache hits', async () => {
     const mock = installPsi();
     // Primeira medição de example.com sai para o Google; as 29 seguintes do
-    // mesmo cliente e as de 40 outros /24 vêm do cache.
+    // mesmo cliente (limite por cliente de 30/min) e as de 40 outros /24 vêm
+    // do cache e não gastam teto upstream.
     await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {});
     for (let i = 0; i < 29; i++) expect((await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {})).status).toBe(200);
     for (let i = 0; i < 40; i++) expect((await worker.fetch(pagespeedFor(`198.51.${i}.1`, 'example.com'), {})).status).toBe(200);
     expect(googleCalls(mock)).toBe(1);
-    // O bloco 203.0.113.0/24 ainda tem as outras 29 chamadas.
+    // O bloco 203.0.113.0/24 ainda tem o restante do teto por bloco (já gastou 1).
     const block = await Promise.all(Array.from({ length: perBlockPerMinute }, (_, i) =>
       worker.fetch(pagespeedFor('203.0.113.2', `a${i}.example.com`), {})));
     expect(await tally(block)).toEqual({ 200: perBlockPerMinute - 1, 429: 1 });
@@ -740,6 +741,13 @@ describe('pageSpeedUpstream', () => {
   const spend = (count: number, now: number, block = (i: number) => `block-${now}-${i}`) => {
     for (let i = 0; i < count; i++) expect(pageSpeedUpstream.reserve(block(i), now)).toBeNull();
   };
+
+  it('keeps the upstream caps inside the effective Google quota', () => {
+    // 4 isolates × perIsolatePerMinute ≤ 24 (80% da cota de 30/min e limiar do alerta).
+    expect(perIsolatePerMinute * 4).toBeLessThanOrEqual(24);
+    expect(perBlockPerMinute).toBeLessThan(perIsolatePerMinute);
+    expect(perIsolatePerHour * 4 * 24).toBeLessThan(25_000);
+  });
 
   it('names the exhausted cap and does not count a refused call', () => {
     spend(perBlockPerMinute, start, () => 'a');
