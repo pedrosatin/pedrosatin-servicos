@@ -107,11 +107,9 @@ searchable part of the page, didn't exist for crawlers at all.
    secret is empty, the Worker keeps the value it already has. By hand, run
    `cd worker && npx wrangler secret put PSI_KEY --env=""`. Without a key the
    Worker falls back to Google's anonymous quota, shared across Cloudflare
-   egress IPs, which usually answers 429. The old
-   `VITE_PSI_KEY` shipped in browser bundles and must be revoked: create a new
-   key restricted to the PageSpeed Insights API with a quota, store it as
-   `PSI_KEY`, revoke the old one in Google Cloud, and remove `VITE_PSI_KEY`
-   from GitHub secrets and Pages variables.
+   egress IPs, which usually answers 429. Keep the key restricted to the
+   PageSpeed Insights API. The old `VITE_PSI_KEY` shipped in browser bundles;
+   since November 2026 Google rejects it, and the deploy no longer reads it.
 3. **GitHub environment and secrets.** The `deploy` job targets the
    `production` environment. In GitHub, open **Settings → Environments**,
    create `production`, restrict deployment branches to `master` (under
