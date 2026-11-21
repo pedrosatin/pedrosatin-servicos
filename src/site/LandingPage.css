@@ -1164,7 +1164,7 @@
 .lp-groups {
   margin-top: 1.8rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 1.5rem;
 }
 
@@ -1309,7 +1309,9 @@
 .lp-service-grid {
   margin-top: 2rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  /* O min() deixa a coluna encolher abaixo de 300 px. Numa tela de 320 px a
+     largura útil é menor que isso, e o card estourava a página na horizontal. */
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 1.3rem;
 }
 
@@ -1725,7 +1727,7 @@
 .lp-work-grid {
   margin-top: 2rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1.3rem;
 }
 
@@ -2648,11 +2650,26 @@
     min-height: 40px;
   }
 
+  /* "COMPUTADOR" em monoespaçada precisa de cerca de 71 px sem espaçamento
+     entre letras. A coluna de 66 px cortava o rótulo; com 74 px e sem
+     letter-spacing ele cabe, e o padding lateral menor devolve o espaço. */
   .lp-compare-head,
   .lp-compare-row {
-    grid-template-columns: minmax(0, 1fr) 66px 66px;
-    gap: 0.5rem;
-    padding-inline: 0.8rem;
+    grid-template-columns: minmax(0, 1fr) 74px 74px;
+    gap: 0.4rem;
+    padding-inline: 0.6rem;
+  }
+
+  .lp-compare-label {
+    letter-spacing: 0;
+  }
+
+  /* Alvo de toque de 40 px, o mesmo do botão do cabeçalho neste breakpoint.
+     Acima de 560 px, os botões mantêm o tamanho anterior. */
+  .lp-prompt-run,
+  .lp-presets button,
+  .lp-work-actions button {
+    min-height: 40px;
   }
 
   .lp-compare-value {
