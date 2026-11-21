@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { buildStructuredData } from '../lib/structuredData';
 import './LandingPage.css';
+import { CompareSection, FindingsSection } from './deferredSections';
+import { LazySection } from './components/LazySection';
 import { AboutSection } from './components/AboutSection';
-import { CompareSection } from './components/CompareSection';
 import { CtaSection } from './components/CtaSection';
 import { DomainSection } from './components/DomainSection';
 import { FaqSection } from './components/FaqSection';
-import { FindingsSection } from './components/FindingsSection';
 import { Footer } from './components/Footer';
 import { GoogleSection } from './components/GoogleSection';
 import { HeroAnalysisSection } from './components/HeroAnalysisSection';
@@ -15,6 +15,8 @@ import { ServicesSection } from './components/ServicesSection';
 import { SiteHeader } from './components/SiteHeader';
 import { TermsSection } from './components/TermsSection';
 import { WorkSection } from './components/WorkSection';
+import { SecoesVisiveisContext } from './SecoesVisiveisContext';
+import { secoesVisiveis } from './secoesDaPagina';
 import { useAnaliseDaLanding } from './useAnaliseDaLanding';
 import { useBriefing } from './useBriefing';
 import { useHoraDoAparelho } from './useHoraDoAparelho';
@@ -41,6 +43,13 @@ export const LandingPage: React.FC = () => {
   } = useAnaliseDaLanding();
   const [briefing, setBriefing, escolherNecessidade] = useBriefing(result?.domain);
   const deviceTime = useHoraDoAparelho(mobile?.fetchedAt);
+  const visiveis = useMemo(
+    () => secoesVisiveis({ temComparacao: Boolean(mobile), temAchados: Boolean(result) }),
+    [mobile, result],
+  );
+  // A seção do herói vem antes das seções numeradas em <main>; quando o total
+  // é ímpar, a última seção fica com --bg e o rodapé alterna para --bg-alt.
+  const rodapeAlternado = (1 + visiveis.length) % 2 === 1;
 
   return (
     <div className="lp">
@@ -55,72 +64,78 @@ export const LandingPage: React.FC = () => {
       {/* O conteúdo fica em <main> para que leitores de tela e o "pular para o
           conteúdo" dos navegadores tenham um destino, e para que o buscador
           saiba separar o corpo da página da navegação repetida. */}
-      <main className="lp-main">
-        {/* ---------- análise: terminal + aparelho ---------- */}
-        <HeroAnalysisSection
-          phase={phase}
-          steps={steps}
-          result={result}
-          error={error}
-          domain={domain}
-          input={input}
-          onInputChange={setInput}
-          onSubmit={submit}
-          onAnalyze={runFor}
-          inputRef={inputRef}
-          logRef={logRef}
-          mobile={mobile}
-          deviceTime={deviceTime}
-          counts={counts}
-        />
-
-        {/* ---------- celular contra computador ---------- */}
-        {mobile && (
-          <CompareSection
-            mobile={mobile}
-            desktop={desktop}
-            desktopState={desktopState}
+      <SecoesVisiveisContext.Provider value={visiveis}>
+        <main className="lp-main">
+          {/* ---------- análise: terminal + aparelho ---------- */}
+          <HeroAnalysisSection
+            phase={phase}
+            steps={steps}
             result={result}
+            error={error}
+            domain={domain}
+            input={input}
+            onInputChange={setInput}
+            onSubmit={submit}
+            onAnalyze={runFor}
+            inputRef={inputRef}
+            logRef={logRef}
+            mobile={mobile}
+            deviceTime={deviceTime}
+            counts={counts}
           />
-        )}
 
-        {/* ---------- achados ---------- */}
-        {result && (
-          <FindingsSection result={result} grouped={grouped} domain={domain} />
-        )}
+          {/* ---------- celular contra computador ---------- */}
+          {mobile && (
+            <LazySection>
+              <CompareSection
+                mobile={mobile}
+                desktop={desktop}
+                desktopState={desktopState}
+                result={result}
+              />
+            </LazySection>
+          )}
 
-        {/* ---------- o que eu resolvo ---------- */}
-        <ServicesSection onQueroResolver={escolherNecessidade} />
+          {/* ---------- achados ---------- */}
+          {result && (
+            <LazySection>
+              <FindingsSection result={result} grouped={grouped} domain={domain} />
+            </LazySection>
+          )}
 
-        {/* ---------- google ---------- */}
-        <GoogleSection domainToConsult={result?.domain ?? domain ?? 'pedrosatin.com'} />
+          {/* ---------- o que eu resolvo ---------- */}
+          <ServicesSection onQueroResolver={escolherNecessidade} />
 
-        {/* ---------- domínio ---------- */}
-        <DomainSection
-          domain={result?.domain}
-          registration={result?.registration ?? null}
-        />
+          {/* ---------- google ---------- */}
+          <GoogleSection domainToConsult={result?.domain ?? domain ?? 'pedrosatin.com'} />
 
-        {/* ---------- como trabalho ---------- */}
-        <TermsSection />
+          {/* ---------- domínio ---------- */}
+          <DomainSection
+            domain={result?.domain}
+            registration={result?.registration ?? null}
+          />
 
-        {/* ---------- quem faz ---------- */}
-        <AboutSection />
+          {/* ---------- como trabalho ---------- */}
+          <TermsSection />
 
-        {/* ---------- trabalhos ---------- */}
-        <WorkSection onAnalyze={runFor} />
+          {/* ---------- quem faz ---------- */}
+          <AboutSection />
 
-        {/* ---------- atendimento em 3 passos ---------- */}
-        <RequestSection briefing={briefing} onChange={setBriefing} result={result} />
+          {/* ---------- trabalhos ---------- */}
+          <WorkSection onAnalyze={runFor} />
 
-        {/* ---------- perguntas ---------- */}
-        <FaqSection />
+          {/* ---------- atendimento em 3 passos ---------- */}
+          <RequestSection briefing={briefing} onChange={setBriefing} result={result} />
 
-        {/* ---------- fechamento ---------- */}
-        <CtaSection result={result} domain={domain} />
-      </main>
+          {/* ---------- perguntas ---------- */}
+          <FaqSection />
 
-      <Footer />
+          {/* ---------- fechamento ---------- */}
+          <CtaSection result={result} domain={domain} />
+        </main>
+      </SecoesVisiveisContext.Provider>
+
+      <Footer fundoAlternado={rodapeAlternado} />
 
       {/* Dados estruturados. Ficam no corpo, junto do texto que descrevem, e
           por isso saem no HTML pré-renderizado. `application/ld+json` não é

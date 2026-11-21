@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Briefing } from '../lib/message';
-import { ID_CAMPO_NOME } from './components/RequestSection';
+import { ID_CAMPO_NOME } from './fieldIds';
 
 const BRIEFING_VAZIO: Briefing = {
   name: '',

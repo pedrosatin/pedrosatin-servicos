@@ -1,14 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Mock } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildSecurityFindings } from './security';
-import type { AuditResult, Finding } from '../types';
+import type { AuditResult } from '../types';
 
 describe('buildSecurityFindings', () => {
-  let pushMock: Mock<(finding: Finding) => void>;
-
-  beforeEach(() => {
-    pushMock = vi.fn();
-  });
 
   describe('HTTPS and Redirects', () => {
     it('pushes https-ausente when servedOverHttps is false', () => {
@@ -21,9 +15,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'https-ausente',
         area: 'seguranca',
         severity: 'critical'
@@ -41,9 +35,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'http-sem-redirect',
         area: 'seguranca',
         severity: 'warning'
@@ -62,9 +56,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'https-ok',
         area: 'seguranca',
         severity: 'good'
@@ -84,9 +78,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-hsts',
         area: 'seguranca',
         severity: 'info'
@@ -105,9 +99,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'sem-hsts'
       }));
     });
@@ -126,9 +120,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'x-powered-by',
         area: 'seguranca',
         severity: 'info'
@@ -149,9 +143,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-compressao',
         area: 'desempenho',
         severity: 'warning'
@@ -170,9 +164,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'sem-compressao'
       }));
     });
@@ -189,9 +183,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'sem-compressao'
       }));
     });
@@ -209,9 +203,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'sem-cache',
         area: 'desempenho',
         severity: 'info'
@@ -234,9 +228,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).toContainEqual(expect.objectContaining({
         id: 'redirects-encadeados',
         area: 'desempenho',
         severity: 'warning'
@@ -256,9 +250,9 @@ describe('buildSecurityFindings', () => {
         }
       } as unknown as AuditResult;
 
-      buildSecurityFindings(result, pushMock);
+      const findings = buildSecurityFindings(result);
 
-      expect(pushMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      expect(findings).not.toContainEqual(expect.objectContaining({
         id: 'redirects-encadeados'
       }));
     });

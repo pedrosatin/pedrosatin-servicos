@@ -1,5 +1,6 @@
 import React from 'react';
 import { SERVICES } from '../../lib/services';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 interface ServicesSectionProps {
   /** Leva ao formulário de atendimento com a necessidade do card marcada. */
@@ -9,6 +10,7 @@ interface ServicesSectionProps {
 export const ServicesSection: React.FC<ServicesSectionProps> = ({ onQueroResolver }) => (
   <section className="lp-services" id="resolvo">
     <div className="lp-wrap">
+      <RotuloDaSecao id="resolvo" />
       <h2 className="lp-h2">O que eu resolvo</h2>
       <p className="lp-h2-sub">
         Problemas reais que destravam o lançamento do seu projeto. A auditoria no topo mede o impacto de cada um.

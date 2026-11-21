@@ -1,10 +1,12 @@
 import React from 'react';
 import { PROFILE } from '../../lib/config';
 import { FactList } from './FactList';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 export const AboutSection: React.FC = () => (
   <section className="lp-about" id="sobre">
     <div className="lp-wrap">
+      <RotuloDaSecao id="sobre" />
       <h2 className="lp-h2">Quem faz o trabalho</h2>
       <p className="lp-h2-sub">
         Você fala diretamente com quem programa e resolve, sem intermediários ou agências.

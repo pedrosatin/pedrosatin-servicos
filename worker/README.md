@@ -92,11 +92,13 @@ desenvolvimento.
 - Servidor Node local (`npm run worker:dev` na raiz): lê `PSI_KEY` do ambiente
   e escuta só em 127.0.0.1.
 
-A chave antiga (`VITE_PSI_KEY`) foi publicada no pacote do navegador e deve
-ser revogada no Google Cloud. O deploy não a usa mais nem como reserva. Gere
-uma chave nova, restrinja-a à PageSpeed Insights API, defina cota no console,
-cadastre-a como `PSI_KEY` e revogue a antiga. Depois apague `VITE_PSI_KEY` dos
-secrets do GitHub e das variáveis do Pages.
+Desde 20/11/2026 a produção usa uma chave criada no projeto do Google Cloud
+do operador, restrita só à PageSpeed Insights API e gravada no secret
+`PSI_KEY` do repositório do GitHub e no Worker. Depois da troca, uma medição
+pelo endpoint `/pagespeed` respondeu 200 com resultado do Lighthouse.
+`VITE_PSI_KEY` continua fora do deploy. A origem da chave anterior não foi
+identificada, pois nenhum projeto visível à conta do operador lista uma chave
+da PSI, então a revogação dela segue pendente.
 
 O Worker guarda cada medição bem-sucedida por 10 minutos, por destino e
 estratégia, na memória do isolate. Repetir a mesma medição nesse intervalo não
@@ -116,6 +118,9 @@ de Addy Osmani, da equipe do Chrome no Google. As páginas
 publicam os números. O valor que vale para a chave do projeto aparece no Google Cloud
 Console, em **APIs e serviços** > **PageSpeed Insights API** > **Cotas**.
 
+A cota lida no console em 20/11/2026 para a chave em produção é de 25.000
+consultas por dia e 30 por minuto.
+
 Além do limite por cliente, o Worker limita as chamadas que saem para o
 Google. Os valores ficam em `PAGESPEED_UPSTREAM_LIMITS`, em `src/index.ts`:
 
@@ -125,10 +130,19 @@ Google. Os valores ficam em `PAGESPEED_UPSTREAM_LIMITS`, em `src/index.ts`:
 | Por isolate | 60 por minuto | 4 isolates × 60 = 240, a janela curta do Google |
 | Por isolate | 250 por hora | 4 isolates × 250 × 24 h = 24.000, abaixo das 25.000 diárias |
 
-A conta supõe até quatro isolates recebendo medições ao mesmo tempo, porque o
-público do site está no Brasil e passa por poucos data centers da Cloudflare. Com mais
-isolates, o teto real cresce na mesma proporção, e a regra do WAF e o alerta de
-cota no Google Cloud ficam como as proteções seguintes.
+A tabela e os tetos do código continuam como estão, pois a conta foi montada
+sobre a cota padrão de 240/min. Com a cota efetiva de 30/min da chave atual, o
+teto de 60 por minuto por isolate e a conta "4 × 60 = 240" ficam acima do que
+o Google concede. Nesse caso o Google devolve 429 antes de qualquer teto do
+Worker, e `pageSpeedUpstreamError`, em `src/index.ts`, repassa esse status ao
+visitante com o corpo `{"error":"PageSpeed indisponível."}`. Ajustar `PAGESPEED_UPSTREAM_LIMITS`
+ou pedir aumento de cota no Google Cloud fica como decisão pendente.
+
+A conta da tabela ainda supõe até quatro isolates recebendo medições ao mesmo
+tempo, porque o público do site está no Brasil e passa por poucos data centers
+da Cloudflare. Com mais isolates, o teto real cresce na mesma proporção, e a
+regra do WAF e o alerta de cota no Google Cloud ficam como as proteções
+seguintes.
 
 O teto por bloco fecha o caminho do security audit. Antes, 32 /64 de um mesmo
 /56, cada um com 30 medições por minuto e query única para escapar do cache,
@@ -138,8 +152,10 @@ Os tetos são aproximações, com dois limites conhecidos:
 
 - As janelas são fixas, como as do limite por cliente. Na virada do minuto, um
   isolate pode soltar até 60 chamadas no fim de uma janela e mais 60 no começo
-  da seguinte, então quatro isolates em rajada passam das 400 a cada 100
-  segundos. Nesse caso o Google devolve 429 e o visitante recebe a mesma
+  da seguinte, então quatro isolates em rajada passariam das 400 a cada 100
+  segundos da cota padrão. Com a cota de 30 por minuto da chave atual, um
+  único isolate já passa do limite do Google antes disso. Nos dois casos o
+  Google devolve 429 e o visitante recebe a mesma
   resposta de indisponível, sem custo extra na chave.
 - O teto do isolate é dividido entre todos os blocos. Dois blocos esgotam o
   minuto, e um bloco esgota a hora em cerca de 9 minutos. Enquanto isso durar,
@@ -247,7 +263,12 @@ Esse limite é por isolate: cada data center e cada isolate da Cloudflare
 contam à parte, então o limite efetivo fica acima do nominal. Origens HTTP
 podem ser forjadas fora do navegador. A proteção forte é uma regra de Rate
 Limiting no WAF da Cloudflare, que conta em toda a borda antes de o Worker
-rodar:
+rodar. Desde 20/11/2026 a regra está ativa na zona `pedrosatin.com`, com a
+expressão `(http.host eq "servicos-api.pedrosatin.com")`, característica IP,
+20 requisições a cada 10 segundos e ação Block por 10 segundos. É a única
+regra de rate limiting que o plano Free permite (contador 1/1). Não houve
+teste de saturação em produção. Para reverter, desative a regra no painel.
+Os passos abaixo servem para recriá-la:
 
 1. No painel da Cloudflare, abra a zona `pedrosatin.com`.
 2. Vá em **Security** > **WAF** > **Rate limiting rules** (no painel novo,
@@ -264,5 +285,11 @@ rodar:
 7. Em **Then take action**, escolha **Block** com duração de 10 segundos e
    salve com **Deploy**.
 
-A regra não substitui a cota no Google Cloud. Defina um alerta de cota da
-PageSpeed Insights API no console do Google.
+A regra não substitui a cota no Google Cloud. No projeto do Google Cloud do
+operador já existe um alerta no Cloud Monitoring: dispara com mais de 24
+consultas à PageSpeed Insights numa janela de 60 segundos (80% da cota de
+30/min), sobre a métrica de uso de cota
+`serviceruntime.googleapis.com/quota/rate/net_usage` filtrada pelo serviço
+`pagespeedonline.googleapis.com`, e avisa por e-mail o dono do projeto. O
+alerta não bloqueia o uso e não cobre o teto diário. O disparo e a entrega
+do e-mail não foram testados.

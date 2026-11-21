@@ -6,6 +6,9 @@
   --bg: #0f172a;
   --bg-raised: #1a2333;
   --bg-sunken: #0a1120;
+  /* Segundo tom escuro para alternar seções vizinhas com separação perceptível
+     sem perder a identidade de terminal nem derrubar o contraste das fontes. */
+  --bg-alt: #070c17;
   --bg-panel: #16203033;
   --line: #253044;
   --line-strong: #33415a;
@@ -995,7 +998,21 @@
   flex-wrap: wrap;
 }
 
-/* ---------- títulos de seção ---------- */
+/* ---------- títulos de seção e ritmo visual ---------- */
+
+.lp-main > section:nth-child(odd) {
+  background: var(--bg);
+}
+
+.lp-main > section:nth-child(even) {
+  background: var(--bg-alt);
+}
+
+.lp-section-label {
+  text-transform: none;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.55rem;
+}
 
 .lp-h2 {
   font-size: clamp(1.4rem, 2.6vw, 1.85rem);
@@ -1014,7 +1031,6 @@
 .lp-compare {
   padding-block: 3.2rem;
   border-bottom: 1px solid var(--line);
-  background: var(--bg-sunken);
 }
 
 .lp-compare-grid {
@@ -1362,7 +1378,6 @@
 .lp-google {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
-  background: var(--bg-sunken);
 }
 
 .lp-steps-flow {
@@ -1587,7 +1602,6 @@
 .lp-terms {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
-  background: var(--bg-sunken);
 }
 
 .lp-terms-grid {
@@ -1789,7 +1803,6 @@
 .lp-request {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
-  background: var(--bg-sunken);
 }
 
 .lp-request-grid {
@@ -2146,7 +2159,6 @@
 .lp-cta {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
-  background: var(--bg-sunken);
 }
 
 .lp-cta-inner {
@@ -2188,6 +2200,13 @@
 .lp-footer {
   padding-block: 2.2rem;
   font-size: 0.8rem;
+  background: var(--bg);
+}
+
+/* Classe calculada pela contagem de seções visíveis em vez de `:has()`,
+   que só entrou no Chrome 105 e no Safari 15.4, acima do alvo do Vite. */
+.lp-footer.is-alt {
+  background: var(--bg-alt);
 }
 
 .lp-footer-inner {
@@ -2727,5 +2746,71 @@
     padding-top: 0.65rem;
     border-top: 1px solid var(--line);
     font-size: 0.82rem;
+  }
+}
+
+/* ---------- página 404 ---------- */
+
+.lp-not-found {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-404 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-block: 4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.lp-404-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.lp-404-terminal {
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 560px;
+}
+
+.lp-404-status {
+  color: var(--rust);
+}
+
+.lp-404-body {
+  min-height: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lp-404-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  color: var(--ink-dim);
+}
+
+.lp-404-actions {
+  margin-top: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  .lp-404 {
+    padding-block: 3rem;
+  }
+
+  .lp-404-actions {
+    width: 100%;
+  }
+
+  .lp-404-actions .lp-btn {
+    width: 100%;
   }
 }

@@ -1,5 +1,5 @@
 import type { AuditResult, Finding, ContentReport, HtmlReport } from "../types";
-import { kb } from "./utils";
+import { formatBytes } from "../format";
 
 /** Teto de leitura do HTML no Worker. Acima disso o tamanho real é desconhecido. */
 const LIMITE_LEITURA_HTML = 3_000_000;
@@ -10,10 +10,11 @@ const NOINDEX_ACTION_MESSAGE =
 const checkRobots = (
   content: ContentReport | null,
   html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
+): Finding[] => {
+  const out: Finding[] = [];
+
   if (content?.robots?.blocksAll) {
-    push({
+    out.push({
       id: "robots-bloqueia",
       area: "indexacao",
       severity: "critical",
@@ -23,7 +24,7 @@ const checkRobots = (
         "Enquanto essa linha existir, o Google é instruído a não rastrear nenhuma página. É a causa mais comum de site que some da busca.",
     });
   } else if (content?.robots?.found === false) {
-    push({
+    out.push({
       id: "robots-ausente",
       area: "indexacao",
       severity: "info",
@@ -35,7 +36,7 @@ const checkRobots = (
   }
 
   if (html?.robotsMeta && /noindex/i.test(html.robotsMeta)) {
-    push({
+    out.push({
       id: "meta-noindex",
       area: "indexacao",
       severity: "critical",
@@ -44,54 +45,54 @@ const checkRobots = (
       action: NOINDEX_ACTION_MESSAGE,
     });
   }
+
+  return out;
 };
 
 const checkSitemap = (
   content: ContentReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (content) {
-    if (!content.sitemap.found && content.sitemap.error) {
-      push({
-        id: "sitemap-nao-verificado",
-        area: "indexacao",
-        severity: "info",
-        title: "Não foi possível verificar o sitemap",
-        evidence: content.sitemap.error,
-        action:
-          "A consulta falhou antes de receber resposta. Vale rodar a análise de novo antes de concluir que o sitemap não existe.",
-      });
-    } else if (!content.sitemap.found) {
-      push({
-        id: "sitemap-ausente",
-        area: "indexacao",
-        severity: "warning",
-        title: "Nenhum sitemap.xml localizado",
-        evidence:
-          "Não há sitemap em /sitemap.xml nem referência dentro do robots.txt.",
-        action:
-          "O sitemap é como o Google descobre páginas que não estão linkadas na home. Sem ele, partes do site podem nunca ser rastreadas.",
-      });
-    } else {
-      push({
-        id: "sitemap-ok",
-        area: "indexacao",
-        severity: "good",
-        title: "Sitemap publicado",
-        evidence: `${content.sitemap.url} lista ${content.sitemap.urlCount ?? 0} ${content.sitemap.isIndex ? "sitemaps" : "endereços"}.`,
-        action: "Nada a fazer neste ponto.",
-      });
-    }
+): Finding | undefined => {
+  if (!content) return undefined;
+
+  if (!content.sitemap.found && content.sitemap.error) {
+    return {
+      id: "sitemap-nao-verificado",
+      area: "indexacao",
+      severity: "info",
+      title: "Não foi possível verificar o sitemap",
+      evidence: content.sitemap.error,
+      action:
+        "A consulta falhou antes de receber resposta. Vale rodar a análise de novo antes de concluir que o sitemap não existe.",
+    };
   }
+  if (!content.sitemap.found) {
+    return {
+      id: "sitemap-ausente",
+      area: "indexacao",
+      severity: "warning",
+      title: "Nenhum sitemap.xml localizado",
+      evidence:
+        "Não há sitemap em /sitemap.xml nem referência dentro do robots.txt.",
+      action:
+        "O sitemap é como o Google descobre páginas que não estão linkadas na home. Sem ele, partes do site podem nunca ser rastreadas.",
+    };
+  }
+  return {
+    id: "sitemap-ok",
+    area: "indexacao",
+    severity: "good",
+    title: "Sitemap publicado",
+    evidence: `${content.sitemap.url} lista ${content.sitemap.urlCount ?? 0} ${content.sitemap.isIndex ? "sitemaps" : "endereços"}.`,
+    action: "Nada a fazer neste ponto.",
+  };
 };
 
-const checkMetaTags = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkMetaTags = (html: HtmlReport | null): Finding[] => {
+  if (!html) return [];
+  const out: Finding[] = [];
+
   if (!html.title) {
-    push({
+    out.push({
       id: "title-ausente",
       area: "indexacao",
       severity: "critical",
@@ -101,7 +102,7 @@ const checkMetaTags = (
         "O título é a linha azul clicável no Google. Sem ele, o buscador inventa um texto a partir da página.",
     });
   } else if (html.titleLength > 65) {
-    push({
+    out.push({
       id: "title-longo",
       area: "indexacao",
       severity: "warning",
@@ -111,7 +112,7 @@ const checkMetaTags = (
         "Acima de aproximadamente 60 caracteres o Google corta o texto no meio.",
     });
   } else if (html.titleLength < 20) {
-    push({
+    out.push({
       id: "title-curto",
       area: "indexacao",
       severity: "warning",
@@ -123,7 +124,7 @@ const checkMetaTags = (
   }
 
   if (!html.metaDescription) {
-    push({
+    out.push({
       id: "description-ausente",
       area: "indexacao",
       severity: "warning",
@@ -133,7 +134,7 @@ const checkMetaTags = (
         "É o parágrafo exibido abaixo do título no Google. Sem ele o buscador recorta uma frase qualquer da página.",
     });
   } else if (html.metaDescriptionLength > 165) {
-    push({
+    out.push({
       id: "description-longa",
       area: "indexacao",
       severity: "info",
@@ -144,7 +145,7 @@ const checkMetaTags = (
   }
 
   if (!html.canonical) {
-    push({
+    out.push({
       id: "canonical-ausente",
       area: "indexacao",
       severity: "warning",
@@ -156,7 +157,7 @@ const checkMetaTags = (
   }
 
   if (!html.lang) {
-    push({
+    out.push({
       id: "lang-ausente",
       area: "conteudo",
       severity: "info",
@@ -166,15 +167,16 @@ const checkMetaTags = (
         "Ajuda o Google a servir o site para buscas em português e orienta leitores de tela.",
     });
   }
+
+  return out;
 };
 
-const checkHeadingsAndContent = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkHeadingsAndContent = (html: HtmlReport | null): Finding[] => {
+  if (!html) return [];
+  const out: Finding[] = [];
+
   if (html.h1.length === 0) {
-    push({
+    out.push({
       id: "h1-ausente",
       area: "indexacao",
       severity: "warning",
@@ -184,7 +186,7 @@ const checkHeadingsAndContent = (
         "O H1 é o principal sinal de assunto da página. Em sites feitos por construtores visuais, é comum o texto virar apenas um <div> estilizado.",
     });
   } else if (html.h1.length > 1) {
-    push({
+    out.push({
       id: "h1-multiplo",
       area: "indexacao",
       severity: "info",
@@ -198,7 +200,7 @@ const checkHeadingsAndContent = (
   }
 
   if (html.wordCount < 200) {
-    push({
+    out.push({
       id: "conteudo-dependente-js",
       area: "conteudo",
       severity: html.wordCount < 60 ? "critical" : "warning",
@@ -208,15 +210,14 @@ const checkHeadingsAndContent = (
         "Se o conteúdo só aparece depois que o JavaScript roda, o Google precisa de uma segunda visita para enxergá-lo — e nem sempre ela acontece.",
     });
   }
+
+  return out;
 };
 
-const checkStructuredData = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkStructuredData = (html: HtmlReport | null): Finding | undefined => {
+  if (!html) return undefined;
   if (html.jsonLdTypes.length === 0) {
-    push({
+    return {
       id: "sem-dados-estruturados",
       area: "indexacao",
       severity: "info",
@@ -224,26 +225,22 @@ const checkStructuredData = (
       evidence: "Nenhum bloco JSON-LD na página.",
       action:
         "Dados estruturados alimentam o painel lateral do Google com endereço, telefone e horário de atendimento.",
-    });
-  } else {
-    push({
-      id: "dados-estruturados-ok",
-      area: "indexacao",
-      severity: "good",
-      title: "Dados estruturados presentes",
-      evidence: `Tipos declarados: ${html.jsonLdTypes.join(", ")}.`,
-      action: "Nada a fazer neste ponto.",
-    });
+    };
   }
+  return {
+    id: "dados-estruturados-ok",
+    area: "indexacao",
+    severity: "good",
+    title: "Dados estruturados presentes",
+    evidence: `Tipos declarados: ${html.jsonLdTypes.join(", ")}.`,
+    action: "Nada a fazer neste ponto.",
+  };
 };
 
-const checkSocial = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkSocial = (html: HtmlReport | null): Finding | undefined => {
+  if (!html) return undefined;
   if (!html.openGraph.title || !html.openGraph.image) {
-    push({
+    return {
       id: "og-ausente",
       area: "conteudo",
       severity: "warning",
@@ -251,17 +248,15 @@ const checkSocial = (
       evidence: `Open Graph incompleto: ${html.openGraph.title ? "título presente" : "sem título"}, ${html.openGraph.image ? "imagem presente" : "sem imagem"}.`,
       action:
         "Ao colar o endereço no WhatsApp ou no Instagram, aparece só a URL crua em vez de imagem e descrição.",
-    });
+    };
   }
+  return undefined;
 };
 
-const checkMobile = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkMobile = (html: HtmlReport | null): Finding | undefined => {
+  if (!html) return undefined;
   if (!html.viewport) {
-    push({
+    return {
       id: "viewport-ausente",
       area: "mobile",
       severity: "critical",
@@ -269,9 +264,10 @@ const checkMobile = (
       evidence: "Nenhuma meta viewport declarada.",
       action:
         "Sem essa linha o celular renderiza a página em largura de desktop e reduz tudo. O Google avalia o site pela versão móvel.",
-    });
-  } else if (/maximum-scale|user-scalable\s*=\s*no/i.test(html.viewport)) {
-    push({
+    };
+  }
+  if (/maximum-scale|user-scalable\s*=\s*no/i.test(html.viewport)) {
+    return {
       id: "zoom-bloqueado",
       area: "mobile",
       severity: "warning",
@@ -279,17 +275,17 @@ const checkMobile = (
       evidence: `viewport: "${html.viewport}".`,
       action:
         "Bloquear o zoom prejudica quem tem baixa visão e é apontado como falha de acessibilidade nas auditorias do Google.",
-    });
+    };
   }
+  return undefined;
 };
 
-const checkAssets = (
-  html: HtmlReport | null,
-  push: (finding: Finding) => void,
-): void => {
-  if (!html) return;
+const checkAssets = (html: HtmlReport | null): Finding[] => {
+  if (!html) return [];
+  const out: Finding[] = [];
+
   if (html.images.total > 0 && html.images.withoutAlt > 0) {
-    push({
+    out.push({
       id: "imagens-sem-alt",
       area: "conteudo",
       severity: "info",
@@ -301,7 +297,7 @@ const checkAssets = (
   }
 
   if (html.images.total > 0 && html.images.withoutDimensions > 0) {
-    push({
+    out.push({
       id: "imagens-sem-dimensao",
       area: "desempenho",
       severity: "warning",
@@ -313,7 +309,7 @@ const checkAssets = (
   }
 
   if (html.scripts.blocking > 0) {
-    push({
+    out.push({
       id: "scripts-bloqueantes",
       area: "desempenho",
       severity: html.scripts.blocking > 3 ? "warning" : "info",
@@ -325,31 +321,45 @@ const checkAssets = (
   }
 
   if (html.bytes > 500_000) {
-    push({
+    out.push({
       id: "html-pesado",
       area: "desempenho",
       severity: "warning",
       title: "HTML muito grande",
-      evidence: `O documento tem ${html.bytes >= LIMITE_LEITURA_HTML ? `mais de ${kb(LIMITE_LEITURA_HTML)}` : kb(html.bytes)} antes de imagens, scripts e estilos.`,
+      evidence: `O documento tem ${html.bytes >= LIMITE_LEITURA_HTML ? `mais de ${formatBytes(LIMITE_LEITURA_HTML)}` : formatBytes(html.bytes)} antes de imagens, scripts e estilos.`,
       action:
         "Documentos acima de 500 KB atrasam a primeira renderização em redes móveis.",
     });
   }
+
+  return out;
 };
 
-export const buildContentFindings = (
-  result: AuditResult,
-  push: (finding: Finding) => void,
-): void => {
+/** Devolve os achados de conteúdo e indexação. */
+export const buildContentFindings = (result: AuditResult): Finding[] => {
   const { content } = result;
   const html = content?.html ?? null;
 
-  checkRobots(content, html, push);
-  checkSitemap(content, push);
-  checkMetaTags(html, push);
-  checkHeadingsAndContent(html, push);
-  checkStructuredData(html, push);
-  checkSocial(html, push);
-  checkMobile(html, push);
-  checkAssets(html, push);
+  const out: Finding[] = [
+    ...checkRobots(content, html),
+  ];
+
+  const sitemap = checkSitemap(content);
+  if (sitemap) out.push(sitemap);
+
+  out.push(...checkMetaTags(html));
+  out.push(...checkHeadingsAndContent(html));
+
+  const structured = checkStructuredData(html);
+  if (structured) out.push(structured);
+
+  const social = checkSocial(html);
+  if (social) out.push(social);
+
+  const mobile = checkMobile(html);
+  if (mobile) out.push(mobile);
+
+  out.push(...checkAssets(html));
+
+  return out;
 };

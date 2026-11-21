@@ -1,100 +1,170 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildFindings, scoreFromFindings } from './findings';
 import type { AuditResult, Finding } from './types';
-import { buildSecurityFindings } from './findings/security';
-import { buildContentFindings } from './findings/content';
-import { buildPerformanceFindings } from './findings/performance';
-import { buildDomainFindings } from './findings/domain';
 
-vi.mock('./findings/security');
-vi.mock('./findings/content');
-vi.mock('./findings/performance');
-vi.mock('./findings/domain');
+/**
+ * Fixture com dados reais o bastante para gerar achados em segurança,
+ * conteúdo, desempenho e domínio, cobrindo as quatro severidades.
+ * Campos espelhados dos testes de área em src/lib/findings/*.test.ts.
+ */
+const resultadoMultiArea = (): AuditResult =>
+  ({
+    domain: 'example.com',
+    content: {
+      servedOverHttps: true,
+      httpRedirectsToHttps: false,
+      securityHeaders: { hsts: false },
+      cacheControl: 'max-age=3600',
+      compressed: true,
+      redirects: [],
+      robots: { blocksAll: true },
+      sitemap: { found: false },
+    },
+    pagespeed: {
+      strategy: 'mobile',
+      field: {
+        available: true,
+        origin: false,
+        lcp: { p75: 4500 },
+        cls: { p75: null },
+        inp: { p75: null },
+      },
+      lab: {
+        lcpMs: null,
+        serverResponseMs: null,
+        totalBytes: null,
+      },
+      scores: {
+        performance: null,
+        seo: null,
+        accessibility: null,
+      },
+    },
+    registration: {
+      found: true,
+      daysToExpire: 150,
+      expiresAt: '2023-06-01T12:00:00.000Z',
+      registeredAt: '2022-06-01T12:00:00.000Z',
+      dnssec: true,
+      source: 'registro.br',
+    },
+  }) as unknown as AuditResult;
+
+const resultadoVazio = (): AuditResult => ({} as unknown as AuditResult);
 
 describe('buildFindings', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('concatena builders reais, ordena por severidade e preserva a ordem estável', () => {
+    const findings = buildFindings(resultadoMultiArea());
+    const ids = findings.map((finding) => finding.id);
+    const severities = findings.map((finding) => finding.severity);
+
+    expect(ids).toEqual([
+      'robots-bloqueia',
+      'lcp-campo',
+      'http-sem-redirect',
+      'sitemap-ausente',
+      'sem-hsts',
+      'dominio-ok',
+    ]);
+    expect(severities).toEqual([
+      'critical',
+      'critical',
+      'warning',
+      'warning',
+      'info',
+      'good',
+    ]);
   });
 
-  it('should call all builders and return sorted findings', () => {
-    const dummyResult = {} as unknown as AuditResult;
-
-    vi.mocked(buildSecurityFindings).mockImplementation((_res, push) => {
-      push({ id: 'sec-1', severity: 'warning', area: 'seguranca', title: 't', action: 'a', evidence: 'e' });
-    });
-    vi.mocked(buildContentFindings).mockImplementation((_res, push) => {
-      push({ id: 'cont-1', severity: 'good', area: 'conteudo', title: 't', action: 'a', evidence: 'e' });
-      push({ id: 'cont-2', severity: 'info', area: 'conteudo', title: 't', action: 'a', evidence: 'e' });
-    });
-    vi.mocked(buildPerformanceFindings).mockImplementation((_res, push) => {
-      push({ id: 'perf-1', severity: 'critical', area: 'desempenho', title: 't', action: 'a', evidence: 'e' });
-    });
-    vi.mocked(buildDomainFindings).mockImplementation((_res, _push) => {
-       // Does not push anything for this test
-    });
-
-    const findings = buildFindings(dummyResult);
-
-    expect(buildSecurityFindings).toHaveBeenCalledWith(dummyResult, expect.any(Function));
-    expect(buildContentFindings).toHaveBeenCalledWith(dummyResult, expect.any(Function));
-    expect(buildPerformanceFindings).toHaveBeenCalledWith(dummyResult, expect.any(Function));
-    expect(buildDomainFindings).toHaveBeenCalledWith(dummyResult, expect.any(Function));
-
-    expect(findings).toHaveLength(4);
-    expect(findings[0]?.severity).toBe('critical'); // perf-1
-    expect(findings[1]?.severity).toBe('warning'); // sec-1
-    expect(findings[2]?.severity).toBe('info'); // cont-2
-    expect(findings[3]?.severity).toBe('good'); // cont-1
+  it('devolve lista vazia quando o resultado não tem dados coletados', () => {
+    expect(buildFindings(resultadoVazio())).toEqual([]);
   });
 });
 
 describe('scoreFromFindings', () => {
-  it('returns null if coverage is incomplete', () => {
-    expect(scoreFromFindings([], { complete: false, missing: [] })).toBeNull();
+  it('aplica as penalidades sobre os achados reais do orquestrador', () => {
+    const findings = buildFindings(resultadoMultiArea());
+    // 2 critical (15+15) + 2 warning (6+6) + 1 info (1.5) = 43.5 → 100 - 43.5 = 56.5 → 57
+    expect(scoreFromFindings(findings, { complete: true, missing: [] })).toEqual({
+      value: 57,
+      label: 'Precisa de atenção',
+    });
   });
 
-  it('returns score if coverage is missing or complete', () => {
-    expect(scoreFromFindings([])).toEqual({ value: 100, label: 'Bem resolvido' });
-    expect(scoreFromFindings([], { complete: true, missing: [] })).toEqual({ value: 100, label: 'Bem resolvido' });
+  it('devolve null quando a cobertura está incompleta', () => {
+    expect(scoreFromFindings([], { complete: false, missing: ['HTML'] })).toBeNull();
+    expect(
+      scoreFromFindings(buildFindings(resultadoMultiArea()), {
+        complete: false,
+        missing: ['medição do Google (PageSpeed)'],
+      }),
+    ).toBeNull();
   });
 
-  it('calculates score and labels correctly based on findings penalties', () => {
+  it('devolve nota 100 com lista vazia e cobertura completa ou omitida', () => {
+    expect(scoreFromFindings(buildFindings(resultadoVazio()))).toEqual({
+      value: 100,
+      label: 'Bem resolvido',
+    });
+    expect(scoreFromFindings([], { complete: true, missing: [] })).toEqual({
+      value: 100,
+      label: 'Bem resolvido',
+    });
+  });
+
+  it('calcula rótulos e limites pelas penalidades 15 / 6 / 1.5', () => {
     const createFinding = (severity: Finding['severity']): Finding => ({
-       id: 'x', area: 'conteudo', title: 'x', evidence: 'x', action: 'x', severity
+      id: 'x',
+      area: 'conteudo',
+      title: 'x',
+      evidence: 'x',
+      action: 'x',
+      severity,
     });
 
-    // 100 - 0 = 100 (Bem resolvido)
-    expect(scoreFromFindings([createFinding('good')])).toEqual({ value: 100, label: 'Bem resolvido' });
-
-    // 100 - 15 = 85 (Bem resolvido)
-    expect(scoreFromFindings([createFinding('critical')])).toEqual({ value: 85, label: 'Bem resolvido' });
-
-    // 100 - 15 - 6 - 1.5 = 77.5 -> round -> 78 (Ajustes pontuais)
-    expect(scoreFromFindings([
+    expect(scoreFromFindings([createFinding('good')])).toEqual({
+      value: 100,
+      label: 'Bem resolvido',
+    });
+    expect(scoreFromFindings([createFinding('critical')])).toEqual({
+      value: 85,
+      label: 'Bem resolvido',
+    });
+    expect(
+      scoreFromFindings([
         createFinding('critical'),
         createFinding('warning'),
-        createFinding('info')
-    ])).toEqual({ value: 78, label: 'Ajustes pontuais' });
-
-    // 100 - 15*4 = 40 (Precisa de atenção)
-    expect(scoreFromFindings([
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical'), createFinding('critical')
-    ])).toEqual({ value: 40, label: 'Precisa de atenção' });
-
-    // 100 - 15*5 = 25 (Situação crítica)
-    expect(scoreFromFindings([
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical')
-    ])).toEqual({ value: 25, label: 'Situação crítica' });
-
-    // Clamp to 0
-    expect(scoreFromFindings([
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical'), createFinding('critical'),
-        createFinding('critical'), createFinding('critical')
-    ])).toEqual({ value: 0, label: 'Situação crítica' });
+        createFinding('info'),
+      ]),
+    ).toEqual({ value: 78, label: 'Ajustes pontuais' });
+    expect(
+      scoreFromFindings([
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+      ]),
+    ).toEqual({ value: 40, label: 'Precisa de atenção' });
+    expect(
+      scoreFromFindings([
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+      ]),
+    ).toEqual({ value: 25, label: 'Situação crítica' });
+    expect(
+      scoreFromFindings([
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+        createFinding('critical'),
+      ]),
+    ).toEqual({ value: 0, label: 'Situação crítica' });
   });
 });

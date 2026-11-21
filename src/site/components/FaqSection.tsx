@@ -1,9 +1,11 @@
 import React from 'react';
 import { FAQ_ITEMS } from '../../lib/faq';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 export const FaqSection: React.FC = () => (
       <section className="lp-faq" id="faq">
         <div className="lp-wrap">
+          <RotuloDaSecao id="faq" />
           <h2 className="lp-h2">Perguntas frequentes</h2>
           <p className="lp-h2-sub">
             Respostas diretas para as dúvidas mais comuns.

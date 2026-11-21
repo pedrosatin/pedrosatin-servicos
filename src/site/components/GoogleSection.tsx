@@ -1,5 +1,6 @@
 import React from 'react';
 import { googleIndexUrl } from '../../lib/dominio';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 interface GoogleSectionProps {
   domainToConsult: string;
@@ -8,6 +9,7 @@ interface GoogleSectionProps {
 export const GoogleSection: React.FC<GoogleSectionProps> = ({ domainToConsult }) => (
       <section className="lp-google" id="google">
         <div className="lp-wrap">
+          <RotuloDaSecao id="google" />
           <h2 className="lp-h2">Por que seu projeto de IA não aparece no Google?</h2>
           <p className="lp-h2-sub">
             Aparecer na busca não é uma chave que se liga. Aplicações geradas por IA costumam entregar um HTML vazio: o usuário vê a tela, mas o robô lê uma página em branco.

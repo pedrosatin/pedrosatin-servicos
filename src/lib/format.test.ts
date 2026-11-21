@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatMs,
+  formatBytes,
   formatDate,
 } from './format';
 
@@ -13,15 +14,43 @@ describe('formatMs', () => {
   it('formats small ms values in ms', () => {
     expect(formatMs(0)).toBe('0 ms');
     expect(formatMs(50)).toBe('50 ms');
+    expect(formatMs(500)).toBe('500 ms');
     expect(formatMs(999)).toBe('999 ms');
     expect(formatMs(12.34)).toBe('12 ms'); // Math.round
+    expect(formatMs(999.4)).toBe('999 ms');
+    expect(formatMs(999.5)).toBe('1000 ms');
   });
 
   it('formats large values in seconds', () => {
     expect(formatMs(1000)).toBe('1.00 s');
+    expect(formatMs(1050)).toBe('1.05 s');
     expect(formatMs(1500)).toBe('1.50 s');
+    expect(formatMs(1555.5)).toBe('1.56 s');
+    expect(formatMs(2000)).toBe('2.00 s');
     expect(formatMs(2045)).toBe('2.04 s'); // (value / 1000).toFixed(2) -> 2.04 s
     expect(formatMs(2046)).toBe('2.05 s');
+  });
+});
+
+describe('formatBytes', () => {
+  it('returns "—" for null or undefined', () => {
+    expect(formatBytes(null)).toBe('—');
+    expect(formatBytes(undefined)).toBe('—');
+  });
+
+  it('formats values under 1 MiB as KB', () => {
+    expect(formatBytes(0)).toBe('0 KB');
+    expect(formatBytes(511)).toBe('0 KB'); // Math.round(511/1024) -> 0
+    expect(formatBytes(512)).toBe('1 KB'); // Math.round(512/1024) -> 1
+    expect(formatBytes(1024)).toBe('1 KB');
+    expect(formatBytes(2048)).toBe('2 KB');
+    expect(formatBytes(1_048_575)).toBe('1024 KB');
+  });
+
+  it('formats values >= 1 MiB as MB', () => {
+    expect(formatBytes(1_048_576)).toBe('1.0 MB');
+    expect(formatBytes(1_572_864)).toBe('1.5 MB'); // 1.5 * 1024 * 1024
+    expect(formatBytes(2_097_152)).toBe('2.0 MB'); // 2 * 1024 * 1024
   });
 });
 
@@ -33,10 +62,12 @@ describe('formatDate', () => {
 
   it('formats ISO strings to pt-BR locale', () => {
     const dateStr = '2023-10-05T14:30:00Z';
-    // The exact string depends on the runtime timezone, we can use regex or mock to be safe, but pt-BR typically yields DD/MM/YYYY.
-    // Given JSDOM, it usually defaults to UTC if no TZ is set, let's just check standard formatting.
-    // 2023-10-05
     const formatted = formatDate(dateStr);
     expect(formatted).toMatch(/05\/10\/2023/);
+  });
+
+  it('formats midday UTC ISO strings without flipping the calendar day', () => {
+    expect(formatDate('2023-10-15T12:00:00Z')).toBe('15/10/2023');
+    expect(formatDate('2024-02-29T12:00:00Z')).toBe('29/02/2024');
   });
 });

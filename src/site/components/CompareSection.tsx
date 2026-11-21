@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AuditResult, PageSpeedReport } from '../../lib/types';
+import { RotuloDaSecao } from './RotuloDaSecao';
 
 const tone = (value: number | null): string =>
   value === null ? 'none' : value >= 90 ? 'good' : value >= 50 ? 'mid' : 'bad';
@@ -19,6 +20,7 @@ export const CompareSection: React.FC<CompareSectionProps> = ({
 }) => (
   <section className="lp-compare">
     <div className="lp-wrap">
+      <RotuloDaSecao id="comparacao" />
       <h2 className="lp-h2">Celular e computador, lado a lado</h2>
       <p className="lp-h2-sub">
         A mesma página, medida pelo Google nas duas condições. É a coluna da esquerda que conta
