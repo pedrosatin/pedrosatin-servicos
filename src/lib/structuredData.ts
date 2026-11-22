@@ -1,19 +1,3 @@
-/**
- * Dados estruturados no formato JSON-LD.
- *
- * Um `@graph` único, com os nós ligados por `@id`, em vez de vários blocos
- * soltos: assim o Google entende que a página, o serviço e a pessoa são as
- * mesmas entidades citadas em cada lugar, e não três coisas independentes.
- *
- * O texto das perguntas e dos serviços vem dos mesmos módulos que a página
- * renderiza (`faq.ts`, `services.ts`). O `FAQPage` só é elegível a resultado
- * enriquecido se a resposta declarada aparecer na tela, e é por isso que a
- * resposta não pode ser um segundo texto escrito à mão aqui.
- *
- * O bloco é servido no corpo da página, o que é válido para o schema.org, e sai
- * junto com o HTML pré-renderizado. Ele não conta como script executável para a
- * CSP: `application/ld+json` é dado, não código.
- */
 import { CASE_STUDIES, CONTACT, PROFILE, SITE_URL } from './config';
 import { FAQ_ITEMS } from './faq';
 import { SERVICES } from './services';
@@ -107,12 +91,9 @@ export const buildStructuredData = (): string =>
         inLanguage: 'pt-BR',
         availableLanguage: 'pt-BR',
         telephone: `+${CONTACT.whatsapp}`,
-        // Atendimento remoto: o alcance é o país, e não há endereço a declarar.
         areaServed: { '@type': 'Country', name: 'Brasil' },
         provider: { '@id': PERSON_ID },
         founder: { '@id': PERSON_ID },
-        // Sem `aggregateRating` nem `review`: não existem avaliações públicas, e
-        // inventar uma é motivo de penalidade manual, além de ser mentira.
         hasOfferCatalog: buildServicesCatalog(PERSON_ID),
       },
       {

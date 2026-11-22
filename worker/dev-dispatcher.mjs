@@ -1,12 +1,3 @@
-/**
- * Dispatcher do undici para o servidor Node de desenvolvimento.
- *
- * Em produção, o runtime da Cloudflare impede saída para redes privadas. No
- * Node essa barreira não existe, e a resolução local do sistema operacional
- * pode divergir do DoH checado pelo Worker. Este módulo cria um conector
- * que resolve o destino pelo mesmo DoH público, recusa qualquer IP interno ou
- * reservado na hora da conexão e ignora o DNS local para alvos externos.
- */
 
 import { lookup as nodeDnsLookup } from 'node:dns';
 import { isIP } from 'node:net';

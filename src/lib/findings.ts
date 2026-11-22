@@ -1,10 +1,3 @@
-/**
- * Converte os dados brutos da auditoria em achados legíveis.
- *
- * Toda regra aqui cita a medição que a originou. Se um dado não foi coletado,
- * nenhum achado é gerado para ele — a ausência de informação nunca vira
- * afirmação.
- */
 
 import type { AuditCoverage, AuditResult, Finding } from './types';
 import { buildSecurityFindings } from './findings/security';
@@ -12,11 +5,6 @@ import { buildContentFindings } from './findings/content';
 import { buildPerformanceFindings } from './findings/performance';
 import { buildDomainFindings } from './findings/domain';
 
-/**
- * Concatena o retorno dos quatro builders de área e ordena por severidade
- * (critical → warning → info → good). Dentro da mesma severidade a ordem de
- * emissão dos builders permanece estável.
- */
 export const buildFindings = (result: AuditResult): Finding[] => {
   const out: Finding[] = [
     ...buildSecurityFindings(result),
@@ -29,11 +17,6 @@ export const buildFindings = (result: AuditResult): Finding[] => {
   return out.sort((a, b) => weight[a.severity] - weight[b.severity]);
 };
 
-/**
- * A nota só existe quando as fontes essenciais responderam. Se a leitura do
- * HTML ou a medição do Google falharem, não há base para pontuar: a ausência de
- * defeitos encontrados significaria apenas que nada foi olhado.
- */
 export const scoreFromFindings = (
   findings: Finding[],
   coverage?: AuditCoverage,

@@ -1,12 +1,3 @@
-/**
- * Injeta o HTML renderizado no build dentro de `dist/index.html`, gera
- * `dist/404.html` a partir da mesma casca, insere o preload das fontes com
- * hash e atualiza a data de publicação no `sitemap.xml`.
- *
- * Roda depois dos dois `vite build`: o do cliente, que produz o `index.html`
- * com os assets do cliente, e o de servidor, que produz o módulo capaz
- * de renderizar o componente em texto.
- */
 
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { inlineStyles } from './inlineStyles.mjs';
@@ -19,7 +10,6 @@ const notFoundPage = new URL('404.html', dist);
 const sitemap = new URL('sitemap.xml', dist);
 const ssrDir = new URL('../dist-ssr/', import.meta.url);
 
-// O preload pede as fontes antes que o navegador processe o CSS embutido.
 async function collectFontPreloads(distDir) {
   const assets = await readdir(new URL('assets/', distDir));
   const fonts = assets.filter((name) => name.endsWith('.woff2'));
@@ -60,14 +50,11 @@ function countWords(html) {
 
 const template = await inlineStyles(dist);
 
-// Se o marcador mudar, o build precisa falhar em vez de publicar a casca vazia.
 if (!template.includes(ROOT_MARKER)) {
   throw new Error(`Marcador ${ROOT_MARKER} não encontrado em dist/index.html.`);
 }
 
 const { tags: preloads, count: fontCount } = await collectFontPreloads(dist);
-// A substituição usa função porque, com string, `$&`, `$1` ou `$\`` seriam
-// expandidos pelo `replace` em vez de ir literais para o HTML.
 const shellHtml = template.replace('</head>', () => `  ${preloads}\n  </head>`);
 
 const body = render();

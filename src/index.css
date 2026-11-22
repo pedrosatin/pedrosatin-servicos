@@ -16,10 +16,6 @@
 
 html {
   scroll-behavior: smooth;
-  /* O cabeçalho da página é fixo. `useAlturaDoCabecalho` mede a altura dele e
-     a publica em --lp-header-h; o valor de reserva vale na renderização
-     estática e para o primeiro quadro, antes da medição. O padding vale para
-     hash na URL, links de âncora e scrollIntoView. */
   scroll-padding-top: var(--lp-header-h, 72px);
   color-scheme: dark;
 }
@@ -53,8 +49,6 @@ button {
   cursor: pointer;
 }
 
-/* Aviso exibido só quando o JavaScript está desligado (ver `index.html`). O
-   texto da página inteira sai pré-renderizado; só a análise depende de script. */
 .lp-noscript {
   padding: 1rem;
   text-align: center;

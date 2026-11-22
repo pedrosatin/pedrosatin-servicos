@@ -1,9 +1,3 @@
-/**
- * Notifica a API do IndexNow (Bing, Yandex, etc.) sobre atualizações na página.
- *
- * O protocolo IndexNow permite que buscadores indexem páginas instantaneamente
- * após uma alteração sem depender do ciclo convencional de rastreamento do bot.
- */
 
 const KEY = 'd7a5e84f691c49b5894b910e3090881b';
 const HOST = 'servicos.pedrosatin.com';

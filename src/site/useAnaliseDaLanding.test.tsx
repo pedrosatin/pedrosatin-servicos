@@ -60,10 +60,6 @@ const resultado = (domain: string, comPagespeed: boolean): AuditResult => ({
   findings: achados,
 });
 
-/**
- * Auditoria falsa controlada pelo teste: cada `start` fica pendente até o
- * teste chamar `terminar`, para dar para observar a fase `running`.
- */
 let pendentes: Array<() => void> = [];
 let comPagespeed = true;
 const iniciadas: string[] = [];
@@ -192,7 +188,6 @@ describe('useAnaliseDaLanding', () => {
     await waitFor(() => expect(result.current.phase).toBe('running'));
 
     act(() => result.current.runFor('segundo.com.br'));
-    // Um envio do formulário durante a análise também não começa outra.
     act(() => result.current.submit(evento));
 
     expect(result.current.input).toBe('segundo.com.br');

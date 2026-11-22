@@ -73,9 +73,6 @@ export const RequestSection: React.FC<RequestSectionProps> = ({
               <span className="lp-step-badge">2</span>
               <div className="lp-step-body">
                 <h3 id="atendimento-necessidade">Do que você precisa</h3>
-                {/* Escolha única com `aria-pressed`: cada opção continua
-                    sendo uma parada do Tab, como as demais da página, e o
-                    leitor de tela diz qual está marcada. */}
                 <div
                   className="lp-needs"
                   role="group"

@@ -26,10 +26,6 @@ type DnsTable = Record<string, DnsAnswer[] | Response>;
 
 const PUBLIC_A: DnsAnswer[] = [{ type: 1, data: '93.184.216.34' }];
 
-/**
- * Simula o DoH e o restante da rede. Hosts fora de `table` resolvem para um
- * IPv4 público; um `Response` na tabela substitui a resposta do DoH inteira.
- */
 const installFetch = (
   handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
   table: DnsTable = {},
@@ -240,13 +236,11 @@ describe('auditRobotsAndSitemap', () => {
     }
   });
 
-  // Regressão do #191: sitemap declarado no robots.txt apontando para a rede interna.
   it('rejects internal IP and host sitemap candidates from robots.txt', async () => {
     const mock = installFetch((url) => url.endsWith('/robots.txt')
       ? new Response('User-agent: *\nAllow: /\nSitemap: http://169.254.169.254/latest/meta-data/\nSitemap: http://10.0.0.1/sitemap.xml')
       : new Response('not found', { status: 404 }));
     const result = await auditRobotsAndSitemap('https://example.com');
-    // Fora do host do site: não é buscado e o sitemap sai como não verificado.
     expect(result.sitemap).toMatchObject({ found: false, url: null, urlCount: null, isIndex: false });
     expect(result.sitemap.error).toMatch(/outro domínio/);
     expect(siteCalls(mock).filter((url) => /169\.254|10\.0\.0\.1/.test(url))).toEqual([]);
@@ -461,7 +455,6 @@ describe('audit handler', () => {
   });
 });
 
-/** Texto de uma seção do wrangler.toml; `''` devolve o ambiente de topo, antes da primeira seção. */
 const tomlSection = (name: string): string => {
   if (name === '') return wranglerToml.split(/^\[/m)[0] ?? '';
   const escaped = name.replace(/[.[\]]/g, '\\$&');
@@ -510,7 +503,6 @@ describe('host allowlist', () => {
         expect(response.headers.get('access-control-allow-origin')).toBeNull();
       }
     }
-    // OPTIONS também é barrado: o preflight não confirma que o Worker existe ali.
     const preflight = new Request('https://pedrosatin-audit.example.workers.dev/audit', { method: 'OPTIONS' });
     expect((await worker.fetch(preflight, production)).status).toBe(404);
     expect(rateLimitCache.size).toBe(0);
@@ -645,8 +637,6 @@ describe('PageSpeed upstream caps', () => {
   const installPsi = () => installFetch(() => new Response('{"lighthouseResult":{}}', { headers: { 'content-type': 'application/json' } }));
 
   it('keeps 32 /64s of one /56 within one upstream budget', async () => {
-    // Fixture do security audit com 32 /64 de 2001:db8:aa:100::/56 e 31
-    // requisições cada, usando query única para escapar do cache. Antes do teto, 960 chamadas.
     const mock = installPsi();
     const responses: Response[] = [];
     for (let k = 0; k < 32; k++) {
@@ -696,24 +686,18 @@ describe('PageSpeed upstream caps', () => {
 
   it('does not spend any cap on cache hits', async () => {
     const mock = installPsi();
-    // Primeira medição de example.com sai para o Google; as 29 seguintes do
-    // mesmo cliente (limite por cliente de 30/min) e as de 40 outros /24 vêm
-    // do cache e não gastam teto upstream.
     await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {});
     for (let i = 0; i < 29; i++) expect((await worker.fetch(pagespeedFor('203.0.113.1', 'example.com'), {})).status).toBe(200);
     for (let i = 0; i < 40; i++) expect((await worker.fetch(pagespeedFor(`198.51.${i}.1`, 'example.com'), {})).status).toBe(200);
     expect(googleCalls(mock)).toBe(1);
-    // O bloco 203.0.113.0/24 ainda tem o restante do teto por bloco (já gastou 1).
     const block = await Promise.all(Array.from({ length: perBlockPerMinute }, (_, i) =>
       worker.fetch(pagespeedFor('203.0.113.2', `a${i}.example.com`), {})));
     expect(await tally(block)).toEqual({ 200: perBlockPerMinute - 1, 429: 1 });
-    // E o isolate, as que faltam para o teto por minuto.
     const remaining = perIsolatePerMinute - perBlockPerMinute;
     for (let i = 0; i < remaining; i++) {
       expect((await worker.fetch(pagespeedFor(`2001:db8:dd:${i.toString(16)}::1`, `d${i}.example.com`), {})).status).toBe(200);
     }
     expect(googleCalls(mock)).toBe(perIsolatePerMinute);
-    // Com o isolate esgotado, o Worker recusa a medição nova e continua respondendo pelo cache.
     expect((await worker.fetch(pagespeedFor('192.0.2.1', 'new.example.com'), {})).status).toBe(429);
     expect((await worker.fetch(pagespeedFor('192.0.2.1', 'example.com'), {})).status).toBe(200);
     expect(googleCalls(mock)).toBe(perIsolatePerMinute);
@@ -743,7 +727,6 @@ describe('pageSpeedUpstream', () => {
   };
 
   it('keeps the upstream caps inside the effective Google quota', () => {
-    // 4 isolates × perIsolatePerMinute ≤ 24 (80% da cota de 30/min e limiar do alerta).
     expect(perIsolatePerMinute * 4).toBeLessThanOrEqual(24);
     expect(perBlockPerMinute).toBeLessThan(perIsolatePerMinute);
     expect(perIsolatePerHour * 4 * 24).toBeLessThan(25_000);
@@ -807,17 +790,14 @@ describe('rate limiting', () => {
       expect((await worker.fetch(auditRequest(`203.0.113.${i + 1}`), {})).status).not.toBe(429);
     }
     expect(rateLimitCache.prefixSlots.get('audit:203.0.113.0/24')).toBe(RATE_LIMIT_PREFIX_SLOTS);
-    // Os endereços seguintes do mesmo /24 dividem 10 requisições.
     for (let i = 0; i < 10; i++) {
       expect((await worker.fetch(auditRequest(`203.0.113.${100 + i}`), {})).status).not.toBe(429);
     }
     expect((await worker.fetch(auditRequest('203.0.113.200'), {})).status).toBe(429);
     expect(rateLimitCache.get('audit:203.0.113.0/24')?.count).toBe(10);
     expect(rateLimitCache.has('audit:203.0.113.100')).toBe(false);
-    // Quem já tinha janela própria segue com o próprio orçamento, e outro /24 não é afetado.
     expect((await worker.fetch(auditRequest('203.0.113.1'), {})).status).not.toBe(429);
     expect((await worker.fetch(auditRequest('203.0.114.1'), {})).status).not.toBe(429);
-    // A rota /pagespeed tem vagas próprias para o mesmo /24.
     installFetch(() => Response.json({ lighthouseResult: { categories: {} } }));
     expect((await worker.fetch(pagespeedRequest('203.0.113.201'), {})).status).toBe(200);
   });
@@ -836,10 +816,6 @@ describe('rate limiting', () => {
       new Request('https://servicos-api.pedrosatin.com/audit?url=x', { headers: { 'cf-connecting-ip': ip } });
     const preAttack = await worker.fetch(auditRequest('203.0.113.7'), {});
     expect(preAttack.status).toBe(200);
-    // Cenário do security audit: cada requisição vem de um /64 diferente do
-    // mesmo /48, seguidas de mais 10. Metade não envia Origin: recebe 403
-    // enquanto há orçamento e 429 depois que o limitador o esgota. Nenhuma
-    // faz subrequest.
     for (let i = 0; i < RATE_LIMIT_MAX_ENTRIES + 10; i++) {
       const ip = `2001:db8:bbbb:${i.toString(16)}::1`;
       await worker.fetch(i % 2 === 0 ? noOrigin(ip) : auditRequest(ip), {});
@@ -854,8 +830,6 @@ describe('rate limiting', () => {
   it('keeps the table under its memory limit when many prefixes fill it', async () => {
     const expiresAt = Date.now() + 60_000;
     rateLimitCache.set('audit:198.51.100.9', { count: 10, expiresAt });
-    // Cada /48 abre todas as suas vagas até a tabela encher; as requisições
-    // seguintes passam por prefixos que ainda não têm contador.
     const total = RATE_LIMIT_MAX_ENTRIES + 3 * RATE_LIMIT_PREFIX_SLOTS;
     for (let i = 0; i < total; i++) {
       const ip = `2001:db8:${Math.floor(i / RATE_LIMIT_PREFIX_SLOTS).toString(16)}:${(i % RATE_LIMIT_PREFIX_SLOTS).toString(16)}::1`;
@@ -863,13 +837,11 @@ describe('rate limiting', () => {
       expect(rateLimitCache.size).toBeLessThanOrEqual(RATE_LIMIT_MAX_ENTRIES);
     }
     expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);
-    // Com a tabela cheia, o visitante novo divide só o contador do próprio /24.
     expect((await worker.fetch(auditRequest('203.0.113.50'), {})).status).toBe(200);
     expect((await worker.fetch(auditRequest('203.0.113.51'), {})).status).toBe(200);
     expect(rateLimitCache.get('audit:203.0.113.0/24')?.count).toBe(2);
     expect(rateLimitCache.has('audit:203.0.113.50')).toBe(false);
     expect(rateLimitCache.size).toBe(RATE_LIMIT_MAX_ENTRIES);
-    // A contagem de vagas acompanha as janelas que saíram da tabela.
     const slots = [...rateLimitCache.prefixSlots.values()].reduce((sum, n) => sum + n, 0);
     const clientWindows = [...rateLimitCache.values()].filter((record) => record.prefixKey).length;
     expect(slots).toBe(clientWindows);

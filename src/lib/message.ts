@@ -1,4 +1,3 @@
-/** Monta a mensagem de WhatsApp a partir do que a auditoria realmente encontrou. */
 
 import { buildWhatsAppUrl } from './config';
 import { normalizeDomain } from './dominio';
@@ -36,10 +35,6 @@ export interface Briefing {
   notes: string;
 }
 
-/**
- * Monta a mensagem do formulário de três passos. Se houver auditoria feita, os
- * achados vão junto, para que o orçamento comece com contexto técnico.
- */
 export const briefingWhatsAppUrl = (briefing: Briefing, result: AuditResult | null): string => {
   const lines: string[] = ['Olá Pedro, vim pela sua página de engenharia para projetos com IA.'];
 

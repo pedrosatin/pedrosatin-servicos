@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
-/** Faixa de largura em que o painel substitui o menu fixo de telas largas. */
 const CONSULTA_CELULAR = '(max-width: 900px)';
 
 const liberarRolagemDoCorpo = (): void => {
@@ -11,13 +10,6 @@ const travarRolagemDoCorpo = (): void => {
   document.body.style.overflow = 'hidden';
 };
 
-/**
- * Controla abertura, fechamento e foco do painel de navegação no celular.
- *
- * Enquanto o painel está aberto, a rolagem do `body` fica travada para evitar
- * que a página extensa role por baixo do fundo escurecido. `fechar()` libera a
- * rolagem antes de o navegador seguir a âncora do link clicado.
- */
 export const useMenuMovel = (cabecalhoRef: RefObject<HTMLElement | null>) => {
   const [aberto, setAberto] = useState(false);
   const botaoRef = useRef<HTMLButtonElement>(null);
@@ -42,9 +34,6 @@ export const useMenuMovel = (cabecalhoRef: RefObject<HTMLElement | null>) => {
       botaoRef.current?.focus();
     };
 
-    // Cliques e foco fora do cabeçalho fecham o painel. O foco entra aqui
-    // porque o Tab a partir do último link cairia em elementos que o painel
-    // cobre, com a rolagem ainda travada.
     const aoInteragirFora = (evento: Event): void => {
       const alvo = evento.target as Node | null;
       if (!alvo || cabecalhoRef.current?.contains(alvo)) return;

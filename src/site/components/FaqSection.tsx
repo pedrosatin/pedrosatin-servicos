@@ -11,11 +11,6 @@ export const FaqSection: React.FC = () => (
             Respostas diretas para as dúvidas mais comuns.
           </p>
           <div className="lp-faq-list">
-            {/* `<details>` em vez de estado do React por três razões: a resposta
-                fica sempre no HTML, e não só quando aberta, o que a torna
-                indexável e a mantém idêntica ao que os dados estruturados
-                declaram; o teclado e o leitor de tela funcionam sem código; e a
-                abertura funciona com o JavaScript desligado. */}
             {FAQ_ITEMS.map((item, index) => (
               <details
                 key={item.q}

@@ -9,11 +9,6 @@ interface AnuncioDaAuditoriaProps {
   result: AuditResult | null;
 }
 
-/**
- * Região lida pelo leitor de tela, invisível na tela. Ela sai vazia no HTML
- * pré-renderizado. O leitor só anuncia mudanças em uma região que já existia,
- * então montá-la junto com o texto faria o primeiro anúncio se perder.
- */
 export const AnuncioDaAuditoria: React.FC<AnuncioDaAuditoriaProps> = ({
   phase,
   domain,

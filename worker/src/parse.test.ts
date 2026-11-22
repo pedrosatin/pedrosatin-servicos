@@ -48,7 +48,6 @@ describe('worker parse', () => {
     expect(report.jsonLdTypes).toEqual(['Organization']);
   });
 
-
   it('recovers @type from completely invalid JSON-LD using fallback regex', () => {
     const html = `
       <script type="application/ld+json">
@@ -107,24 +106,18 @@ describe('worker parse', () => {
     expect(isSitemapIndex(urlsetXml)).toBe(false);
   });
   it('safely handles malicious attributes without causing ReDoS', () => {
-    // Attack vector: an attribute name with many unescaped regex special characters
-    // that without escaping would cause the RegExp engine to backtrack heavily or crash
     const maliciousAttrName = 'a.*b.*c.*d.*e.*f.*g.*h.*i.*j.*k.*l.*m.*n.*o.*p.*q.*r.*s.*t.*u.*v.*w.*x.*y.*z.*';
     const tag = `<img src="test.jpg" ${maliciousAttrName}="true">`;
 
-    // Should not hang/timeout and should return false because it searches for exact match
     const start = Date.now();
 
-    // Test the parsing function directly if possible, or parseHtml which uses it
     const html = `<!DOCTYPE html><html><body>${tag}</body></html>`;
     const report = parseHtml(html, 100);
 
-    expect(Date.now() - start).toBeLessThan(100); // Should be very fast
+    expect(Date.now() - start).toBeLessThan(100);
     expect(report.images.total).toBe(1);
   });
 
-  // O HTML vem do site auditado. Com as regex anteriores, 100 KB destes padrões
-  // custavam segundos de CPU e o tempo crescia com o quadrado do tamanho.
   describe('custo linear com HTML hostil', () => {
     const SIZE = 300_000;
     const hostile = (unit: string) => unit.repeat(Math.ceil(SIZE / unit.length)).slice(0, SIZE);
@@ -133,8 +126,6 @@ describe('worker parse', () => {
       '<script type="application/ld+json">', '<meta charset', '<<>']) {
       it(`processa 300 KB de ${JSON.stringify(unit)} em menos de 200 ms`, () => {
         const html = hostile(unit);
-        // Melhor de três, para que a carga da máquina de CI não derrube o teste.
-        // A versão quadrática levava segundos em cada rodada.
         let best = Infinity;
         for (let round = 0; round < 3; round++) {
           const start = performance.now();
@@ -178,7 +169,6 @@ describe('worker parse', () => {
   describe('JSON-LD aninhado', () => {
     const ldScript = (body: string) => `<script type="application/ld+json">${body}</script>`;
     const types = (body: string) => parseHtml(ldScript(body), body.length).jsonLdTypes;
-    // Cada nível é um objeto com `@type` e um `@graph` que contém o próximo.
     const nested = (levels: number) => {
       let body = '{"@type":"Fundo"}';
       for (let level = levels; level >= 1; level--) body = `{"@type":"N${level}","@graph":[${body}]}`;

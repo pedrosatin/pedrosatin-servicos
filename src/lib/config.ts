@@ -1,20 +1,15 @@
-/** Configuração central usada pela landing. */
 
 export const CONTACT = {
-  /** WhatsApp empresarial. */
   whatsapp: '554491658870',
   whatsappDisplay: '+55 44 9165-8870',
   name: 'Pedro Satin',
   handle: '@pedrosatin',
 };
 
-/** Endereço público da página, usado nas metatags e no sitemap. */
 export const SITE_URL = 'https://servicos.pedrosatin.com';
 
-/** Dados pessoais e variantes das fotos, limitadas à resolução da fonte. */
 export const PROFILE = {
   photo: '/imagens/pedro-satin-linkedin.webp',
-  /** Recorte fechado no rosto, para a miniatura em telas estreitas. */
   photoSquare: '/imagens/pedro-satin-linkedin-quadrado.webp',
   photoSmall: '/imagens/pedro-satin-linkedin-298.webp',
   photoSquareSmall: '/imagens/pedro-satin-linkedin-quadrado-168.webp',
@@ -25,12 +20,6 @@ export const PROFILE = {
   role: 'Engenheiro de software e professor',
 };
 
-/**
- * Sem `VITE_AUDIT_ENDPOINT` a leitura do HTML não tem para onde ir. O padrão
- * aponta para o servidor local em vez de um endereço publicado inventado: em
- * desenvolvimento funciona, e em produção mal configurada a falha aparece já
- * na primeira análise, em vez de virar um erro silencioso de rede.
- */
 export const AUDIT_ENDPOINT: string =
   import.meta.env.VITE_AUDIT_ENDPOINT ?? 'http://localhost:8787';
 
@@ -80,7 +69,6 @@ export const CASE_STUDIES: CaseStudy[] = [
   },
 ];
 
-/** Extensões .br mais comuns para aplicações, empresas e profissionais. */
 export interface DomainExtension {
   suffix: string;
   audience: string;

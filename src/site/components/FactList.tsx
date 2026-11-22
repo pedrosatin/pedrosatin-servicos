@@ -11,7 +11,6 @@ interface FactListProps {
   className?: string;
 }
 
-/** Lista de "fato": cada item é `<li><strong>Rótulo</strong><span>Texto</span></li>`. */
 export const FactList: React.FC<FactListProps> = ({ items, as = 'ul', className }) => {
   const List = as;
   return (

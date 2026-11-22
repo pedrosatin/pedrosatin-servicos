@@ -1,6 +1,5 @@
 import React from 'react';
 
-/** Barra de status do aparelho: hora à esquerda, ilha ao centro, ícones à direita. */
 export const DeviceStatusBar: React.FC<{ time: string }> = ({ time }) => (
   <div className="lp-device-statusbar" aria-hidden="true">
     <span className="lp-device-time">{time}</span>

@@ -1,10 +1,3 @@
-/**
- * Seções da página exibidas na navegação do cabeçalho.
- *
- * A barra fixa em telas largas e o painel do menu no celular usam esta mesma
- * lista para que os destinos, os rótulos e o destaque de orçamento fiquem
- * sempre iguais.
- */
 export interface SecaoDoMenu {
   id: string;
   label: string;

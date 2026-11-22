@@ -17,15 +17,6 @@ const irParaOResultado = (event: React.MouseEvent): void => {
   alvo?.focus({ preventScroll: true });
 };
 
-/**
- * Linha de fechamento exibida no fim do terminal quando a análise termina.
- *
- * Reaproveita `resumoDoVeredito` da região `role="status"` em
- * `AnuncioDaAuditoria`. Como a região de status já anuncia esse texto, o texto
- * visual recebe `aria-hidden="true"` para
- * evitar leitura duplicada. O link `ver resultado` segue na árvore de
- * acessibilidade para que teclado e leitor de tela saltem direto ao veredito.
- */
 export const ResumoDoTerminal: React.FC<ResumoDoTerminalProps> = ({ phase, result }) => {
   if (phase !== 'done' || !result) return null;
 

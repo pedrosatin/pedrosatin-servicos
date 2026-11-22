@@ -10,21 +10,11 @@ const BRIEFING_VAZIO: Briefing = {
   notes: '',
 };
 
-/**
- * Rola até o formulário e põe o foco no campo Nome. Como na análise, o foco
- * usa `preventScroll`. Sem essa opção, ele interrompe a rolagem suave e deixa
- * o campo no meio da tela, com o título do formulário fora de vista.
- */
 const irParaOFormulario = (): void => {
   document.getElementById('atendimento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById(ID_CAMPO_NOME)?.focus({ preventScroll: true });
 };
 
-/**
- * Briefing do formulário de atendimento. O site analisado preenche o campo do
- * site atual, para a pessoa não digitar duas vezes, sem sobrescrever o que ela
- * já escreveu ali.
- */
 export const useBriefing = (siteAnalisado: string | undefined) => {
   const [briefing, setBriefing] = useState<Briefing>(BRIEFING_VAZIO);
 
@@ -34,7 +24,6 @@ export const useBriefing = (siteAnalisado: string | undefined) => {
     }
   }, [siteAnalisado]);
 
-  /** Destino do link "Quero resolver isso" de cada card de serviço. */
   const escolherNecessidade = (need: string): void => {
     setBriefing((prev) => ({ ...prev, need }));
     irParaOFormulario();

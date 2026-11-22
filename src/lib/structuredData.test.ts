@@ -37,10 +37,8 @@ describe('buildStructuredData', () => {
   it('should correctly escape < characters to prevent XSS in JSON-LD', () => {
     const rawData = buildStructuredData();
 
-    // Check that the output does not contain any literal < characters
     expect(rawData).not.toContain('<');
 
-    // Check that the < character was properly escaped to \u003c
     expect(rawData).toContain('\\u003cscript>alert(1)\\u003c/script>');
   });
 });

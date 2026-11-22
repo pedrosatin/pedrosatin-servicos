@@ -1,10 +1,3 @@
-/**
- * Fontes de dados da auditoria.
- *
- * Todas as chamadas daqui atingem serviços que realmente respondem ao
- * navegador. Nada é simulado: se uma fonte falhar, a função lança e o
- * orquestrador marca a etapa como falha em vez de inventar um valor.
- */
 
 import { AUDIT_ENDPOINT } from './config';
 import { getApexDomain } from './dominio';
@@ -16,38 +9,19 @@ import type {
   PageSpeedReport,
 } from './types';
 
-/**
- * Transporte e endpoints HTTP das fontes.
- *
- * Em produção as `fetch*` omitem o argumento e usam
- * `defaultSourcesDeps` (DoH Google, Worker em `AUDIT_ENDPOINT`,
- * `globalThis.fetch`). Testes passam um fake de `fetch` e
- * endpoints locais sem alterar o transporte global. RDAP continua
- * derivado do domínio (`.br` → registro.br; demais → rdap.org).
- */
 export interface SourcesDeps {
   fetch: typeof fetch;
-  /** Base do Worker (`/audit`, `/pagespeed`). */
   auditEndpoint: string;
-  /** Endpoint DoH JSON (Google em produção). */
   dohEndpoint: string;
 }
 
 const DOH_ENDPOINT = 'https://dns.google/resolve';
 
-/** Defaults iguais ao comportamento atual de produção. */
 export const defaultSourcesDeps: SourcesDeps = {
-  // Lê `globalThis.fetch` a cada chamada para usar stubs de teste
-  // e qualquer substituição feita depois do carregamento do módulo.
-  // Só repassa os argumentos que o caller enviou (sem `undefined` extra).
   fetch: ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args)) as typeof fetch,
   auditEndpoint: AUDIT_ENDPOINT,
   dohEndpoint: DOH_ENDPOINT,
 };
-
-/* ------------------------------------------------------------------ *
- * DNS sobre HTTPS
- * ------------------------------------------------------------------ */
 
 interface DohAnswer {
   name: string;
@@ -163,7 +137,6 @@ const resolveApexDns = async (
       };
     }
   } catch {
-    // mantém dns original
   }
 
   return { activeDns: dns, targetDomain: domain };
@@ -204,15 +177,9 @@ export const fetchEmailAuth = async (
     mxProvider: identifyProvider(activeDns.mx),
     spf,
     dmarc,
-    // O grupo 1 existe sempre que a expressão casa, mas o tipo de `exec` não
-    // sabe disso; `?? null` evita a asserção não verificada.
     dmarcPolicy: (policyMatch?.[1]?.toLowerCase() as 'none' | 'quarantine' | 'reject') ?? null,
   };
 };
-
-/* ------------------------------------------------------------------ *
- * RDAP — dados oficiais de registro do domínio
- * ------------------------------------------------------------------ */
 
 interface RdapEvent {
   eventAction: string;
@@ -237,7 +204,6 @@ interface RdapDomain {
 const eventDate = (events: RdapEvent[] | undefined, action: string): string | null =>
   events?.find((e) => e.eventAction.toLowerCase() === action)?.eventDate ?? null;
 
-/** Extrai o nome legível ("fn") do vCard do registrador. */
 const vcardName = (entity: RdapEntity | undefined): string | null => {
   const array = entity?.vcardArray;
   if (!Array.isArray(array) || array.length < 2) return null;
@@ -313,11 +279,6 @@ export const fetchRegistration = async (
   }
 };
 
-/* ------------------------------------------------------------------ *
- * Conteúdo do site (via Worker)
- * ------------------------------------------------------------------ */
-
-/** Mensagem do limite por IP do Worker, separado do limite de uso do Google. */
 const MENSAGEM_LIMITE_DO_WORKER =
   'Muitas análises seguidas a partir da sua conexão. Aguarde um minuto e tente de novo.';
 
@@ -331,7 +292,6 @@ export const fetchContent = async (
   if (!res.ok) {
     if (res.status === 429) throw new Error(MENSAGEM_LIMITE_DO_WORKER);
     if (res.status === 400 || res.status === 403) {
-      // Worker detectou IP interno, localhost ou URL malformada.
       throw new Error('Domínio inválido ou inacessível.');
     }
     throw new Error(`O servidor de análise falhou (status ${res.status}).`);
@@ -340,10 +300,6 @@ export const fetchContent = async (
   if (report.error && !report.ok) throw new Error(report.error);
   return report;
 };
-
-/* ------------------------------------------------------------------ *
- * PageSpeed Insights — Lighthouse e dados de campo do CrUX
- * ------------------------------------------------------------------ */
 
 interface PsiAudit {
   numericValue?: number;
@@ -365,12 +321,10 @@ interface PsiLoadingExperience {
 
 interface PsiResponse {
   error?: { message: string; code: number };
-  /** `rate_limited` quando quem recusou foi o limitador do Worker, não o Google. */
   code?: string;
   lighthouseResult?: {
     categories?: Record<string, { score?: number | null }>;
     audits?: Record<string, PsiAudit>;
-    /** Captura da página inteira, em resolução maior que a de `final-screenshot`. */
     fullPageScreenshot?: {
       screenshot?: { data?: string; width?: number; height?: number };
     };
@@ -390,12 +344,6 @@ const readField = (experience: PsiLoadingExperience | undefined, key: string) =>
   category: toCategory(experience?.metrics?.[key]?.category),
 });
 
-/**
- * O Lighthouse devolve duas capturas. `final-screenshot` é o quadro final do
- * carregamento, gravado com compressão alta, e nele o texto do site fica
- * ilegível. `fullPageScreenshot` é a página inteira em resolução maior, então
- * ela vem primeiro e a outra fica como reserva.
- */
 const pickScreenshot = (
   data: PsiResponse,
 ): Pick<PageSpeedReport, 'screenshot' | 'screenshotSize'> => {
@@ -418,29 +366,21 @@ const pickScreenshot = (
 const PAGESPEED_TENTATIVAS = 3;
 const PAGESPEED_TIMEOUT_MS = 60_000;
 
-/** Códigos em que insistir não muda a resposta. */
 const isErroDefinitivo = (status: number): boolean =>
   status === 400 || status === 403 || status === 404;
 
 const esperar = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Espera antes da próxima tentativa: cresce a cada rodada e leva um sorteio.
- * O sorteio existe porque a medição de computador e a de celular saem juntas;
- * sem ele, as duas falhariam e voltariam a bater no Google no mesmo instante.
- */
 const esperaDaTentativa = (tentativa: number, foiLimiteDeUso: boolean): number => {
   const base = foiLimiteDeUso ? 5_000 : 1_000;
   return base * 2 ** (tentativa - 1) + (crypto.getRandomValues(new Uint32Array(1))[0]! / 4294967296) * 500;
 };
 
-/** Uma ida ao PageSpeed, com teto de tempo próprio. */
 const buscarPageSpeed = async (
   params: URLSearchParams,
   deps: SourcesDeps = defaultSourcesDeps,
 ): Promise<Response> => {
-  // Sem isto, uma resposta que nunca chega deixa a etapa pendurada para sempre.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PAGESPEED_TIMEOUT_MS);
   try {
@@ -484,8 +424,6 @@ const tentarBuscarPageSpeed = async (
       return { success: true, data, response };
     }
 
-    // O limite do Worker vale por um minuto inteiro: repetir em 5 ou 10 s só
-    // gastaria a mesma janela.
     if (response.status === 429 && data.code === 'rate_limited') {
       return {
         success: false,
@@ -512,22 +450,6 @@ const tentarBuscarPageSpeed = async (
   }
 };
 
-/**
- * O PageSpeed roda um Lighthouse de verdade no servidor do Google, e essa
- * máquina falha com alguma frequência: numa bateria de 24 chamadas seguidas,
- * 7 voltaram com erro — e todas as repetidas passaram na tentativa seguinte,
- * sem nenhuma mudança no alvo. É falha passageira, não problema do site.
- *
- * Daí a distinção abaixo. Repetir só ajuda quando o erro é do lado de lá:
- *
- *  - 500/502/503 e falha de rede: o caso comum, repetir resolve;
- *  - 429: é limite de uso. Repetir rápido piora, então a espera é maior;
- *  - 429 com `code: rate_limited`: é o limite por IP do Worker, que dura um
- *    minuto. Repetir dentro da mesma janela não adianta;
- *  - 400/403/404: a resposta não muda na segunda tentativa (endereço inválido,
- *    chave bloqueada). Repetir só faria o visitante esperar o dobro para
- *    receber o mesmo erro.
- */
 const buscarPageSpeedComRetentativas = async (
   params: URLSearchParams,
   deps: SourcesDeps = defaultSourcesDeps,
@@ -543,7 +465,6 @@ const buscarPageSpeedComRetentativas = async (
 
     ultimoErro = resultado.erro;
 
-    // Insistir aqui só atrasaria o mesmo erro.
     if (resultado.isDefinitivo) {
       throw ultimoErro;
     }
@@ -564,8 +485,6 @@ const mapearPageSpeedReport = (
   const categories = data.lighthouseResult?.categories ?? {};
   const numeric = (key: string): number | null => audits[key]?.numericValue ?? null;
 
-  // O campo (CrUX) da URL específica costuma faltar em sites pequenos;
-  // nesse caso o Google devolve os dados da origem inteira.
   const pageExperience = data.loadingExperience;
   const hasPageData = (pageExperience?.metrics && Object.keys(pageExperience.metrics).length > 0) ?? false;
   const experience = hasPageData ? pageExperience : data.originLoadingExperience;

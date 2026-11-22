@@ -1,7 +1,6 @@
 import type { AuditResult, Finding, ContentReport, HtmlReport } from "../types";
 import { formatBytes } from "../format";
 
-/** Teto de leitura do HTML no Worker. Acima disso o tamanho real é desconhecido. */
 const LIMITE_LEITURA_HTML = 3_000_000;
 
 const NOINDEX_ACTION_MESSAGE =
@@ -335,7 +334,6 @@ const checkAssets = (html: HtmlReport | null): Finding[] => {
   return out;
 };
 
-/** Devolve os achados de conteúdo e indexação. */
 export const buildContentFindings = (result: AuditResult): Finding[] => {
   const { content } = result;
   const html = content?.html ?? null;

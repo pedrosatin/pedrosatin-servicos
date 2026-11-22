@@ -8,17 +8,11 @@ import { preloadSecoesDaAnalise } from './deferredSections';
 
 export type DesktopState = 'idle' | 'loading' | 'failed';
 
-/**
- * Dispara a medição em computador, ou devolve `null` quando o domínio não é
- * válido e a medição não tem o que medir.
- */
 const medirComputador = (domain: string): Promise<PageSpeedReport> | null => {
   if (!isValidDomain(domain)) return null;
   const medicao = import('../lib/sources').then((modulo) =>
     modulo.fetchPageSpeed(domain, 'desktop'),
   );
-  // A promessa só é lida depois da auditoria. Sem isto, uma falha rápida
-  // vira "unhandled rejection" no console antes de chegarmos ao catch.
   medicao.catch(() => undefined);
   return medicao;
 };
@@ -27,23 +21,11 @@ const rolarAteAnalise = (): void => {
   document.getElementById('analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-/**
- * Leva o foco ao campo do domínio. Durante uma análise o campo fica
- * desabilitado e recusa o foco; aí o foco vai para o bloco da análise, para o
- * próximo Tab continuar dali e não do topo da página.
- */
 const focarCampo = (campo: HTMLInputElement | null): void => {
-  // Sem `preventScroll`, o foco interrompe a rolagem suave e deixa o campo no
-  // meio da tela, em vez de logo abaixo do cabeçalho.
   const alvo = campo && !campo.disabled ? campo : document.getElementById('analise');
   alvo?.focus({ preventScroll: true });
 };
 
-/**
- * Estado da análise da página: o campo do domínio, a auditoria, a medição em
- * computador que roda junto dela e a fila do domínio pedido por um card
- * enquanto outra análise ainda corre.
- */
 export const useAnaliseDaLanding = () => {
   const [input, setInput] = useState('');
   const [desktop, setDesktop] = useState<PageSpeedReport | null>(null);
@@ -73,11 +55,6 @@ export const useAnaliseDaLanding = () => {
     setDesktopState('idle');
     preloadSecoesDaAnalise();
 
-    // As duas medições são independentes e cada uma leva de 15 a 40 segundos.
-    // Encadeá-las custava a soma das duas ao visitante; disparadas juntas, a
-    // espera passa a ser a da mais demorada. O domínio já dá para normalizar
-    // aqui, então a de computador não precisa esperar a auditoria terminar
-    // para saber o que medir.
     const medicaoComputador = medirComputador(normalizeDomain(target));
     if (medicaoComputador) setDesktopState('loading');
 
@@ -85,7 +62,6 @@ export const useAnaliseDaLanding = () => {
 
     if (!medicaoComputador) return;
 
-    // A comparação com computador só faz sentido se a medição móvel funcionou.
     if (!audit?.pagespeed) {
       setDesktopState('idle');
       return;
@@ -116,7 +92,6 @@ export const useAnaliseDaLanding = () => {
     focarCampo(inputRef.current);
   };
 
-  /** Destino do link "Pular para a análise": rola e põe o foco no campo. */
   const pularParaAnalise = (event: React.MouseEvent): void => {
     event.preventDefault();
     rolarAteAnalise();

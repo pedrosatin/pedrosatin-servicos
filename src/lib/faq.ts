@@ -1,17 +1,7 @@
 import { PRAZO_DEPLOY } from './prazos';
 
-/**
- * As perguntas frequentes, em texto puro.
- *
- * Elas não vivem no componente por dois motivos. O primeiro é que a mesma lista
- * alimenta os dados estruturados de `FAQPage` (`structuredData.ts`): o Google
- * exige que a resposta declarada seja igual à visível, e duas cópias divergem
- * mais cedo ou mais tarde. O segundo é que resposta em texto pode ser lida por
- * quem indexa; resposta em JSX, não.
- */
 export interface FaqItem {
   q: string;
-  /** Um ou mais parágrafos. */
   a: string[];
 }
 

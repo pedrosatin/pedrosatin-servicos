@@ -2,11 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { buildFindings, scoreFromFindings } from './findings';
 import type { AuditResult, Finding } from './types';
 
-/**
- * Fixture com dados reais o bastante para gerar achados em segurança,
- * conteúdo, desempenho e domínio, cobrindo as quatro severidades.
- * Campos espelhados dos testes de área em src/lib/findings/*.test.ts.
- */
 const resultadoMultiArea = (): AuditResult =>
   ({
     domain: 'example.com',
@@ -84,7 +79,6 @@ describe('buildFindings', () => {
 describe('scoreFromFindings', () => {
   it('aplica as penalidades sobre os achados reais do orquestrador', () => {
     const findings = buildFindings(resultadoMultiArea());
-    // 2 critical (15+15) + 2 warning (6+6) + 1 info (1.5) = 43.5 → 100 - 43.5 = 56.5 → 57
     expect(scoreFromFindings(findings, { complete: true, missing: [] })).toEqual({
       value: 57,
       label: 'Precisa de atenção',

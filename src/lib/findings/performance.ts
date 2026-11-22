@@ -129,7 +129,6 @@ const checkPageWeight = (pagespeed: PageSpeedReport): Finding | undefined => {
   return undefined;
 };
 
-/** Devolve os achados de desempenho a partir do PageSpeed. */
 export const buildPerformanceFindings = (result: AuditResult): Finding[] => {
   const { pagespeed } = result;
   if (!pagespeed) return [];
