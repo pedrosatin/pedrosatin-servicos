@@ -1,12 +1,3 @@
-/**
- * Ordem e rótulo de terminal das seções que têm título `h2`.
- *
- * Os números sequenciais com dois dígitos nascem da posição entre as seções
- * visíveis na página, seguindo esta lista única para que uma reordenação não
- * obrigue a renumerar cada componente à mão. As seções condicionais da
- * auditoria ficam no topo da sequência e só entram na contagem quando há
- * resultado para exibir.
- */
 export const SECOES_DA_PAGINA = [
   { id: 'comparacao', palavra: 'comparação', condicional: true },
   { id: 'achados', palavra: 'achados', condicional: true },

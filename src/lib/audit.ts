@@ -1,10 +1,3 @@
-/**
- * Orquestrador da auditoria.
- *
- * Executa as fontes em paralelo quando possível e informa o progresso etapa a
- * etapa, o que permite à página exibir o andamento real da análise em vez de
- * uma barra de carregamento decorativa.
- */
 
 import { buildFindings, scoreFromFindings } from './findings';
 import {
@@ -63,7 +56,6 @@ export const createSteps = (domain: string): AuditStep[] => [
 export interface AuditOptions {
   onStep?: (step: AuditStep) => void;
   strategy?: 'mobile' | 'desktop';
-  /** O PageSpeed leva de 15 a 40 segundos; pode ser desligado em telas rápidas. */
   includePageSpeed?: boolean;
 }
 
@@ -185,8 +177,6 @@ export const runAudit = async (
       )
     : (onStep?.({ ...pagespeedStep, status: 'skipped' }), { value: null, error: null });
 
-  // Uma fonte que falha não pode passar por "nada encontrado". O PageSpeed
-  // desligado de propósito é outra coisa: reduz o alcance sem invalidá-lo.
   const missing: string[] = [];
   if (!dns) missing.push('resolução de DNS');
   if (contentOutcome.error) missing.push('leitura do HTML, robots.txt e sitemap');

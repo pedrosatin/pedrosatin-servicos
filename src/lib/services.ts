@@ -1,16 +1,3 @@
-/**
- * Os problemas que a seção "O que eu resolvo" lista.
- *
- * Ficam aqui, e não no JSX, porque a mesma lista descreve o catálogo de
- * serviços nos dados estruturados (`structuredData.ts`). Texto declarado ao
- * buscador que não corresponde ao texto exibido é justamente o que o Google
- * penaliza, e manter uma cópia só é a maneira de isso não acontecer.
- */
-/**
- * As necessidades que o formulário de atendimento oferece. Cada card de
- * serviço aponta para uma delas em `need`, e o botão marcado chega ao WhatsApp
- * com este mesmo texto. "Ainda não sei" fica por último.
- */
 export const NEEDS = {
   publicar: 'Fiz um projeto com IA e não sei como publicar',
   bugs: 'Meu projeto feito com IA está com bugs ou travou',
@@ -21,16 +8,12 @@ export const NEEDS = {
   naoSei: 'Ainda não sei, quero uma avaliação técnica',
 } as const;
 
-/** Ordem em que o formulário lista as necessidades. */
 export const NEED_OPTIONS: string[] = Object.values(NEEDS);
 
 export interface ServiceItem {
-  /** Vira o `<h3>` do card e o nome da oferta. */
   title: string;
-  /** Frase curta usada nos dados estruturados, onde não cabe o parágrafo. */
   short: string;
   body: string;
-  /** Necessidade que o link "Quero resolver isso" do card marca no formulário. */
   need: string;
 }
 

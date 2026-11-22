@@ -10,11 +10,6 @@ import { DeviceStatusBar } from './DeviceStatusBar';
 import { ID_RESULTADO, ResumoDoTerminal } from './ResumoDoTerminal';
 import { StatusGlyph } from './StatusGlyph';
 
-/**
- * O screenshot vem do Worker, que repassa o JSON do Google. O `src` só aceita
- * imagem raster em `data:`: `javascript:`, `data:image/svg+xml` e URL externa
- * ficam de fora, e o placeholder aparece no lugar.
- */
 const SCREENSHOT_PREFIXES = ['data:image/jpeg', 'data:image/webp'];
 const comScreenshot = (mobile: PageSpeedReport | null): mobile is PageSpeedReport & { screenshot: string } =>
   typeof mobile?.screenshot === 'string' &&
@@ -81,9 +76,6 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
           rel="noopener noreferrer"
         >
           <span className="lp-hero-photo-frame">
-            {/* Na miniatura o recorte deitado deixaria o rosto pequeno
-                demais, então a tela estreita recebe um arquivo próprio,
-                fechado no rosto. Só um dos dois é baixado. */}
             <picture>
               <source media="(max-width: 900px)" srcSet={`${PROFILE.photoSquareSmall} 168w, ${PROFILE.photoSquare} 300w`} sizes="96px" />
               <img
@@ -105,8 +97,6 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
         </a>
       </div>
 
-      {/* `tabIndex={-1}` deixa o link "Pular para a análise" pôr o foco aqui
-          quando o campo está desabilitado por uma análise em andamento. */}
       <div className="lp-analysis" id="analise" tabIndex={-1}>
         <AnuncioDaAuditoria phase={phase} domain={domain} result={result} />
         <div className="lp-terminal">
@@ -185,8 +175,6 @@ export const HeroAnalysisSection: React.FC<HeroAnalysisSectionProps> = ({
 
             <ResumoDoTerminal phase={phase} result={result} />
 
-            {/* Fica no DOM desde o início, vazio, pelo mesmo motivo da região
-                de status. O alerta só é lido se a região já existir. */}
             <p className="lp-error" role="alert">
               {error}
             </p>

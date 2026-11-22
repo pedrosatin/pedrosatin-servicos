@@ -1,4 +1,3 @@
-/** Formatadores usados na apresentação dos resultados. */
 
 export const formatMs = (value: number | null | undefined): string => {
   if (value === null || value === undefined) return '—';

@@ -1,21 +1,14 @@
-/* Landing final — híbrido.
-   Base cromática do protótipo 4 (grafite azulado com um verde funcional),
-   instrumentação monoespaçada e texto corrido sem serifa. Sem brilhos. */
 
 .lp {
   --bg: #0f172a;
   --bg-raised: #1a2333;
   --bg-sunken: #0a1120;
-  /* Segundo tom escuro para alternar seções vizinhas com separação perceptível
-     sem perder a identidade de terminal nem derrubar o contraste das fontes. */
   --bg-alt: #070c17;
   --bg-panel: #16203033;
   --line: #253044;
   --line-strong: #33415a;
   --ink: #f1f5f9;
   --ink-dim: #97a6bb;
-  /* Contraste mínimo 5.07:1 sobre o fundo mais claro do site (--bg-raised
-     #1a2333), acima do mínimo de 4.5:1 exigido pelo WCAG 2 AA. */
   --ink-faint: #8593aa;
   --green: #10b981;
   --green-deep: #059669;
@@ -25,11 +18,6 @@
   --amber-soft: rgba(224, 164, 88, 0.12);
   --rust: #e07a6c;
   --rust-soft: rgba(224, 122, 108, 0.12);
-  /* Cor do contorno de foco. Contra os fundos do tema o contraste fica entre
-     8.36:1 (--amber-soft sobre --bg-raised) e 13.15:1 (#05080f), acima do
-     mínimo de 3:1 do WCAG para indicador de foco. O afastamento de 2px põe o
-     contorno sobre o fundo da seção, e não sobre o verde da necessidade
-     marcada, com quem o contraste seria só 1.66:1. */
   --focus: #6ee7b7;
   --mono: 'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -48,15 +36,11 @@
   box-sizing: border-box;
 }
 
-/* Um só contorno de foco para campos, botões, links e perguntas do FAQ.
-   `:focus-visible` deixa o clique do mouse sem contorno nos botões e mantém
-   o contorno em quem navega pelo teclado. */
 .lp :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-/* Oculto visualmente e presente na árvore de acessibilidade. */
 .lp-sr-only {
   position: absolute;
   width: 1px;
@@ -69,7 +53,6 @@
   border: 0;
 }
 
-/* Fica acima da faixa de status e só desce para a tela quando recebe foco. */
 .lp-skip {
   position: fixed;
   top: 0.5rem;
@@ -111,8 +94,6 @@
 .lp p {
   margin: 0;
 }
-
-/* ---------- barra de status ---------- */
 
 .lp-statusbar {
   background: var(--bg-sunken);
@@ -158,16 +139,11 @@
   }
 }
 
-/* ---------- cabeçalho ---------- */
-
 .lp-header {
   position: sticky;
   top: 0;
   z-index: 20;
   background: rgba(15, 23, 42, 0.92);
-  /* O Safari só passou a aceitar a propriedade sem prefixo na versão 18. Sem a
-     linha com prefixo, o cabeçalho fica opaco nos iPhones um pouco mais
-     antigos, que é justamente o público que a página mede. */
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -251,8 +227,6 @@
   flex-shrink: 0;
 }
 
-/* `.lp-btn` vem depois e também define `display`; o seletor composto garante
-   que o botão Menu fique oculto no desktop. */
 .lp-btn.lp-menu-toggle,
 .lp-menu-backdrop,
 .lp-mobile-panel {
@@ -293,8 +267,6 @@
 .lp-menu-toggle[aria-expanded='true'] .lp-menu-icon span:nth-child(3) {
   transform: translateY(-4.75px) rotate(-45deg);
 }
-
-/* ---------- botões ---------- */
 
 .lp-btn {
   display: inline-flex;
@@ -347,8 +319,6 @@
   pointer-events: none;
 }
 
-/* ---------- herói ---------- */
-
 .lp-hero {
   padding-block: 3.5rem 3rem;
   border-bottom: 1px solid var(--line);
@@ -381,8 +351,6 @@
   font-size: 1rem;
 }
 
-/* A coluna da foto tem a mesma largura da do aparelho, logo abaixo, para o
-   lado direito da primeira dobra ficar num eixo só. */
 .lp-hero-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -411,17 +379,10 @@
   overflow: hidden;
 }
 
-/* O arquivo já vem recortado em 4/5 e no tamanho de exibição, então aqui não
-   há ampliação nem reenquadramento: só o corte da faixa quando a tela estreita
-   muda a proporção. */
 .lp-hero-photo img {
   display: block;
   width: 100%;
-  /* Sem `height: auto` os atributos width/height do <img> venceriam a
-     proporção e a foto sairia com os 750 px do arquivo. */
   height: auto;
-  /* Recorte deitado: com a legenda, o card fica da altura do texto ao lado, e
-     a primeira dobra não abre um vão embaixo do parágrafo. */
   aspect-ratio: 3 / 2;
   object-fit: cover;
   object-position: 50% 15%;
@@ -452,11 +413,7 @@
   color: var(--green);
 }
 
-/* ---------- análise: terminal + aparelho ---------- */
-
 .lp-analysis {
-  /* Sem padding próprio, o topo do terminal colaria na borda do cabeçalho
-     quando a âncora #analise ou o scrollIntoView o trazem para o topo. */
   scroll-margin-top: 1.25rem;
   margin-top: 2.4rem;
   display: grid;
@@ -465,8 +422,6 @@
   align-items: stretch;
 }
 
-/* O terminal acompanha a altura do aparelho ao lado, em vez de deixar
-   um vão abaixo do log. */
 .lp-terminal {
   border: 1px solid var(--line-strong);
   border-radius: 10px;
@@ -686,7 +641,6 @@
   font-size: 0.78rem;
 }
 
-/* A região de alerta existe desde o início; vazia, não ocupa espaço. */
 .lp-error:empty {
   margin: 0;
   padding: 0;
@@ -714,7 +668,6 @@
   color: var(--amber);
 }
 
-/* Área de toque de 44 px de altura para o link no celular e no desktop. */
 .lp-terminal-summary-link {
   display: inline-flex;
   align-items: center;
@@ -741,8 +694,6 @@
   transform: translateX(3px);
 }
 
-/* ---------- aparelho ---------- */
-
 .lp-device-col {
   display: flex;
   flex-direction: column;
@@ -765,8 +716,6 @@
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
-/* Barra de status com hora, sinal, wi-fi e bateria, e a ilha flutuando ao
-   centro. Uma faixa preta vazia parecia defeito. */
 .lp-device-statusbar {
   position: relative;
   flex-shrink: 0;
@@ -880,11 +829,7 @@
   line-height: 1.5;
 }
 
-/* ---------- veredito ---------- */
-
 .lp-verdict {
-  /* Folga de 1.25rem abaixo do cabeçalho ao rolar para #resultado. A altura do
-     cabeçalho já vem do `scroll-padding-top` em `index.css`. */
   scroll-margin-top: 1.25rem;
   margin-top: 2rem;
   display: grid;
@@ -901,7 +846,6 @@
   grid-template-columns: 1fr auto;
 }
 
-/* Aviso de análise incompleta: substitui o placar, nunca o acompanha. */
 .lp-incomplete {
   margin-top: 2rem;
   padding: 1.3rem 1.5rem;
@@ -998,8 +942,6 @@
   flex-wrap: wrap;
 }
 
-/* ---------- títulos de seção e ritmo visual ---------- */
-
 .lp-main > section:nth-child(odd) {
   background: var(--bg);
 }
@@ -1025,8 +967,6 @@
   color: var(--ink-dim);
   font-size: 0.94rem;
 }
-
-/* ---------- comparativo ---------- */
 
 .lp-compare {
   padding-block: 3.2rem;
@@ -1145,8 +1085,6 @@
   line-height: 1.5;
 }
 
-/* ---------- achados ---------- */
-
 .lp-findings {
   padding-block: 3.2rem;
   border-bottom: 1px solid var(--line);
@@ -1219,8 +1157,6 @@
   border-left-color: var(--green);
 }
 
-/* A etiqueta de severidade fica sempre em linha própria, para o card não mudar
-   de forma conforme o comprimento do título. */
 .lp-item-head {
   display: flex;
   flex-direction: column;
@@ -1299,8 +1235,6 @@
   color: var(--ink-dim);
 }
 
-/* ---------- serviços ---------- */
-
 .lp-services {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -1309,8 +1243,6 @@
 .lp-service-grid {
   margin-top: 2rem;
   display: grid;
-  /* O min() deixa a coluna encolher abaixo de 300 px. Numa tela de 320 px a
-     largura útil é menor que isso, e o card estourava a página na horizontal. */
   grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 1.3rem;
 }
@@ -1347,7 +1279,6 @@
   line-height: 1.62;
 }
 
-/* Área de toque de 44 px de altura, acima do mínimo de 40 px. */
 .lp-service-cta {
   display: inline-flex;
   align-items: center;
@@ -1372,8 +1303,6 @@
 .lp-service-cta:hover::after {
   transform: translateX(3px);
 }
-
-/* ---------- google ---------- */
 
 .lp-google {
   padding-block: 3.4rem;
@@ -1450,8 +1379,6 @@
   padding: 0.05rem 0.3rem;
   border-radius: 3px;
 }
-
-/* ---------- domínio ---------- */
 
 .lp-domain {
   padding-block: 3.4rem;
@@ -1597,8 +1524,6 @@
   border-bottom-color: var(--green);
 }
 
-/* ---------- condições ---------- */
-
 .lp-terms {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -1630,8 +1555,6 @@
   color: var(--ink-dim);
   line-height: 1.62;
 }
-
-/* ---------- quem faz ---------- */
 
 .lp-about {
   padding-block: 3.4rem;
@@ -1717,8 +1640,6 @@
   border-bottom-color: var(--green-edge);
 }
 
-/* ---------- trabalhos ---------- */
-
 .lp-work {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -1798,8 +1719,6 @@
   background: rgba(16, 185, 129, 0.2);
 }
 
-/* ---------- solicitação ---------- */
-
 .lp-request {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -1867,7 +1786,6 @@
   margin-top: 0.9rem;
 }
 
-/* Dentro da linha lado a lado o espaçamento vem do gap, não da margem. */
 .lp-field-row .lp-field + .lp-field {
   margin-top: 0;
 }
@@ -1900,7 +1818,6 @@
   color: var(--ink-faint);
 }
 
-/* Colunas de largura igual: com flex-wrap as linhas ficavam irregulares. */
 .lp-needs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1932,7 +1849,6 @@
   box-shadow: 0 0 0 1px var(--green-edge);
 }
 
-/* Ação alinhada à direita, acompanhando a borda dos campos acima. */
 .lp-request-submit {
   margin-top: 1.6rem;
   padding-top: 1.4rem;
@@ -2057,8 +1973,6 @@
   text-decoration: none;
 }
 
-/* ---------- perguntas ---------- */
-
 .lp-faq {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -2071,8 +1985,6 @@
   overflow: hidden;
 }
 
-/* A lista corta o que passa da borda (overflow: hidden) e a pergunta ocupa a
-   largura toda, então o contorno de fora sumiria. Aqui ele vai para dentro. */
 .lp-faq-button:focus-visible {
   outline-offset: -4px;
 }
@@ -2098,9 +2010,6 @@
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  /* O marcador nativo do <summary> é um triângulo cinza que não combina com o
-     resto. As duas declarações cobrem os dois motores: o WebKit antigo só
-     entende a pseudo-classe com prefixo. */
   list-style: none;
 }
 
@@ -2112,8 +2021,6 @@
   color: var(--green);
 }
 
-/* O sinal é desenhado em CSS, e não escrito no JSX, porque quem sabe se o item
-   está aberto é o navegador: com <details> não há estado em JavaScript. */
 .lp-faq-sign {
   position: relative;
   flex-shrink: 0;
@@ -2154,8 +2061,6 @@
   margin-top: 0.75rem;
 }
 
-/* ---------- fechamento ---------- */
-
 .lp-cta {
   padding-block: 3.4rem;
   border-bottom: 1px solid var(--line);
@@ -2195,16 +2100,12 @@
   white-space: normal;
 }
 
-/* ---------- rodapé ---------- */
-
 .lp-footer {
   padding-block: 2.2rem;
   font-size: 0.8rem;
   background: var(--bg);
 }
 
-/* Classe calculada pela contagem de seções visíveis em vez de `:has()`,
-   que só entrou no Chrome 105 e no Safari 15.4, acima do alvo do Vite. */
 .lp-footer.is-alt {
   background: var(--bg-alt);
 }
@@ -2233,8 +2134,6 @@
   font-size: 0.78rem;
 }
 
-/* Troca o separador "·" por espaçamento com flex-wrap. Assim não sobra ponto
-   órfão no início nem no fim das linhas quando o rodapé quebra no celular. */
 .lp-footer-grid {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
@@ -2366,8 +2265,6 @@
   color: var(--ink);
   border-bottom-color: var(--line-strong);
 }
-
-/* ---------- telas menores ---------- */
 
 @media (max-width: 1080px) {
   .lp-header-inner {
@@ -2527,9 +2424,6 @@
     gap: 1.7rem;
   }
 
-  /* Em coluna única o card deita: a foto vira miniatura ao lado do nome. Do
-     jeito anterior ele ocupava uns 330 px entre o texto e o terminal, e o
-     campo de análise saía da primeira tela. */
   .lp-hero-photo {
     display: flex;
     align-items: stretch;
@@ -2559,8 +2453,6 @@
     padding: 0.7rem 0.95rem;
   }
 
-  /* No celular, só o estado do analisador fica visível para manter uma linha
-     e evitar que o texto secundário empurre a primeira dobra para baixo. */
   .lp-statusbar-sep,
   .lp-statusbar-item:not(:first-child) {
     display: none;
@@ -2579,8 +2471,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Em coluna única o aparelho vem depois do terminal: a leitura segue a
-     ordem da auditoria, sem empurrar o campo para fora da primeira tela. */
   .lp-device-col {
     order: 1;
   }
@@ -2650,9 +2540,6 @@
     min-height: 40px;
   }
 
-  /* "COMPUTADOR" em monoespaçada precisa de cerca de 71 px sem espaçamento
-     entre letras. A coluna de 66 px cortava o rótulo; com 74 px e sem
-     letter-spacing ele cabe, e o padding lateral menor devolve o espaço. */
   .lp-compare-head,
   .lp-compare-row {
     grid-template-columns: minmax(0, 1fr) 74px 74px;
@@ -2664,8 +2551,6 @@
     letter-spacing: 0;
   }
 
-  /* Alvo de toque de 40 px, o mesmo do botão do cabeçalho neste breakpoint.
-     Acima de 560 px, os botões mantêm o tamanho anterior. */
   .lp-prompt-run,
   .lp-presets button,
   .lp-work-actions button {
@@ -2691,9 +2576,6 @@
   }
 }
 
-/* Marca, CTA e botão Menu somam 344 px de conteúdo no mínimo. Abaixo de 400 px
-   o CTA perde o prefixo "Falar no" (o nome acessível passa a ser "WhatsApp",
-   igual ao texto visível) e a marca pode encolher com reticências. */
 @media (max-width: 400px) {
   .lp-cta-prefixo {
     display: none;
@@ -2722,8 +2604,6 @@
   }
 }
 
-/* Sem JavaScript, o botão Menu não responde; o cabeçalho deixa de ser fixo e a
-   lista de seções aparece logo abaixo da marca. */
 @media (max-width: 900px) and (scripting: none) {
   .lp-header {
     position: static;
@@ -2748,8 +2628,6 @@
     font-size: 0.82rem;
   }
 }
-
-/* ---------- página 404 ---------- */
 
 .lp-not-found {
   display: flex;

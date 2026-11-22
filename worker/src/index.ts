@@ -1,15 +1,3 @@
-/**
- * Worker de auditoria de sites — servicos.pedrosatin.com
- *
- * O navegador não consegue ler o HTML de um site de terceiros: a política de
- * mesma origem bloqueia a resposta a menos que o site envie
- * `Access-Control-Allow-Origin`, o que praticamente nenhum site institucional
- * faz. Este Worker faz a requisição do lado do servidor e devolve um relatório
- * já processado, com CORS liberado para a landing page.
- *
- * Rotas: GET /audit?url=<domínio ou URL>
- *        GET /pagespeed?domain=<domínio>&strategy=mobile|desktop
- */
 
 import { countSitemapUrls, isSitemapIndex, parseHtml, parseRobots } from './parse.ts';
 import type { AuditResponse, RedirectHop, RobotsReport, SitemapReport } from '../../shared/report-types.ts';
@@ -20,15 +8,11 @@ interface Env {
   PSI_KEY?: string;
 }
 
-// Só origens de produção. O desenvolvimento local declara as suas no
-// `[env.dev.vars]` do wrangler.toml.
 const DEFAULT_ORIGINS = [
   'https://servicos.pedrosatin.com',
   'https://pedrosatin.com',
 ];
 
-// Só o domínio próprio. O desenvolvimento local declara localhost no
-// `[env.dev.vars]` do wrangler.toml.
 const DEFAULT_HOSTS = ['servicos-api.pedrosatin.com'];
 
 const USER_AGENT =
@@ -37,24 +21,14 @@ const USER_AGENT =
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 3_000_000;
 
-/**
- * Teto de subrequests (fetch ao site e consultas DoH) por auditoria. Uma
- * auditoria comum gasta perto de 12; o teto fica abaixo do limite de 50 do
- * plano gratuito dos Workers para que a falha seja nossa e explicada, e não um
- * erro genérico do runtime no meio da cadeia.
- */
 export const MAX_SUBREQUESTS_PER_AUDIT = 40;
 
-/** Erro com mensagem própria, escrita para o cliente. Outros erros não saem do Worker. */
 export class AuditError extends Error {}
 
-/** Destino recusado pela política: endereço interno, inexistente ou URL fora do formato. */
 export class BlockedTargetError extends AuditError {}
 
-/** Destino fora do host do site auditado (sitemap citado em outro domínio). */
 export class OutOfScopeError extends AuditError {}
 
-/** A auditoria passou de `MAX_SUBREQUESTS_PER_AUDIT`. */
 export class SubrequestLimitError extends AuditError {}
 
 export const allowedOrigins = (env: Env): string[] => {
@@ -64,12 +38,6 @@ export const allowedOrigins = (env: Env): string[] => {
   return origins;
 };
 
-/**
- * Hostnames que o Worker atende. A regra de Rate Limiting do WAF filtra pelo
- * host do domínio próprio, então outro nome que chegue ao Worker (o
- * `*.workers.dev` ou uma preview URL, se voltarem a ser ligados) passaria sem
- * ela. Sem a variável, vale só o domínio de produção; curinga também cai nele.
- */
 export const allowedHosts = (env: Env): string[] => {
   const hosts = (env.ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
   if (hosts.length === 0 || hosts.some((h) => h.includes('*'))) return DEFAULT_HOSTS;
@@ -88,11 +56,6 @@ const corsHeaders = (origin: string | null, env: Env): Record<string, string> =>
   };
 };
 
-/**
- * Resposta de erro não vai para cache de navegador nem de CDN. Um 429 ou um 403
- * guardado seguiria valendo depois que a condição passou. Quem precisa de outro
- * valor passa o `cache-control` em `headers`, que vem depois e prevalece.
- */
 const json = (data: unknown, status: number, headers: Record<string, string>): Response =>
   new Response(JSON.stringify(data), {
     status,
@@ -103,12 +66,6 @@ const json = (data: unknown, status: number, headers: Record<string, string>): R
     },
   });
 
-/**
- * Endereços que o Worker não deve alcançar. Ele existe para ler sites
- * públicos; apontá-lo para a rede interna o transformaria em proxy de
- * varredura. Os nomes cobrem laço local e os sufixos usados em redes internas;
- * as faixas de IP ficam em `isInternalIpv4` e `isInternalIpv6`.
- */
 export const isInternalName = (host: string): boolean =>
   host === 'localhost' ||
   host.endsWith('.localhost') ||
@@ -116,18 +73,12 @@ export const isInternalName = (host: string): boolean =>
   host.endsWith('.internal') ||
   host.endsWith('.home.arpa');
 
-/**
- * Forma canônica do host: minúsculo, sem colchetes nem ponto final. O parser de
- * URL converte IPv4 escrito em decimal, hexadecimal ou octal para a notação
- * comum e compacta o IPv6, então `2130706433` e `0177.0.0.1` viram `127.0.0.1`.
- */
 export const canonicalHost = (hostname: string): string => {
   let host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   try {
     const url = new URL(host.includes(':') ? `http://[${host}]` : `http://${host}`);
     host = url.hostname.replace(/^\[|\]$/g, '');
   } catch {
-    // Texto que não é host válido segue como veio e cai na consulta de DNS.
   }
   return host.replace(/\.$/, '');
 };
@@ -139,7 +90,6 @@ const parseIpv4 = (host: string): number[] | null => {
   return octets.every((octet) => octet <= 255) ? octets : null;
 };
 
-/** Expande um IPv6 em oito grupos de 16 bits. Devolve null se não for IPv6. */
 const parseIpv6 = (host: string): number[] | null => {
   if (!host.includes(':')) return null;
   let text = host;
@@ -168,38 +118,31 @@ const parseIpv6 = (host: string): number[] | null => {
 };
 
 const isInternalIpv4 = ([a, b, c]: number[]): boolean =>
-  a === 0 || // 0.0.0.0/8
+  a === 0 ||
   a === 10 ||
   a === 127 ||
-  (a === 100 && b! >= 64 && b! <= 127) || // CGNAT, 100.64.0.0/10
+  (a === 100 && b! >= 64 && b! <= 127) ||
   (a === 169 && b === 254) ||
   (a === 172 && b! >= 16 && b! <= 31) ||
-  (a === 192 && b === 0 && (c === 0 || c === 2)) || // IETF e documentação
+  (a === 192 && b === 0 && (c === 0 || c === 2)) ||
   (a === 192 && b === 168) ||
-  (a === 198 && (b === 18 || b === 19)) || // testes de desempenho, 198.18.0.0/15
+  (a === 198 && (b === 18 || b === 19)) ||
   (a === 198 && b === 51 && c === 100) ||
   (a === 203 && b === 0 && c === 113) ||
-  a! >= 224; // multicast, 240.0.0.0/4 e broadcast
+  a! >= 224;
 
 const isInternalIpv6 = (g: number[]): boolean => {
   const embedded = (hi: number, lo: number): boolean =>
     isInternalIpv4([hi >> 8, hi & 0xff, lo >> 8, lo & 0xff]);
   const zeros = (from: number, to: number): boolean => g.slice(from, to).every((x) => x === 0);
-  // ::ffff:a.b.c.d (mapeado) e ::ffff:0:a.b.c.d (traduzido) carregam um IPv4 no fim.
   if (zeros(0, 5) && g[5] === 0xffff) return embedded(g[6]!, g[7]!);
   if (zeros(0, 4) && g[4] === 0xffff && g[5] === 0) return embedded(g[6]!, g[7]!);
-  // NAT64 (64:ff9b::/96) entrega o tráfego ao IPv4 dos últimos 32 bits.
   if (g[0] === 0x64 && g[1] === 0xff9b && zeros(2, 6)) return embedded(g[6]!, g[7]!);
-  // 6to4 (2002::/16) embute o IPv4 logo depois do prefixo.
   if (g[0] === 0x2002) return embedded(g[1]!, g[2]!);
-  // Teredo (2001::/32) esconde o IPv4 e documentação (2001:db8::/32) não roteia.
   if (g[0] === 0x2001 && (g[1] === 0 || g[1] === 0xdb8)) return true;
-  // Fora de 2000::/3 não existe unicast global. Isso cobre ::, ::1, fc00::/7,
-  // fe80::/10, fec0::/10, ff00::/8 e o NAT64 de uso local 64:ff9b:1::/48.
   return (g[0]! & 0xe000) !== 0x2000;
 };
 
-/** true para IP interno, false para IP público, null quando o host não é IP. */
 export const ipVerdict = (host: string): boolean | null => {
   const v4 = parseIpv4(host);
   if (v4) return isInternalIpv4(v4);
@@ -223,7 +166,6 @@ export const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<stri
   });
   if (!res.ok) throw new Error('Falha ao verificar o DNS do destino.');
   const data = JSON.parse((await readBodyLimited(res, 64_000)).text) as DohResponse;
-  // NXDOMAIN é resposta conclusiva: o nome não existe, então não há endereço.
   if (data.Status === 3) return [];
   if (data.Status !== 0) throw new Error('DNS do destino não foi confirmado.');
   return (data.Answer ?? []).filter((a) => a.type === (type === 'A' ? 1 : 28)).map((a) => a.data);
@@ -231,11 +173,6 @@ export const resolveDoh = async (name: string, type: 'A' | 'AAAA'): Promise<stri
 
 type HostStatus = 'public' | 'blocked' | 'unresolved';
 
-/**
- * Resultado das consultas DoH por host, válido durante uma requisição. Uma
- * auditoria visita o mesmo host várias vezes (alvo, redirects, robots.txt,
- * sitemaps, versão http://), e cada consulta custa dois subrequests.
- */
 export type DnsCache = Map<string, Promise<HostStatus>>;
 
 const classifyHost = async (host: string): Promise<HostStatus> => {
@@ -245,23 +182,13 @@ const classifyHost = async (host: string): Promise<HostStatus> => {
 
   const results = await Promise.allSettled([resolveDoh(host, 'A'), resolveDoh(host, 'AAAA')]);
   const answers = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
-  // Resposta que não é IP reconhecível também recusa: o critério falha fechado.
   if (answers.some((ip) => ipVerdict(canonicalHost(ip)) !== false)) return 'blocked';
-  // Uma consulta pode falhar sozinha (servidor que responde mal a AAAA, por
-  // exemplo). Se a outra trouxe só endereços públicos, o destino é aceito.
   if (answers.length > 0) return 'public';
   return results.some((r) => r.status === 'rejected') ? 'unresolved' : 'blocked';
 };
 
-/**
- * Orçamento de subrequests de uma auditoria, preso ao cache de DNS dela. O
- * cache já acompanha toda chamada que sai para a rede, então não é preciso
- * passar mais um parâmetro por todas as funções. Sem orçamento registrado
- * (chamadas avulsas e testes), nada é contado.
- */
 const subrequestBudgets = new WeakMap<DnsCache, { used: number; max: number }>();
 
-/** Cache de DNS de uma auditoria, com o orçamento de subrequests registrado. */
 export const createAuditDns = (max = MAX_SUBREQUESTS_PER_AUDIT): DnsCache => {
   const dns: DnsCache = new Map();
   subrequestBudgets.set(dns, { used: 0, max });
@@ -283,7 +210,6 @@ const lookupHost = (hostname: string, dns: DnsCache): Promise<HostStatus> => {
   const host = canonicalHost(hostname);
   let pending = dns.get(host);
   if (!pending) {
-    // Nome que precisa de DNS custa duas consultas (A e AAAA).
     if (!isInternalName(host) && ipVerdict(host) === null) spendSubrequests(dns, 2);
     pending = classifyHost(host);
     dns.set(host, pending);
@@ -302,7 +228,6 @@ const validateTarget = async (url: URL, dns: DnsCache): Promise<void> => {
   if (status === 'unresolved') throw new AuditError('Não foi possível confirmar o DNS do destino.');
 };
 
-/** Normaliza "exemplo.com.br", "www.exemplo.com/x" ou uma URL completa. */
 export const normalizeTarget = async (raw: string, dns: DnsCache = new Map()): Promise<URL | null> => {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -322,8 +247,6 @@ export const fetchWithTimeout = async (
 ): Promise<Response> => {
   await validateTarget(new URL(url), dns);
   spendSubrequests(dns, 1);
-  // O mesmo sinal cobre cabeçalhos e corpo. O runtime do Worker bloqueia saída
-  // para redes privadas; a checagem de DNS sozinha não fixa o IP que o fetch usa.
   return fetch(url, {
     method: 'GET',
     redirect: 'manual',
@@ -337,13 +260,10 @@ export const fetchWithTimeout = async (
 };
 
 interface RedirectPolicy {
-  /** Quantas requisições a cadeia pode fazer, contando a primeira. */
   maxHops?: number;
-  /** Recusa destinos fora do escopo antes do DNS e do fetch. */
   allowUrl?: (url: URL) => boolean;
 }
 
-/** Segue redirects manualmente para expor a cadeia inteira ao cliente. */
 const followRedirects = async (
   start: URL,
   dns: DnsCache,
@@ -366,10 +286,6 @@ const followRedirects = async (
       await response.body?.cancel();
       const next = new URL(location, current);
       checkScope(next);
-      // O destino de um redirecionamento é escolhido pelo site auditado, não
-      // por quem pediu a análise. Sem revalidar aqui, um site poderia mandar o
-      // Worker buscar um endereço da rede interna. O cache evita repetir o DNS
-      // quando o fetch da volta seguinte valida o mesmo host.
       await validateTarget(next, dns);
       hops.push({ url: current, status: response.status, location });
       current = next.toString();
@@ -382,7 +298,6 @@ const followRedirects = async (
   throw new AuditError('Cadeia de redirecionamentos longa demais (possível laço).');
 };
 
-/** Verifica se a versão http:// do domínio força HTTPS. */
 export const checkHttpsUpgrade = async (
   hostname: string,
   dns: DnsCache = new Map(),
@@ -405,8 +320,6 @@ export const readBodyLimited = async (
 ): Promise<{ text: string; bytes: number }> => {
   if (!response.body) return { text: '', bytes: 0 };
   const reader = response.body.getReader();
-  // Sem `fatal`: byte inválido vira o caractere de substituição em vez de
-  // lançar. Um HTML mal codificado ainda é analisável.
   const decoder = new TextDecoder('utf-8');
   const deadline = AbortSignal.timeout(timeoutMs);
   const aborted = () => { void reader.cancel().catch(() => {}); };
@@ -433,13 +346,6 @@ export const readBodyLimited = async (
 
 const SITEMAP_NOT_FOUND: SitemapReport = { found: false, url: null, urlCount: null, isIndex: false };
 
-/**
- * Hosts de onde a auditoria aceita buscar sitemap: o host do site e a variante
- * com ou sem `www.`. Subdomínios ficam de fora de propósito. Sem a Public
- * Suffix List não há como separar `cdn.exemplo.com.br` de `outro-cliente.pages.dev`,
- * e aceitar o segundo deixaria um site usar a auditoria contra vizinhos da
- * mesma plataforma. IP literal só aceita a si mesmo.
- */
 export const isSitemapHostAllowed = (hostname: string, siteHostname: string): boolean => {
   const host = canonicalHost(hostname);
   const site = canonicalHost(siteHostname);
@@ -448,7 +354,6 @@ export const isSitemapHostAllowed = (hostname: string, siteHostname: string): bo
   return host === `www.${site}` || `www.${host}` === site;
 };
 
-/** robots.txt e sitemaps não precisam da cadeia longa da página principal. */
 const AUX_MAX_HOPS = 3;
 
 export const auditRobotsAndSitemap = async (
@@ -461,7 +366,6 @@ export const auditRobotsAndSitemap = async (
   try {
     const { response } = await followRedirects(new URL(`${origin}/robots.txt`), dns, { maxHops: AUX_MAX_HOPS });
     const body = (await readBodyLimited(response, 128_000)).text;
-    // Muitos servidores devolvem a home com status 200 no lugar de um 404.
     const looksLikeRobots = response.ok && !/<html/i.test(body.slice(0, 200));
     robots = looksLikeRobots ? parseRobots(body) : { found: false, blocksAll: false, sitemaps: [] };
   } catch (error) {
@@ -469,19 +373,12 @@ export const auditRobotsAndSitemap = async (
     robots = null;
   }
 
-  // O robots.txt é escrito pelo site auditado e pode citar sitemaps em qualquer
-  // host. Buscar só os do próprio host impede que um site use a auditoria para
-  // disparar requisições contra terceiros.
   const siteHost = new URL(origin).hostname;
   const sitemapPolicy: RedirectPolicy = {
     maxHops: AUX_MAX_HOPS,
     allowUrl: (url) => isSitemapHostAllowed(url.hostname, siteHost),
   };
   const candidates = [...(robots?.sitemaps ?? []), `${origin}/sitemap.xml`];
-  // Os candidatos são buscados em paralelo porque cada tentativa custa um
-  // round-trip inteiro, mas a escolha continua respeitando a ordem original:
-  // um sitemap declarado no robots.txt tem precedência sobre o /sitemap.xml
-  // presumido, mesmo que o presumido responda primeiro.
   type Attempt = SitemapReport | 'falha' | 'limite' | 'fora' | null;
   const promises = candidates.slice(0, 3).map(async (candidate): Promise<Attempt> => {
     try {
@@ -496,9 +393,6 @@ export const auditRobotsAndSitemap = async (
         isIndex: isSitemapIndex(xml),
       };
     } catch (error) {
-      // Destino interno recusado pela política conta como ausente. Sitemap em
-      // outro host, falha de rede, DNS ou limite de subrequests deixa o
-      // resultado inconclusivo.
       if (error instanceof SubrequestLimitError) return 'limite';
       if (error instanceof OutOfScopeError) return 'fora';
       return error instanceof BlockedTargetError ? null : 'falha';
@@ -613,7 +507,6 @@ const createSuccessAuditResponse = (
   };
 };
 
-
 const runAudit = async (input: string): Promise<AuditResponse> => {
   const dns = createAuditDns();
   const target = await normalizeTarget(input, dns);
@@ -654,14 +547,6 @@ const isTimeout = (error: unknown): boolean =>
 const PAGESPEED_TIMEOUT_MS = 45_000;
 const MAX_PAGESPEED_BYTES = 12_000_000;
 
-/**
- * Medições recentes do PageSpeed, por destino e estratégia, na memória do
- * isolate. A mesma medição pedida de novo em poucos minutos (retentativa do
- * front, visitante que repete a análise, chamadas repetidas ao endpoint) não
- * gasta outra chamada da cota do Google. É um cache por isolate, sem garantia
- * de acerto; o teto em caracteres segura a memória, já que cada resposta tem
- * centenas de KB.
- */
 const PAGESPEED_CACHE_TTL_MS = 10 * 60 * 1000;
 const PAGESPEED_CACHE_MAX_CHARS = 8_000_000;
 
@@ -680,7 +565,6 @@ class PageSpeedCache {
   set(key: string, body: string, now: number): void {
     if (body.length > PAGESPEED_CACHE_MAX_CHARS) return;
     this.delete(key);
-    // As entradas entram em ordem de validade: as primeiras vencem antes.
     for (const [oldKey, entry] of this.entries) {
       if (entry.expiresAt > now && this.chars + body.length <= PAGESPEED_CACHE_MAX_CHARS) break;
       this.delete(oldKey);
@@ -704,26 +588,6 @@ class PageSpeedCache {
 
 export const pageSpeedCache = new PageSpeedCache();
 
-/**
- * Tetos de chamadas do Worker à PageSpeed Insights API, além do limite por
- * cliente do handler. Só a requisição que sai para o Google conta. Resposta
- * do cache não gasta nenhum deles.
- *
- * - `perBlockPerMinute`: um /48 no IPv6 ou /24 no IPv4, de `rateLimitPrefix`.
- *   Uma análise normal faz 2 medições (mobile e desktop), então 4 por minuto
- *   ainda permitem duas análises completas no bloco. Fica abaixo de
- *   `perIsolatePerMinute` para que um bloco sozinho não esgote o isolate.
- *   Girar /64 dentro do bloco não rende cota extra.
- * - `perIsolatePerMinute` e `perIsolatePerHour`: teto do isolate inteiro,
- *   somando todos os blocos e destinos. A cota efetiva da chave em produção
- *   (lida no Google Cloud em 20/11/2026) é de 25.000 consultas por dia e 30
- *   por minuto. Com até quatro isolates ativos ao mesmo tempo, 4 × 6 = 24
- *   por minuto, 80% da cota de 30, com margem de 20%. O alerta no Cloud
- *   Monitoring dispara acima de 24 consultas em 60 s; se ele disparar, a
- *   premissa de quatro isolates deixou de valer. 250 por hora somam
- *   4 × 250 × 24 = 24.000 por dia, abaixo dos 25.000. A conta e a fonte
- *   estão no README do Worker.
- */
 export const PAGESPEED_UPSTREAM_LIMITS = {
   perBlockPerMinute: 4,
   perIsolatePerMinute: 6,
@@ -733,7 +597,6 @@ export const PAGESPEED_UPSTREAM_LIMITS = {
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
-/** Contador de janela fixa, zerado quando a janela vence. */
 class FixedWindow {
   private count = 0;
   private resetAt = 0;
@@ -763,22 +626,11 @@ class FixedWindow {
   }
 }
 
-/**
- * Tetos de chamadas ao Google por bloco e por isolate. A contagem por
- * bloco só ganha entrada quando uma chamada sai, e toda chamada também passa
- * pelo teto por hora, então a tabela de blocos tem no máximo
- * `perIsolatePerHour` entradas. Toda entrada nova vai para o fim do Map com a
- * mesma duração, então as vencidas ficam sempre no começo.
- */
 class PageSpeedUpstreamBudget {
   private readonly blocks = new Map<string, { count: number; expiresAt: number }>();
   private readonly minute = new FixedWindow(PAGESPEED_UPSTREAM_LIMITS.perIsolatePerMinute, MINUTE_MS);
   private readonly hour = new FixedWindow(PAGESPEED_UPSTREAM_LIMITS.perIsolatePerHour, HOUR_MS);
 
-  /**
-   * Reserva uma chamada ao Google para o bloco. Devolve null quando a chamada
-   * pode sair ou o nome do teto que acabou; a recusa não gasta nenhum teto.
-   */
   reserve(block: string, now: number): 'bloco' | 'minuto' | 'hora' | null {
     this.dropExpired(now);
     const record = this.blocks.get(block);
@@ -808,10 +660,6 @@ class PageSpeedUpstreamBudget {
 
 export const pageSpeedUpstream = new PageSpeedUpstreamBudget();
 
-/**
- * Resposta de indisponível do /pagespeed. É a mesma para erro do Google e para
- * teto do Worker esgotado, então o visitante não distingue os dois.
- */
 const pageSpeedUnavailable = (status: number, headers: Record<string, string>): Response =>
   json({ error: 'PageSpeed indisponível.' }, status, headers);
 
@@ -823,9 +671,6 @@ const pageSpeedResponse = (body: string, headers: Record<string, string>): Respo
 const fetchPageSpeed = (target: URL, strategy: string, env: Env): Promise<Response> => {
   const params = new URLSearchParams({ url: target.toString(), strategy });
   for (const category of ['performance', 'seo', 'accessibility', 'best-practices']) params.append('category', category);
-  // A chave vai no header, fora da URL que aparece em logs e traces. O Referer
-  // do site mantém funcionando chaves restritas por referrer, que eram usadas
-  // quando a consulta saía do navegador.
   const googleHeaders: Record<string, string> = { referer: `${allowedOrigins(env)[0]}/` };
   if (env.PSI_KEY) googleHeaders['x-goog-api-key'] = env.PSI_KEY;
   return fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {
@@ -835,16 +680,9 @@ const fetchPageSpeed = (target: URL, strategy: string, env: Env): Promise<Respon
   });
 };
 
-/** Código estruturado do Google, como `RESOURCE_EXHAUSTED`; texto fora desse formato é descartado. */
 const upstreamCode = (value: unknown): string | undefined =>
   typeof value === 'string' && /^[A-Za-z_]{1,64}$/.test(value) ? value : undefined;
 
-/**
- * Erro do Google. O log guarda só os códigos: o status HTTP e o `status` e o
- * `reason` estruturados, como cota esgotada ou API desativada. O `message` é texto livre
- * do provedor e pode repetir o domínio consultado ou trechos da chave, então
- * não é registrado.
- */
 const pageSpeedUpstreamError = async (response: Response, headers: Record<string, string>): Promise<Response> => {
   const reason = await readBodyLimited(response, 4_000)
     .then(({ text }) => (JSON.parse(text) as { error?: { status?: unknown; errors?: { reason?: unknown }[] } }).error)
@@ -855,7 +693,6 @@ const pageSpeedUpstreamError = async (response: Response, headers: Record<string
   return pageSpeedUnavailable(response.status >= 400 && response.status < 600 ? response.status : 502, headers);
 };
 
-/** `block` é o /48 ou /24 do visitante, de `rateLimitPrefix`. */
 const proxyPageSpeed = async (
   url: URL, env: Env, headers: Record<string, string>, block: string,
 ): Promise<Response> => {
@@ -865,7 +702,6 @@ const proxyPageSpeed = async (
   const cacheKey = `${strategy}:${target.href}`;
   const cached = pageSpeedCache.get(cacheKey, Date.now());
   if (cached !== null) return pageSpeedResponse(cached, headers);
-  // Teto esgotado devolve o mesmo 429 da cota esgotada do Google, sem chamá-lo.
   const exhausted = pageSpeedUpstream.reserve(block, Date.now());
   if (exhausted) {
     console.warn('pagespeed upstream cap reached', exhausted);
@@ -875,9 +711,7 @@ const proxyPageSpeed = async (
     const response = await fetchPageSpeed(target, strategy, env);
     if (!response.ok) return await pageSpeedUpstreamError(response, headers);
     const { text, bytes } = await readBodyLimited(response, MAX_PAGESPEED_BYTES, PAGESPEED_TIMEOUT_MS);
-    // Corpo cortado no teto não é JSON válido; melhor recusar aqui.
     if (bytes >= MAX_PAGESPEED_BYTES) return json({ error: 'Resposta do PageSpeed grande demais.' }, 502, headers);
-    // O destino é fixo, então o corpo segue como texto, sem parse nem nova serialização.
     pageSpeedCache.set(cacheKey, text, Date.now());
     return pageSpeedResponse(text, headers);
   } catch (error) {
@@ -887,43 +721,12 @@ const proxyPageSpeed = async (
   }
 };
 
-/**
- * Limite por cliente, em janelas de um minuto, com orçamento separado por rota.
- *
- * O contador vive na memória do isolate: cada isolate e cada data center da
- * Cloudflare contam à parte, então o limite real fica acima do nominal. Ele
- * segura repetição casual. A proteção forte é a regra de Rate Limiting do WAF
- * da Cloudflare descrita no README do Worker.
- *
- * Uma auditoria completa faz uma chamada a /audit e duas a /pagespeed
- * (celular e computador), e o front repete cada medição até três vezes. Com
- * 30 chamadas ao PageSpeed por minuto cabem as 10 auditorias do /audit mesmo
- * com uma retentativa em cada medição.
- *
- * Chave: "<rota>:<cliente>" -> { count, expiresAt }, com o cliente de
- * `rateLimitClient`. O Map mantém a ordem de inserção e toda janela nova vai
- * para o fim, então as primeiras entradas são sempre as que expiram antes.
- *
- * Cada prefixo grosso (/48 no IPv6, /24 no IPv4, de `rateLimitPrefix`) ocupa
- * no máximo `RATE_LIMIT_PREFIX_SLOTS` janelas de cliente por rota. Acima
- * disso, os clientes novos do prefixo dividem o contador "<rota>:<prefixo>".
- * Quem gira endereços dentro do próprio bloco gasta só o orçamento do bloco
- * e não enche a tabela.
- */
 type RateLimitRecord = {
   count: number;
   expiresAt: number;
-  /** Chave do contador do prefixo; só nas janelas de cliente, que ocupam vaga do prefixo. */
   prefixKey?: string;
 };
 
-/**
- * Map das janelas que também conta quantas janelas de cliente cada prefixo
- * ocupa, sem varrer a tabela. `set`, `delete` e `clear` mantêm essa contagem,
- * então ela continua certa mesmo quando a tabela é mexida de fora (testes).
- * `prefixSlots` tem no máximo uma entrada por janela de cliente, então também
- * fica abaixo do teto da tabela.
- */
 class RateLimitTable extends Map<string, RateLimitRecord> {
   readonly prefixSlots = new Map<string, number>();
 
@@ -955,15 +758,9 @@ export const rateLimitCache = new RateLimitTable();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 export const RATE_LIMITS = { audit: 10, pagespeed: 30 } as const;
 export const RATE_LIMIT_MAX_ENTRIES = 5000;
-/** Janelas de cliente que um mesmo /48 ou /24 pode abrir em cada rota. */
 export const RATE_LIMIT_PREFIX_SLOTS = 32;
 type RateLimitBucket = keyof typeof RATE_LIMITS;
 
-/**
- * Identidade do cliente no limitador. Um provedor entrega a cada assinante
- * IPv6 um /64 inteiro, então contar por endereço deixaria qualquer um trocar
- * de endereço a cada requisição. IPv6 conta pelo /64; IPv4, pelo endereço.
- */
 export const rateLimitClient = (ip: string): string => {
   const groups = parseIpv6(canonicalHost(ip));
   if (!groups) return ip;
@@ -973,18 +770,12 @@ export const rateLimitClient = (ip: string): string => {
   return `${groups.slice(0, 4).map((g) => g.toString(16)).join(':')}::/64`;
 };
 
-/**
- * Prefixo grosso de um cliente de `rateLimitClient`: o /48 de um /64 ou o /24
- * de um IPv4. Um /48 é o bloco que um provedor ou túnel entrega a um único
- * cliente, com 65536 /64. Texto que não é IP vira o próprio prefixo.
- */
 export const rateLimitPrefix = (client: string): string => {
   if (client.endsWith('::/64')) return `${client.split(':').slice(0, 3).join(':')}::/48`;
   const octets = parseIpv4(client);
   return octets ? `${octets.slice(0, 3).join('.')}.0/24` : client;
 };
 
-/** Devolve os segundos até a próxima janela quando o limite estourou, ou null. */
 const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: string, now: number): number | null => {
   const max = RATE_LIMITS[bucket];
   const prefixKey = `${bucket}:${prefix}`;
@@ -993,17 +784,11 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: strin
 
   if (!record || record.expiresAt <= now) {
     rateLimitCache.delete(key);
-    // Janelas vencidas saem primeiro. O Map mantém a ordem de inserção e toda
-    // janela nova vai para o fim, então as vencidas estão sempre no começo.
     for (const [entry, value] of rateLimitCache) {
       if (value.expiresAt > now) break;
       rateLimitCache.delete(entry);
     }
     record = undefined;
-    // O cliente sem janela própria divide o contador do prefixo quando o
-    // prefixo já ocupa todas as suas vagas ou quando a tabela está cheia de
-    // janelas ativas. O contador comum fica restrito ao prefixo: um bloco que
-    // gira endereços não leva visitantes de outros blocos junto.
     const full = rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES;
     if (full || (rateLimitCache.prefixSlots.get(prefixKey) ?? 0) >= RATE_LIMIT_PREFIX_SLOTS) {
       key = prefixKey;
@@ -1012,12 +797,6 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: strin
         rateLimitCache.delete(key);
         record = undefined;
       }
-      // Tabela cheia e prefixo ainda sem contador: a janela mais antiga sai
-      // para abrir a vaga, mesmo que esteja ativa, e o teto de memória se
-      // mantém. Com no máximo `RATE_LIMIT_PREFIX_SLOTS` vagas por prefixo e
-      // rota, encher a tabela exige entradas de dezenas de /48 ou /24. Com ela
-      // cheia, uma requisição de um prefixo sem contador basta para renovar
-      // antes da hora a janela de outro cliente, sem bloquear ninguém.
       if (!record && rateLimitCache.size >= RATE_LIMIT_MAX_ENTRIES) {
         const oldest = rateLimitCache.keys().next().value;
         if (oldest !== undefined) rateLimitCache.delete(oldest);
@@ -1035,14 +814,7 @@ const consumeRateLimit = (bucket: RateLimitBucket, client: string, prefix: strin
   return null;
 };
 
-/**
- * Mensagem de falha da auditoria para o cliente. Só os erros escritos para o
- * cliente (`AuditError`) saem com o próprio texto; o resto pode trazer detalhe
- * do runtime ou da rede interna da plataforma, então vai para o log e o
- * cliente recebe uma frase fixa.
- */
 const auditErrorMessage = (error: unknown): string => {
-  // `AbortSignal.timeout` aborta com TimeoutError; um AbortController, com AbortError.
   if (isTimeout(error)) return 'O site não respondeu dentro de 12 segundos.';
   if (error instanceof AuditError) return error.message;
   console.error('audit failed', error);
@@ -1053,8 +825,6 @@ const auditErrorMessage = (error: unknown): string => {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Host fora da lista sai antes do limitador e de qualquer subrequest: não
-    // ocupa vaga na tabela nem gasta cota.
     const url = new URL(request.url);
     if (!allowedHosts(env).includes(url.hostname)) {
       return new Response('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
@@ -1074,17 +844,12 @@ export default {
     const prefix = rateLimitPrefix(client);
     const retryAfter = consumeRateLimit(bucket, client, prefix, Date.now());
     if (retryAfter !== null) {
-      // `code` separa este limite do 429 repassado pelo Google no /pagespeed.
       return json({ error: 'Muitas requisições. Tente novamente mais tarde.', code: 'rate_limited' }, 429, {
         ...headers,
         'retry-after': retryAfter.toString(),
       });
     }
 
-    // O cabeçalho CORS só é obedecido pelo navegador: sozinho, ele não impede
-    // que outra página use este endpoint como back-end próprio. Recusar aqui
-    // fecha esse uso. Um cliente fora do navegador pode forjar a origem, então
-    // isto é controle de abuso casual, não autenticação.
     if (!origin || !allowedOrigins(env).includes(origin)) {
       return json({ error: 'Origem não autorizada.' }, 403, headers);
     }
@@ -1099,16 +864,11 @@ export default {
 
     try {
       const report = await runAudit(input);
-      // Domínio inválido ou DNS que falhou voltam com `error`. Sem `no-store`,
-      // uma falha passageira ficaria dois minutos em cache. Um site que
-      // respondeu 404 ou 500 é resultado da auditoria e entra no cache.
       return json(report, 200, {
         ...headers,
         'cache-control': report.error ? 'no-store' : 'public, max-age=120',
       });
     } catch (error) {
-      // Falha da auditoria sai com 200 para o SPA ler o corpo; sem `no-store`, o
-      // erro ficaria em cache como se fosse resultado.
       return json({ ok: false, error: auditErrorMessage(error), input }, 200, { ...headers, 'cache-control': 'no-store' });
     }
   },

@@ -12,7 +12,6 @@ export function authorizeStyles(headers, css) {
   return headers.replace("style-src 'self';", `style-src 'self' ${styleHash(css)};`);
 }
 
-/** Usa os mesmos bytes no HTML e no hash autorizado pela CSP. */
 export async function inlineStyles(dist) {
   let html = await readFile(new URL('index.html', dist), 'utf8');
   const links = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)];

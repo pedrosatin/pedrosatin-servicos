@@ -16,7 +16,7 @@ describe('formatMs', () => {
     expect(formatMs(50)).toBe('50 ms');
     expect(formatMs(500)).toBe('500 ms');
     expect(formatMs(999)).toBe('999 ms');
-    expect(formatMs(12.34)).toBe('12 ms'); // Math.round
+    expect(formatMs(12.34)).toBe('12 ms');
     expect(formatMs(999.4)).toBe('999 ms');
     expect(formatMs(999.5)).toBe('1000 ms');
   });
@@ -27,7 +27,7 @@ describe('formatMs', () => {
     expect(formatMs(1500)).toBe('1.50 s');
     expect(formatMs(1555.5)).toBe('1.56 s');
     expect(formatMs(2000)).toBe('2.00 s');
-    expect(formatMs(2045)).toBe('2.04 s'); // (value / 1000).toFixed(2) -> 2.04 s
+    expect(formatMs(2045)).toBe('2.04 s');
     expect(formatMs(2046)).toBe('2.05 s');
   });
 });
@@ -40,8 +40,8 @@ describe('formatBytes', () => {
 
   it('formats values under 1 MiB as KB', () => {
     expect(formatBytes(0)).toBe('0 KB');
-    expect(formatBytes(511)).toBe('0 KB'); // Math.round(511/1024) -> 0
-    expect(formatBytes(512)).toBe('1 KB'); // Math.round(512/1024) -> 1
+    expect(formatBytes(511)).toBe('0 KB');
+    expect(formatBytes(512)).toBe('1 KB');
     expect(formatBytes(1024)).toBe('1 KB');
     expect(formatBytes(2048)).toBe('2 KB');
     expect(formatBytes(1_048_575)).toBe('1024 KB');
@@ -49,8 +49,8 @@ describe('formatBytes', () => {
 
   it('formats values >= 1 MiB as MB', () => {
     expect(formatBytes(1_048_576)).toBe('1.0 MB');
-    expect(formatBytes(1_572_864)).toBe('1.5 MB'); // 1.5 * 1024 * 1024
-    expect(formatBytes(2_097_152)).toBe('2.0 MB'); // 2 * 1024 * 1024
+    expect(formatBytes(1_572_864)).toBe('1.5 MB');
+    expect(formatBytes(2_097_152)).toBe('2.0 MB');
   });
 });
 

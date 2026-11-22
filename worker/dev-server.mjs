@@ -1,18 +1,3 @@
-/**
- * Servidor local para desenvolver sem o wrangler.
- *
- * O Node 24 já traz fetch, Request e Response globais, então o mesmo handler
- * que roda no Cloudflare pode ser executado aqui sem adaptação. Ele também
- * executa TypeScript direto, sem flag:
- *
- *   node worker/dev-server.mjs
- *
- * O handler recusa requisições sem origem autorizada, então no curl ela vai à
- * mão, como o navegador faria:
- *
- *   curl -H 'Origin: http://localhost:5173' \
- *     'http://localhost:8787/audit?url=silvasatin.adv.br'
- */
 
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -20,14 +5,8 @@ import { setGlobalDispatcher } from 'undici';
 import { createSafeAgent } from './dev-dispatcher.mjs';
 import worker from './src/index.ts';
 
-/**
- * No Node, o fetch resolve o nome pelo DNS do sistema e alcança redes privadas.
- * O dispatcher global abaixo força cada conexão a usar o endereço público
- * confirmado pelo DoH e recusa qualquer destino interno.
- */
 const verifyGlobalDispatcher = async () => {
   try {
-    // Porta 65535 evita a lista de bad ports do Fetch, que barra a porta 9 antes do dispatcher.
     const response = await fetch('http://127.0.0.1:65535/');
     await response.body?.cancel();
   } catch (error) {
@@ -44,13 +23,6 @@ await verifyGlobalDispatcher();
 
 const PORT = Number(process.env.PORT ?? 8787);
 
-/**
- * As listas de hosts e de origens são lidas do `wrangler.toml`, e não
- * copiadas para cá. Uma segunda cópia acabaria divergindo, e o sintoma seria o
- * pior possível: a análise funcionando em desenvolvimento e recusada em
- * produção. Vale a seção `[env.dev.vars]`, a mesma do `wrangler dev --env dev`;
- * a de produção não aceita localhost.
- */
 const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
 const devVars = /^\[env\.dev\.vars\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(wrangler)?.[1] ?? '';
 const devVar = (name) => {

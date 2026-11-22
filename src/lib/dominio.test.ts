@@ -54,10 +54,10 @@ describe('dominio', () => {
     });
 
     it('should return false for invalid domains', () => {
-      expect(isValidDomain('example')).toBe(false); // missing .
+      expect(isValidDomain('example')).toBe(false);
       expect(isValidDomain('.com')).toBe(false);
       expect(isValidDomain('example.')).toBe(false);
-      expect(isValidDomain('ex ample.com')).toBe(false); // space
+      expect(isValidDomain('ex ample.com')).toBe(false);
       expect(isValidDomain('example..com')).toBe(false);
     });
   });
@@ -79,7 +79,6 @@ describe('dominio', () => {
     });
 
     it('should treat long sld in .br as regular domains', () => {
-      // The rule is that the SLD length must be 3 or less for .br domains
       expect(getApexDomain('sub.longname.br')).toBe('longname.br');
     });
   });

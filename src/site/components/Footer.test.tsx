@@ -61,22 +61,18 @@ describe('Footer', () => {
     expect(screen.getByText('feito por')).toBeInTheDocument();
     expect(container.querySelector('.lp-footer-divider')).toBeNull();
 
-    // Porfolio link (handled via CONTACT.handle)
     const portfolioLink = screen.getByText(CONTACT.handle);
     expect(portfolioLink.getAttribute('href')).toBe(PROFILE.portfolio);
     expect(portfolioLink.getAttribute('target')).toBe('_blank');
 
-    // LinkedIn link
     const linkedinLink = screen.getByText('LinkedIn');
     expect(linkedinLink.getAttribute('href')).toBe(PROFILE.linkedin);
     expect(linkedinLink.getAttribute('target')).toBe('_blank');
 
-    // GitHub link
     const githubLink = screen.getByText('GitHub');
     expect(githubLink.getAttribute('href')).toBe(PROFILE.github);
     expect(githubLink.getAttribute('target')).toBe('_blank');
 
-    // llms.txt link
     const llmsLink = screen.getByText('llms.txt');
     expect(llmsLink.getAttribute('href')).toBe('/llms.txt');
     expect(llmsLink.getAttribute('target')).toBe('_blank');

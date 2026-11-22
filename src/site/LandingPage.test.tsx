@@ -135,7 +135,6 @@ describe('LandingPage', () => {
     vi.clearAllMocks();
   });
 
-  // A suíte completa deixa o jsdom mais lento; 5s padrão falha sob carga.
   test('handles fetchPageSpeed failure for desktop gracefully', async () => {
     const error = new Error('PageSpeed Failed');
     vi.mocked(sources.fetchPageSpeed).mockRejectedValue(error);
@@ -163,7 +162,6 @@ describe('LandingPage', () => {
     expect(primeiro).toHaveTextContent('Pular para a análise');
     expect(primeiro).toHaveAttribute('href', '#analise');
 
-    // Enter num link dispara o clique; o jsdom não simula essa tecla.
     fireEvent.click(primeiro as HTMLElement);
 
     expect(document.activeElement).toBe(

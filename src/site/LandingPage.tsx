@@ -47,26 +47,18 @@ export const LandingPage: React.FC = () => {
     () => secoesVisiveis({ temComparacao: Boolean(mobile), temAchados: Boolean(result) }),
     [mobile, result],
   );
-  // A seção do herói vem antes das seções numeradas em <main>; quando o total
-  // é ímpar, a última seção fica com --bg e o rodapé alterna para --bg-alt.
   const rodapeAlternado = (1 + visiveis.length) % 2 === 1;
 
   return (
     <div className="lp">
-      {/* Primeiro elemento focável da página. Sem JavaScript, o `href` ainda
-          rola até a análise; com ele, o foco vai direto para o campo. */}
       <a className="lp-skip" href="#analise" onClick={pularParaAnalise}>
         Pular para a análise
       </a>
 
       <SiteHeader result={result} domain={domain} />
 
-      {/* O conteúdo fica em <main> para que leitores de tela e o "pular para o
-          conteúdo" dos navegadores tenham um destino, e para que o buscador
-          saiba separar o corpo da página da navegação repetida. */}
       <SecoesVisiveisContext.Provider value={visiveis}>
         <main className="lp-main">
-          {/* ---------- análise: terminal + aparelho ---------- */}
           <HeroAnalysisSection
             phase={phase}
             steps={steps}
@@ -84,7 +76,6 @@ export const LandingPage: React.FC = () => {
             counts={counts}
           />
 
-          {/* ---------- celular contra computador ---------- */}
           {mobile && (
             <LazySection>
               <CompareSection
@@ -96,50 +87,37 @@ export const LandingPage: React.FC = () => {
             </LazySection>
           )}
 
-          {/* ---------- achados ---------- */}
           {result && (
             <LazySection>
               <FindingsSection result={result} grouped={grouped} domain={domain} />
             </LazySection>
           )}
 
-          {/* ---------- o que eu resolvo ---------- */}
           <ServicesSection onQueroResolver={escolherNecessidade} />
 
-          {/* ---------- google ---------- */}
           <GoogleSection domainToConsult={result?.domain ?? domain ?? 'pedrosatin.com'} />
 
-          {/* ---------- domínio ---------- */}
           <DomainSection
             domain={result?.domain}
             registration={result?.registration ?? null}
           />
 
-          {/* ---------- como trabalho ---------- */}
           <TermsSection />
 
-          {/* ---------- quem faz ---------- */}
           <AboutSection />
 
-          {/* ---------- trabalhos ---------- */}
           <WorkSection onAnalyze={runFor} />
 
-          {/* ---------- atendimento em 3 passos ---------- */}
           <RequestSection briefing={briefing} onChange={setBriefing} result={result} />
 
-          {/* ---------- perguntas ---------- */}
           <FaqSection />
 
-          {/* ---------- fechamento ---------- */}
           <CtaSection result={result} domain={domain} />
         </main>
       </SecoesVisiveisContext.Provider>
 
       <Footer fundoAlternado={rodapeAlternado} />
 
-      {/* Dados estruturados. Ficam no corpo, junto do texto que descrevem, e
-          por isso saem no HTML pré-renderizado. `application/ld+json` não é
-          executado: é dado, e a CSP o trata como tal. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: buildStructuredData().replace(/</g, '\\u003c') }}

@@ -6,7 +6,6 @@ import { PROPRIEDADE_ALTURA_CABECALHO } from './useAlturaDoCabecalho';
 const lerPropriedade = (): string =>
   document.documentElement.style.getPropertyValue(PROPRIEDADE_ALTURA_CABECALHO);
 
-/** O jsdom não faz layout: a altura vem de um valor controlado pelo teste. */
 let alturaAtual = 72;
 let aoRedimensionar: (() => void) | null = null;
 const desconectar = vi.fn();

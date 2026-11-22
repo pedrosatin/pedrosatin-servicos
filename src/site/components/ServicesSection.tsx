@@ -3,7 +3,6 @@ import { SERVICES } from '../../lib/services';
 import { RotuloDaSecao } from './RotuloDaSecao';
 
 interface ServicesSectionProps {
-  /** Leva ao formulário de atendimento com a necessidade do card marcada. */
   onQueroResolver: (need: string) => void;
 }
 
@@ -21,8 +20,6 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onQueroResolve
             <span className="lp-service-index">{String(index + 1).padStart(2, '0')}</span>
             <h3>{service.title}</h3>
             <p>{service.body}</p>
-            {/* Sem JavaScript, o `href` ainda rola até o formulário. Com ele,
-                o clique também marca a necessidade e leva o foco ao Nome. */}
             <a
               className="lp-service-cta"
               href="#atendimento"

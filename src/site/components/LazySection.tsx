@@ -1,6 +1,5 @@
 import { Component, Suspense, type ReactNode } from 'react';
 
-/** A falha de um chunk afeta só a seção que depende dele. */
 export class LazySection extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
 

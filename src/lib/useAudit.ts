@@ -15,11 +15,6 @@ export interface UseAuditReturn {
   reset: () => void;
 }
 
-/**
- * Hook usado pela página para acompanhar o progresso da auditoria em tempo real.
- * Mantém o estado das etapas para que a interface acompanhe a auditoria enquanto
- * ela acontece.
- */
 export const useAudit = (options: AuditOptions = {}): UseAuditReturn => {
   const [phase, setPhase] = useState<AuditPhase>('idle');
   const [steps, setSteps] = useState<AuditStep[]>([]);
@@ -27,7 +22,6 @@ export const useAudit = (options: AuditOptions = {}): UseAuditReturn => {
   const [error, setError] = useState<string | null>(null);
   const [domain, setDomain] = useState('');
 
-  // Evita que uma auditoria antiga sobrescreva o resultado de outra mais nova.
   const runId = useRef(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -43,11 +37,6 @@ export const useAudit = (options: AuditOptions = {}): UseAuditReturn => {
     setResult(null);
 
     try {
-      // O motor da análise só serve depois deste clique, e responder à primeira
-      // pintura da página é o que decide a nota de quem chega pelo celular. Por
-      // isso ele é buscado aqui, e não no pacote que abre a página. A espera é
-      // de um arquivo já em cache do mesmo domínio, muito menor que os 15 a 40
-      // segundos da medição que vem em seguida.
       const { createSteps, runAudit } = await import('./audit');
 
       if (runId.current !== current) return null;

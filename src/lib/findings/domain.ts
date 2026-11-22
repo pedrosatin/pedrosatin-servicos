@@ -126,7 +126,6 @@ const checkDnsResolution = (dns: DnsReport): Finding | undefined => {
   return undefined;
 };
 
-/** Devolve os achados de domínio, DNS e autenticação de e-mail. */
 export const buildDomainFindings = (result: AuditResult): Finding[] => {
   const out: Finding[] = [];
   const { registration, email, dns } = result;

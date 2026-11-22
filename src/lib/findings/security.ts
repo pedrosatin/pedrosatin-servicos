@@ -115,7 +115,6 @@ const checkRedirectChain = (content: ContentReport): Finding | undefined => {
   return undefined;
 };
 
-/** Devolve os achados de segurança e transporte. */
 export const buildSecurityFindings = (result: AuditResult): Finding[] => {
   const out: Finding[] = [];
   const { content } = result;

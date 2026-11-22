@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeTarget } from './index';
 import * as entry from './worker';
 
-// Os testes simulam fetch no Node, que aceita opções que o runtime dos Workers
-// recusa. Estas checagens cobrem as restrições do runtime que já quebraram produção.
 describe('compatibilidade com o runtime dos Workers', () => {
   afterEach(() => vi.unstubAllGlobals());
 

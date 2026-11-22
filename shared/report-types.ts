@@ -1,13 +1,3 @@
-/**
- * Fonte única dos tipos do payload de auditoria trocado entre o Worker
- * (`worker/src/`) e o front (`src/lib/`).
- *
- * Só contém `interface`/`type` — zero runtime. Os dois lados importam daqui
- * apenas em tempo de tipo (`import type`), sem bundling cruzado: o Worker
- * continua um deploy isolado. A regra que isto resolve: antes, cada campo
- * vivia duplicado nos dois lados e nada acusava divergência; agora, mudar um
- * campo aqui quebra o `typecheck` do front e o do Worker ao mesmo tempo.
- */
 
 export interface ImageStats {
   total: number;
@@ -75,14 +65,9 @@ export interface SitemapReport {
   url: string | null;
   urlCount: number | null;
   isIndex: boolean;
-  /** Presente quando a consulta falhou e a ausência não foi confirmada. */
   error?: string;
 }
 
-/**
- * Corpo devolvido por `GET /audit`. No Worker é o `AuditResponse`; no front é
- * reexportado como `ContentReport` e embutido em `AuditResult`.
- */
 export interface AuditResponse {
   ok: boolean;
   error?: string;

@@ -7,7 +7,7 @@ describe('buildContentFindings', () => {
     const result = {
       content: {
         robots: { blocksAll: true },
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
       },
     } as unknown as AuditResult;
 
@@ -23,7 +23,7 @@ describe('buildContentFindings', () => {
       content: {
         finalUrl: 'https://example.com/',
         robots: { found: false },
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
       },
     } as unknown as AuditResult;
 
@@ -80,7 +80,7 @@ describe('buildContentFindings', () => {
   it('identifies meta noindex', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  robotsMeta: 'noindex, nofollow' }
       },
     } as unknown as AuditResult;
@@ -95,7 +95,7 @@ describe('buildContentFindings', () => {
   it('identifies missing title', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: null }
       },
     } as unknown as AuditResult;
@@ -110,7 +110,7 @@ describe('buildContentFindings', () => {
   it('identifies long title', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: 'A very long title that exceeds the 65 character limit typically displayed by Google', titleLength: 83 }
       },
     } as unknown as AuditResult;
@@ -125,7 +125,7 @@ describe('buildContentFindings', () => {
   it('identifies short title', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: 'Short', titleLength: 5 }
       },
     } as unknown as AuditResult;
@@ -140,7 +140,7 @@ describe('buildContentFindings', () => {
   it('identifies missing meta description', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: 'OK title', titleLength: 30, metaDescription: null }
       },
     } as unknown as AuditResult;
@@ -155,7 +155,7 @@ describe('buildContentFindings', () => {
   it('identifies long meta description', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: 'OK title', titleLength: 30, metaDescription: 'A very long description that exceeds the normal 155 character space available on most search engines. This is going to be truncated and will show an ellipsis at the end.', metaDescriptionLength: 172 }
       },
     } as unknown as AuditResult;
@@ -170,7 +170,7 @@ describe('buildContentFindings', () => {
   it('identifies missing canonical', () => {
     const result = {
       content: {
-        sitemap: { found: true }, // Prevent Cannot read properties of undefined (reading 'found')
+        sitemap: { found: true },
         html: { h1: [], jsonLdTypes: [], images: { total: 0 }, scripts: { blocking: 0 }, openGraph: {},  title: 'OK title', titleLength: 30, metaDescription: 'OK description', metaDescriptionLength: 50, canonical: null }
       },
     } as unknown as AuditResult;

@@ -1,14 +1,4 @@
-/**
- * Parser de HTML sem dependências externas.
- *
- * Fica em módulo próprio (e não dentro do handler do Worker) para poder ser
- * executado em Node durante os testes, sem precisar subir o wrangler.
- */
 
-/**
- * Os tipos do payload vêm de `shared/report-types.ts`, a mesma fonte que o
- * front consome. Reexportados aqui para não quebrar quem importa de `./parse`.
- */
 import type { HtmlReport, ImageStats, ScriptStats, RobotsReport } from '../../shared/report-types.ts';
 
 export type { HtmlReport, RobotsReport } from '../../shared/report-types.ts';
@@ -39,12 +29,8 @@ const clean = (value: string | null | undefined): string | null => {
 
 const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Os padrões dependem só do nome do atributo ou da tag, um conjunto pequeno e
-// fechado. Recompilar a mesma RegExp a cada tag do documento era o custo
-// dominante do parsing; o cache elimina isso sem mudar resultado nenhum.
 const attrRegexCache = new Map<string, RegExp>();
 
-/** Lê o valor de um atributo dentro de uma tag isolada. */
 const attr = (tag: string, name: string): string | null => {
   let regex = attrRegexCache.get(name);
   if (!regex) {
@@ -58,45 +44,18 @@ const attr = (tag: string, name: string): string | null => {
   return null;
 };
 
-
-
-/*
- * Varredura linear.
- *
- * O HTML vem do site auditado, ou seja, de quem quiser. Regex como
- * `<meta\b[^>]*>` ou `<script\b[^>]*>[\s\S]*?<\/script>` aplicadas com a flag
- * `g` recomeçam a busca a cada posição: num documento de `<meta` repetido sem
- * `>`, cada tentativa varre até o fim e o custo vira quadrático (100 KB já
- * custavam segundos de CPU). As funções abaixo procuram só o começo da tag
- * com regex (custo constante por posição) e o resto com `indexOf`. Quando um
- * `>` ou um fechamento não existe a partir de um ponto, também não existe a
- * partir de nenhum ponto posterior, então a varredura para ali em vez de
- * tentar de novo. O resultado é o mesmo das regex originais.
- */
-
-/** Primeira ocorrência de `pattern` (regex com flag `g`) a partir de `from`. */
 const searchFrom = (text: string, pattern: RegExp, from: number): RegExpExecArray | null => {
   pattern.lastIndex = from;
   return pattern.exec(text);
 };
 
 interface RawElement {
-  /** Índice do `<` de abertura. */
   start: number;
-  /** Índice logo depois do fechamento. */
   end: number;
-  /** Tag de abertura completa, de `<` a `>`. */
   openTag: string;
-  /** Conteúdo entre a abertura e o fechamento. */
   content: string;
 }
 
-/**
- * Equivale a `/<nome\b[^>]*>([\s\S]*?)<fechamento>/gi`, em ordem. `accept`
- * recusa uma abertura como a regex recusaria (atributo exigido ausente); as
- * aberturas que caem dentro dela compartilham o mesmo `>` e, por terem só um
- * pedaço do mesmo texto, também seriam recusadas, então são puladas juntas.
- */
 function* rawElements(
   html: string,
   open: RegExp,
@@ -121,7 +80,6 @@ function* rawElements(
   }
 }
 
-/** Troca cada elemento encontrado por um espaço, como `replace(regex, ' ')`. */
 const removeElements = (html: string, open: RegExp, close: RegExp): string => {
   const parts: string[] = [];
   let last = 0;
@@ -134,7 +92,6 @@ const removeElements = (html: string, open: RegExp, close: RegExp): string => {
   return parts.join('');
 };
 
-/** Equivale a `text.replace(/<[^>]+>/g, ' ')`. */
 const replaceTags = (text: string): string => {
   const parts: string[] = [];
   let last = 0;
@@ -142,7 +99,6 @@ const replaceTags = (text: string): string => {
   while (lt !== -1) {
     const gt = text.indexOf('>', lt + 1);
     if (gt === -1) break;
-    // `<>` não casa com `[^>]+`: o `<` fica e a busca segue.
     if (gt === lt + 1) {
       lt = text.indexOf('<', lt + 1);
       continue;
@@ -168,7 +124,6 @@ const NOSCRIPT_CLOSE = /<\/noscript>/gi;
 const TITLE_CLOSE = /<\/title>/gi;
 const H1_CLOSE = /<\/h1>/gi;
 
-/** Equivale a `html.match(/<(?:meta|img|script|link|html)\b[^>]*>/gi)`. */
 const TAG_OPEN = /<(?:meta|img|script|link|html)\b/gi;
 const collectTags = (html: string): string[] => {
   const tags: string[] = [];
@@ -206,39 +161,16 @@ const parseMetaTags = (tags: string[]): Map<string, string> => {
   return dict;
 };
 
-/**
- * Acha, em uma varredura só, um elemento de texto cru (`<script>`/`<style>`
- * junto ao seu conteúdo completo) OU um comentário HTML, fechado ou não.
- *
- * A ordem das alternativas é o que faz o `<!--` que aparece dentro de um
- * JavaScript embutido (`var s = "<!--"`) não ser confundido com comentário: ao
- * chegar no `<script`, a primeira alternativa consome o bloco inteiro antes de
- * a segunda ter chance de olhar para dentro dele.
- */
 const RAW_TEXT_OR_COMMENT_OPEN = /<(script|style)\b|<!--/gi;
 const RAW_TEXT_CLOSE: Record<string, RegExp> = {
   script: /<\/script\s*>/gi,
   style: /<\/style\s*>/gi,
 };
 
-/**
- * Remove apenas comentários HTML, preservando o restante do documento.
- *
- * É de propósito que esta função não faça o que `stripNonContent` faz: os
- * blocos `<script>` e `<style>` precisam continuar no HTML, porque é deles que
- * saem as contagens de scripts (total, externos, bloqueantes), o JSON-LD e o
- * peso do CSS embutido. Usar `stripNonContent` antes da coleta de tags zeraria
- * essas métricas silenciosamente.
- *
- * O `<!--` sem fechamento consome o resto do documento, que é como o navegador
- * também se comporta: nada depois dele chega a virar elemento.
- */
 const stripComments = (html: string): string => {
   const parts: string[] = [];
   let last = 0;
   let from = 0;
-  // Depois que um `>` ou um fechamento não aparece a partir de um ponto, ele
-  // também não aparece adiante: lembrar disso evita buscas repetidas até o fim.
   let noGt = false;
   const noClose: Record<string, boolean> = {};
 
@@ -263,7 +195,6 @@ const stripComments = (html: string): string => {
         noClose[rawName] = true;
         continue;
       }
-      // O bloco fica como está; a busca recomeça depois do fechamento.
       from = closing.index + closing[0].length;
       continue;
     }
@@ -287,7 +218,6 @@ const stripNonContent = (html: string): string => {
   let text = removeElements(html, SCRIPT_OPEN, SCRIPT_CLOSE);
   text = removeElements(text, STYLE_OPEN, STYLE_CLOSE);
   text = removeElements(text, NOSCRIPT_OPEN, NOSCRIPT_CLOSE);
-  // Equivale a `replace(/<!--[\s\S]*?-->/g, ' ')`: comentário sem fechamento fica.
   const parts: string[] = [];
   let last = 0;
   for (let start = text.indexOf('<!--'); start !== -1; start = text.indexOf('<!--', last)) {
@@ -301,15 +231,6 @@ const stripNonContent = (html: string): string => {
   return parts.join('');
 };
 
-/**
- * Única leitura que continua usando o HTML cru, comentários inclusive.
- *
- * Vários CMS se identificam justamente dentro de comentários — o WordPress e
- * seus plugins deixam rastros como `<!-- This site is optimized with ... -->`
- * ou blocos de cache citando `/wp-content/`. Filtrar comentários aqui não
- * removeria falso positivo nenhum; só cegaria a detecção de plataforma.
- */
-// Assinaturas conferidas em ordem. A primeira que casa decide a plataforma.
 const GENERATOR_PLATFORMS: readonly (readonly [string, string])[] = [
   ['wordpress', 'WordPress'],
   ['wix', 'Wix'],
@@ -344,12 +265,6 @@ const platformFromContent = (html: string): string | null =>
 const detectPlatform = (html: string, generator: string | null): string | null =>
   platformFromGenerator(generator) ?? platformFromContent(html);
 
-/**
- * Equivale a `/<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/i.exec(html)?.[1]`.
- * A regex é aplicada só no início de cada `<meta` (flag `y`). Se uma tag não
- * declara charset, as aberturas de `<meta` dentro dela, que terminam no mesmo
- * `>`, também não declaram, então a busca pula direto para depois dele.
- */
 const CHARSET_AT_RE = /<meta\b[^>]*charset\s*=\s*["']?([^"'\s>]+)/iy;
 const findCharset = (html: string): string | null => {
   let from = 0;
@@ -366,32 +281,20 @@ const findCharset = (html: string): string | null => {
 
 const JSON_LD_TYPE_RE = /type\s*=\s*["']application\/ld\+json["']/i;
 
-/**
- * Profundidade máxima de arrays e `@graph` aninhados que a leitura segue. JSON-LD
- * de verdade usa um ou dois níveis; o limite só barra corpo montado para custar
- * CPU. O que passa dele é ignorado.
- */
 const MAX_JSON_LD_DEPTH = 32;
 
-/**
- * Aninhamento máximo de `[` e `{` que vai para o `JSON.parse`. O parse nativo
- * custa tempo proporcional à profundidade, e um corpo de 3 MB de colchetes
- * abertos o faz gastar centenas de milissegundos para devolver uma estrutura
- * sem tipo algum. Passou do teto, o bloco é ignorado sem ser lido.
- */
 const MAX_JSON_NESTING = 256;
 
-const OPEN_BRACKETS = new Set([0x5b, 0x7b]); // [ {
-const CLOSE_BRACKETS = new Set([0x5d, 0x7d]); // ] }
+const OPEN_BRACKETS = new Set([0x5b, 0x7b]);
+const CLOSE_BRACKETS = new Set([0x5d, 0x7d]);
 
-/** Passo linear: conta o aninhamento fora de strings e para ao passar de `max`. */
 const exceedsNesting = (text: string, max: number): boolean => {
   let depth = 0;
   let inString = false;
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i);
     if (inString) {
-      if (code === 0x5c) i++; // barra invertida: pula o caractere escapado
+      if (code === 0x5c) i++;
       else if (code === 0x22) inString = false;
     } else if (code === 0x22) {
       inString = true;
@@ -404,14 +307,12 @@ const exceedsNesting = (text: string, max: number): boolean => {
   return false;
 };
 
-/** Os `@type` de um nó, em string ou lista; valores de outro tipo são ignorados. */
 const typesOf = (record: Record<string, unknown>): string[] => {
   const type = record['@type'];
   if (typeof type === 'string') return [type];
   return Array.isArray(type) ? type.filter((t): t is string => typeof t === 'string') : [];
 };
 
-/** Filhos que a leitura segue: os itens de um array ou o `@graph` de um objeto. */
 const jsonLdChildren = (node: unknown): unknown[] => {
   if (Array.isArray(node)) return node;
   if (!node || typeof node !== 'object') return [];
@@ -419,10 +320,6 @@ const jsonLdChildren = (node: unknown): unknown[] => {
   return Array.isArray(graph) ? graph : [];
 };
 
-/**
- * Percorre o JSON-LD com pilha explícita, em pré-ordem e sem recursão. Um corpo
- * aninhado em dezenas de milhares de níveis não estoura a pilha de chamadas.
- */
 const walkJsonLd = (root: unknown, types: Set<string>): void => {
   const stack: { node: unknown; depth: number }[] = [{ node: root, depth: 0 }];
   for (let item = stack.pop(); item; item = stack.pop()) {
@@ -432,7 +329,6 @@ const walkJsonLd = (root: unknown, types: Set<string>): void => {
     }
     if (depth >= MAX_JSON_LD_DEPTH) continue;
     const children = jsonLdChildren(node);
-    // Empilha de trás para a frente para que o primeiro filho saia primeiro.
     for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], depth: depth + 1 });
   }
 };
@@ -448,7 +344,6 @@ const collectJsonLdTypes = (html: string): string[] => {
     try {
       walkJsonLd(JSON.parse(body), types);
     } catch {
-      // JSON-LD malformado é em si um achado, mas não interrompe a auditoria.
       for (const match of body.matchAll(FALLBACK_TYPE_RE)) types.add(match[1]);
     }
   }
@@ -460,13 +355,11 @@ const ASYNC_DEFER_RE = /\b(?:async|defer)\b/i;
 const TYPE_MODULE_RE = /\btype\s*=\s*(?:"module"|'module'|module)(?!\w)/i;
 const WORD_RE = /\S{2,}/g;
 
-/** Separa as tags de abertura que importam por tipo, em uma passada. */
 interface TagGroups {
   metaTags: string[];
   imageTags: string[];
   scriptTags: string[];
   linkTags: string[];
-  /** Primeira `<html>` do documento, ou vazio. */
   htmlTag: string;
 }
 
@@ -560,11 +453,6 @@ const countWords = (markup: string): number => {
 };
 
 export const parseHtml = (html: string, bytes: number): HtmlReport => {
-  // O que está dentro de comentário não é elemento da página: o navegador não
-  // pinta, o crawler não indexa e a auditoria não deve contar. Todas as
-  // leituras de estrutura passam a partir daqui pelo `markup` sem comentários,
-  // e não pelo `html` cru — a única exceção é `detectPlatform`, pelos motivos
-  // documentados nela.
   const markup = stripComments(html);
   const { metaTags, imageTags, scriptTags, linkTags, htmlTag } = groupTags(markup);
 

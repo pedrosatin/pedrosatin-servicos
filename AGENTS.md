@@ -10,7 +10,7 @@
 
 ```bash
 npm run check        # Executa lint (oxlint), typecheck (tsc app + worker) e testes (vitest)
-npm run lint         # oxlint
+npm run lint         # oxlint + ratchet de comentários
 npm run typecheck    # tsc -b && tsc -p worker/tsconfig.json --noEmit
 npm test             # vitest run
 npm run build        # build do client, SSR e prerender
@@ -23,4 +23,7 @@ Local tracking in Markdown files under `.scratch/<feature>/`.
 Interactive dashboard at `.scratch/index.html`.
 
 ### Domain docs
-Single-context convention (`docs/`).
+Single-context convention (`docs/`). ADRs em `docs/adr/`.
+
+### delete-comment
+Skill em `.agents/skills/delete-comment` (symlink em `.claude/skills/`). Ratchet: `node scripts/check-comments.mjs`.

@@ -1,16 +1,9 @@
-/**
- * Gera o HTML estático de `dist/404.html` a partir da casca do build.
- *
- * Reaproveita o `<style>` embutido e o preload das fontes sem carregar
- * o bundle JavaScript nem repetir metadados canônicos e sociais da home.
- */
 
 export const ROOT_MARKER = '<div id="root"></div>';
 
 const TITLE_404 = '<title>Página não encontrada | Pedro Satin</title>';
 const ROBOTS_NOINDEX = '<meta name="robots" content="noindex" />';
 
-/** Marcação estática da página 404 no visual da landing page. */
 export function buildNotFoundMarkup() {
   return [
     '<div class="lp lp-not-found">',
@@ -69,7 +62,6 @@ function replaceHeadForNotFound(html) {
     .replace(/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/, () => ROBOTS_NOINDEX)
     .replace(/\s*<link\s+rel="canonical"[^>]*\/?>/g, () => '')
     .replace(
-      // O lookahead acha `name` ou `property` em qualquer posição da tag.
       /\s*<meta\b(?=[^>]*\b(?:name|property)="(?:description|og:[^"]+|twitter:[^"]+|profile:[^"]+)")[^>]*\/?>/g,
       () => '',
     )
@@ -97,7 +89,6 @@ function assertValidNotFoundHtml(html) {
   }
 }
 
-/** Constrói `404.html` a partir do HTML base do build com fontes em preload. */
 export function buildNotFoundHtml(shellHtml) {
   if (!shellHtml.includes(ROOT_MARKER)) {
     throw new Error(`Marcador ${ROOT_MARKER} não encontrado para gerar 404.html.`);
