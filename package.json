@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
-    "lint": "oxlint",
+    "lint": "oxlint && node scripts/check-comments.mjs",
     "typecheck": "tsc -b && tsc -p worker/tsconfig.json --noEmit",
     "preview": "vite preview",
     "indexnow": "node scripts/indexnow.mjs",
@@ -17,7 +17,8 @@
     "worker:deploy": "npm --prefix worker run deploy",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "check-comments": "node scripts/check-comments.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",
