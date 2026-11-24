@@ -136,7 +136,7 @@ describe('worker parse', () => {
       });
     }
 
-    for (const unit of ['<script', '<style', '<noscript', '<!--', '<meta', '<meta charset']) {
+    for (const unit of ['<script', '<style', '<noscript', '<!--', '<meta', '<meta charset', '<title', '<h1', '<h2']) {
       it(`processa 300 KB de ${JSON.stringify(unit)} em até ${CPU_BUDGET_MS} ms de CPU`, () => {
         const html = hostile(unit, LARGE);
         const before = process.threadCpuUsage();
