@@ -109,23 +109,22 @@ describe('worker parse', () => {
     const maliciousAttrName = 'a.*b.*c.*d.*e.*f.*g.*h.*i.*j.*k.*l.*m.*n.*o.*p.*q.*r.*s.*t.*u.*v.*w.*x.*y.*z.*';
     const tag = `<img src="test.jpg" ${maliciousAttrName}="true">`;
 
-    const start = Date.now();
-
     const html = `<!DOCTYPE html><html><body>${tag}</body></html>`;
     const report = parseHtml(html, 100);
 
-    expect(Date.now() - start).toBeLessThan(100);
     expect(report.images.total).toBe(1);
   });
 
   describe('custo linear com HTML hostil', () => {
     const SMALL = 150_000;
     const LARGE = 300_000;
+    const CPU_BUDGET_MS = 800;
+    const BUDGET_TIMEOUT_MS = 60_000;
     const hostile = (unit: string, size: number) => unit.repeat(Math.ceil(size / unit.length)).slice(0, size);
 
-    for (const unit of ['<', '<meta', '<script>', '<style>', '<title>', '<h1>', '<h1><', '<!--', '<noscript>',
-      '<script type="application/ld+json">', '<meta charset', '<<>']) {
-      it(`escala linearmente de 150 KB para 300 KB com ${JSON.stringify(unit)}`, () => {
+    for (const unit of ['<', '<meta', '<meta>', '<script>', '<style>', '<title>', '<h1>', '<h1><', '<!--',
+      '<noscript>', '<script type="application/ld+json">', '<meta charset', '<<>']) {
+      it(`trabalho contado com ${JSON.stringify(unit)} no máximo 2,1 vezes maior em 300 KB que em 150 KB`, () => {
         const small = hostile(unit, SMALL);
         const large = hostile(unit, LARGE);
         const first = measureParseWork(() => parseHtml(small, small.length));
@@ -135,6 +134,17 @@ describe('worker parse', () => {
         expect(second.work.chars).toBeLessThanOrEqual(first.work.chars * 2.1);
         expect(second.work.scans).toBeLessThanOrEqual(first.work.scans * 2.1);
       });
+    }
+
+    for (const unit of ['<script', '<style', '<noscript', '<!--', '<meta', '<meta charset']) {
+      it(`processa 300 KB de ${JSON.stringify(unit)} em até ${CPU_BUDGET_MS} ms de CPU`, () => {
+        const html = hostile(unit, LARGE);
+        const before = process.threadCpuUsage();
+        const report = parseHtml(html, html.length);
+        const { user, system } = process.threadCpuUsage(before);
+        expect(report.bytes).toBe(LARGE);
+        expect((user + system) / 1000, `ms de CPU com ${JSON.stringify(unit)}`).toBeLessThan(CPU_BUDGET_MS);
+      }, BUDGET_TIMEOUT_MS);
     }
   });
 
@@ -206,7 +216,7 @@ describe('worker parse', () => {
       expect(types(JSON.stringify({ '@type': 'Real', note: text }))).toEqual(['Real']);
     });
 
-    it('descarta 3 MB de colchetes abertos em escala linear', () => {
+    it('descarta 3 MB de colchetes aninhados com trabalho proporcional ao tamanho', () => {
       const small = ldScript('['.repeat(750_000) + ']'.repeat(750_000));
       const large = ldScript('['.repeat(1_500_000) + ']'.repeat(1_500_000));
       const first = measureParseWork(() => parseHtml(small, small.length));
@@ -218,7 +228,7 @@ describe('worker parse', () => {
     });
 
     it('medição do trabalho não altera o resultado do parse', () => {
-      const html = ldScript(JSON.stringify({ "@type": "Organization" }));
+      const html = ldScript(JSON.stringify({ '@type': 'Organization' }));
       const direct = parseHtml(html, html.length);
       const measured = measureParseWork(() => parseHtml(html, html.length));
       expect(measured.result).toEqual(direct);

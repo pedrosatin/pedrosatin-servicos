@@ -57,7 +57,9 @@ const recordWork = (chars: number): void => {
   activeWork.chars += chars;
 };
 
-export const measureParseWork = <T>(run: () => T): { result: T; work: ParseWork } => {
+type SyncFn<T> = () => T extends PromiseLike<unknown> ? never : T;
+
+export const measureParseWork = <T>(run: SyncFn<T>): { result: T; work: ParseWork } => {
   const work: ParseWork = { scans: 0, chars: 0 };
   const previous = activeWork;
   activeWork = work;
