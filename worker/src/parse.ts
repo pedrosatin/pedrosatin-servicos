@@ -44,9 +44,41 @@ const attr = (tag: string, name: string): string | null => {
   return null;
 };
 
+export interface ParseWork {
+  scans: number;
+  chars: number;
+}
+
+let activeWork: ParseWork | null = null;
+
+const recordWork = (chars: number): void => {
+  if (!activeWork) return;
+  activeWork.scans++;
+  activeWork.chars += chars;
+};
+
+export const measureParseWork = <T>(run: () => T): { result: T; work: ParseWork } => {
+  const work: ParseWork = { scans: 0, chars: 0 };
+  const previous = activeWork;
+  activeWork = work;
+  try {
+    return { result: run(), work };
+  } finally {
+    activeWork = previous;
+  }
+};
+
 const searchFrom = (text: string, pattern: RegExp, from: number): RegExpExecArray | null => {
   pattern.lastIndex = from;
-  return pattern.exec(text);
+  const match = pattern.exec(text);
+  if (activeWork) recordWork((match ? match.index + match[0].length : text.length) - from);
+  return match;
+};
+
+const findFrom = (text: string, needle: string, from: number): number => {
+  const index = text.indexOf(needle, from);
+  if (activeWork) recordWork((index === -1 ? text.length : index + needle.length) - from);
+  return index;
 };
 
 interface RawElement {
@@ -65,7 +97,7 @@ function* rawElements(
   let from = 0;
   for (let match = searchFrom(html, open, from); match; match = searchFrom(html, open, from)) {
     const start = match.index;
-    const gt = html.indexOf('>', start);
+    const gt = findFrom(html, '>', start);
     if (gt === -1) return;
     const openTag = html.slice(start, gt + 1);
     if (accept && !accept(openTag)) {
@@ -95,17 +127,17 @@ const removeElements = (html: string, open: RegExp, close: RegExp): string => {
 const replaceTags = (text: string): string => {
   const parts: string[] = [];
   let last = 0;
-  let lt = text.indexOf('<');
+  let lt = findFrom(text, '<', 0);
   while (lt !== -1) {
-    const gt = text.indexOf('>', lt + 1);
+    const gt = findFrom(text, '>', lt + 1);
     if (gt === -1) break;
     if (gt === lt + 1) {
-      lt = text.indexOf('<', lt + 1);
+      lt = findFrom(text, '<', lt + 1);
       continue;
     }
     parts.push(text.slice(last, lt), ' ');
     last = gt + 1;
-    lt = text.indexOf('<', last);
+    lt = findFrom(text, '<', last);
   }
   if (last === 0) return text;
   parts.push(text.slice(last));
@@ -129,7 +161,7 @@ const collectTags = (html: string): string[] => {
   const tags: string[] = [];
   let from = 0;
   for (let match = searchFrom(html, TAG_OPEN, from); match; match = searchFrom(html, TAG_OPEN, from)) {
-    const gt = html.indexOf('>', match.index);
+    const gt = findFrom(html, '>', match.index);
     if (gt === -1) break;
     tags.push(html.slice(match.index, gt + 1));
     from = gt + 1;
@@ -185,7 +217,7 @@ const stripComments = (html: string): string => {
     if (rawName) {
       from = start + 1;
       if (noGt || noClose[rawName]) continue;
-      const gt = html.indexOf('>', start);
+      const gt = findFrom(html, '>', start);
       if (gt === -1) {
         noGt = true;
         continue;
@@ -199,7 +231,7 @@ const stripComments = (html: string): string => {
       continue;
     }
 
-    const commentEnd = html.indexOf('-->', start + 4);
+    const commentEnd = findFrom(html, '-->', start + 4);
     parts.push(html.slice(last, start), ' ');
     if (commentEnd === -1) {
       last = html.length;
@@ -220,8 +252,8 @@ const stripNonContent = (html: string): string => {
   text = removeElements(text, NOSCRIPT_OPEN, NOSCRIPT_CLOSE);
   const parts: string[] = [];
   let last = 0;
-  for (let start = text.indexOf('<!--'); start !== -1; start = text.indexOf('<!--', last)) {
-    const end = text.indexOf('-->', start + 4);
+  for (let start = findFrom(text, '<!--', 0); start !== -1; start = findFrom(text, '<!--', last)) {
+    const end = findFrom(text, '-->', start + 4);
     if (end === -1) break;
     parts.push(text.slice(last, start), ' ');
     last = end + 3;
@@ -272,7 +304,7 @@ const findCharset = (html: string): string | null => {
     CHARSET_AT_RE.lastIndex = match.index;
     const charset = CHARSET_AT_RE.exec(html);
     if (charset) return charset[1] ?? null;
-    const gt = html.indexOf('>', match.index);
+    const gt = findFrom(html, '>', match.index);
     if (gt === -1) return null;
     from = gt + 1;
   }
@@ -299,11 +331,15 @@ const exceedsNesting = (text: string, max: number): boolean => {
     } else if (code === 0x22) {
       inString = true;
     } else if (OPEN_BRACKETS.has(code)) {
-      if (++depth > max) return true;
+      if (++depth > max) {
+        recordWork(i + 1);
+        return true;
+      }
     } else if (CLOSE_BRACKETS.has(code)) {
       depth--;
     }
   }
+  recordWork(text.length);
   return false;
 };
 

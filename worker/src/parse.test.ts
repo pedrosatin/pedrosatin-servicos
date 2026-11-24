@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseHtml, parseRobots, countSitemapUrls, isSitemapIndex } from './parse';
+import { parseHtml, parseRobots, countSitemapUrls, isSitemapIndex, measureParseWork } from './parse';
 
 describe('worker parse', () => {
   it('extracts metadata and handles malformed JSON-LD gracefully', () => {
@@ -119,20 +119,21 @@ describe('worker parse', () => {
   });
 
   describe('custo linear com HTML hostil', () => {
-    const SIZE = 300_000;
-    const hostile = (unit: string) => unit.repeat(Math.ceil(SIZE / unit.length)).slice(0, SIZE);
+    const SMALL = 150_000;
+    const LARGE = 300_000;
+    const hostile = (unit: string, size: number) => unit.repeat(Math.ceil(size / unit.length)).slice(0, size);
 
     for (const unit of ['<', '<meta', '<script>', '<style>', '<title>', '<h1>', '<h1><', '<!--', '<noscript>',
       '<script type="application/ld+json">', '<meta charset', '<<>']) {
-      it(`processa 300 KB de ${JSON.stringify(unit)} em menos de 200 ms`, () => {
-        const html = hostile(unit);
-        let best = Infinity;
-        for (let round = 0; round < 3; round++) {
-          const start = performance.now();
-          expect(parseHtml(html, html.length).bytes).toBe(SIZE);
-          best = Math.min(best, performance.now() - start);
-        }
-        expect(best).toBeLessThan(200);
+      it(`escala linearmente de 150 KB para 300 KB com ${JSON.stringify(unit)}`, () => {
+        const small = hostile(unit, SMALL);
+        const large = hostile(unit, LARGE);
+        const first = measureParseWork(() => parseHtml(small, small.length));
+        const second = measureParseWork(() => parseHtml(large, large.length));
+        expect(first.result.bytes).toBe(SMALL);
+        expect(second.result.bytes).toBe(LARGE);
+        expect(second.work.chars).toBeLessThanOrEqual(first.work.chars * 2.1);
+        expect(second.work.scans).toBeLessThanOrEqual(first.work.scans * 2.1);
       });
     }
   });
@@ -205,15 +206,24 @@ describe('worker parse', () => {
       expect(types(JSON.stringify({ '@type': 'Real', note: text }))).toEqual(['Real']);
     });
 
-    it('lê 3 MB de colchetes abertos em menos de 200 ms', () => {
-      const html = ldScript('['.repeat(1_500_000) + ']'.repeat(1_500_000));
-      let best = Infinity;
-      for (let round = 0; round < 3; round++) {
-        const start = performance.now();
-        expect(parseHtml(html, html.length).jsonLdTypes).toEqual([]);
-        best = Math.min(best, performance.now() - start);
-      }
-      expect(best).toBeLessThan(200);
+    it('descarta 3 MB de colchetes abertos em escala linear', () => {
+      const small = ldScript('['.repeat(750_000) + ']'.repeat(750_000));
+      const large = ldScript('['.repeat(1_500_000) + ']'.repeat(1_500_000));
+      const first = measureParseWork(() => parseHtml(small, small.length));
+      const second = measureParseWork(() => parseHtml(large, large.length));
+      expect(first.result.jsonLdTypes).toEqual([]);
+      expect(second.result.jsonLdTypes).toEqual([]);
+      expect(second.work.chars).toBeLessThanOrEqual(first.work.chars * 2.1);
+      expect(second.work.scans).toBe(first.work.scans);
+    });
+
+    it('medição do trabalho não altera o resultado do parse', () => {
+      const html = ldScript(JSON.stringify({ "@type": "Organization" }));
+      const direct = parseHtml(html, html.length);
+      const measured = measureParseWork(() => parseHtml(html, html.length));
+      expect(measured.result).toEqual(direct);
+      expect(measured.work.scans).toBeGreaterThan(0);
+      expect(measured.work.chars).toBeGreaterThan(0);
     });
   });
 });
