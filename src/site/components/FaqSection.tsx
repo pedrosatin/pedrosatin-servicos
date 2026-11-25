@@ -2,6 +2,26 @@ import React from 'react';
 import { FAQ_ITEMS } from '../../lib/faq';
 import { RotuloDaSecao } from './RotuloDaSecao';
 
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+function paragraphWithLinks(text: string): React.ReactNode[] {
+  return text.split(URL_RE).map((part, index) => {
+    if (!/^https?:\/\//.test(part)) {
+      return <React.Fragment key={index}>{part}</React.Fragment>;
+    }
+    const trailing = part.match(/[.,;:!?)]+$/)?.[0] ?? '';
+    const href = trailing ? part.slice(0, -trailing.length) : part;
+    return (
+      <React.Fragment key={index}>
+        <a href={href} rel="noopener noreferrer">
+          {href}
+        </a>
+        {trailing}
+      </React.Fragment>
+    );
+  });
+}
+
 export const FaqSection: React.FC = () => (
       <section className="lp-faq" id="faq">
         <div className="lp-wrap">
@@ -24,7 +44,7 @@ export const FaqSection: React.FC = () => (
                 </summary>
                 <div className="lp-faq-answer">
                   {item.a.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
+                    <p key={paragraph}>{paragraphWithLinks(paragraph)}</p>
                   ))}
                 </div>
               </details>
