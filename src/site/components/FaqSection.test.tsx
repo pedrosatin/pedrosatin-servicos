@@ -48,4 +48,17 @@ describe('FaqSection', () => {
       });
     });
   });
+
+  test('turns bare https URLs in answers into links', () => {
+    const { container } = render(<FaqSection />);
+    const lovable = FAQ_ITEMS.find((item) =>
+      item.q.includes('publicar meu app do Lovable'),
+    );
+    expect(lovable).toBeTruthy();
+
+    const href = 'https://pedrosatin.com/pt-br/blog/publish-lovable-app-custom-domain/';
+    const link = container.querySelector(`a[href="${href}"]`);
+    expect(link).toBeTruthy();
+    expect(link?.textContent).toBe(href);
+  });
 });

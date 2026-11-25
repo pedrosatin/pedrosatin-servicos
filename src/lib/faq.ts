@@ -32,9 +32,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     ],
   },
   {
-    q: 'Como funciona para colocar domínio próprio e publicar?',
+    q: 'Como publicar meu app do Lovable (ou Bolt) com domínio próprio?',
     a: [
       'Você compra o domínio diretamente no Registro.br ou registrador internacional (sem intermediário ou sobretaxa). Eu configuro os apontamentos de DNS, ativo o certificado SSL HTTPS e monto o deploy automático na Vercel, Cloudflare Pages ou AWS.',
+      'Passo a passo documentado (Lovable → GitHub → domínio próprio): https://pedrosatin.com/pt-br/blog/publish-lovable-app-custom-domain/',
     ],
   },
   {
